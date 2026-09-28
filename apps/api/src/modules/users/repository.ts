@@ -1,8 +1,8 @@
 import { asc, eq, sql } from 'drizzle-orm';
+import type { Role } from '../../auth/roles.ts';
 import type { DbExecutor } from '../../db/client.ts';
 import { session, user } from '../../db/schema/index.ts';
 
-export type Role = 'read' | 'write' | 'admin';
 export type User = typeof user.$inferSelect;
 
 // Better Auth creates users, accounts and sessions; this covers what the admin screens change.
