@@ -8,7 +8,7 @@ Priorities, in order: simplicity, reliability, security, user friendliness.
 
 ## Status
 
-Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. No services, API routes, `packages/shared` or SPA yet; no CI or Dockerfile yet. Keep this section and Commands current.
+Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. Services: `locations` (with location types); services take `{ repos, transact }` (`src/db/transaction.ts`), throw `DomainError` codes (`src/errors.ts`), and are unit-tested with in-memory fakes from `test/fakes/`. No other services yet; no API routes, `packages/shared` or SPA yet; no CI or Dockerfile yet. Keep this section and Commands current.
 
 ## References
 
