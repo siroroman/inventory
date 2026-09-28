@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   pgSequence,
   pgTable,
@@ -54,12 +55,8 @@ export const serviceProviders = pgTable(
 export const manufacturerServiceProviders = pgTable(
   'manufacturer_service_providers',
   {
-    manufacturerId: uuid()
-      .notNull()
-      .references(() => manufacturers.id, { onDelete: 'restrict' }),
-    serviceProviderId: uuid()
-      .notNull()
-      .references(() => serviceProviders.id, { onDelete: 'restrict' }),
+    manufacturerId: uuid().notNull(),
+    serviceProviderId: uuid().notNull(),
     priority: smallint().notNull(),
     ...createdColumns(),
   },
@@ -68,6 +65,17 @@ export const manufacturerServiceProviders = pgTable(
       name: 'manufacturer_service_providers_pkey',
       columns: [t.manufacturerId, t.serviceProviderId],
     }),
+    // Named explicitly: generated names exceed Postgres' 63-character identifier limit.
+    foreignKey({
+      name: 'msp_manufacturer_id_fk',
+      columns: [t.manufacturerId],
+      foreignColumns: [manufacturers.id],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'msp_service_provider_id_fk',
+      columns: [t.serviceProviderId],
+      foreignColumns: [serviceProviders.id],
+    }).onDelete('restrict'),
     index('manufacturer_service_providers_service_provider_id_idx').on(t.serviceProviderId),
     check('manufacturer_service_providers_priority_positive', sql`${t.priority} >= 1`),
   ],
