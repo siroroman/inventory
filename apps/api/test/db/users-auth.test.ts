@@ -18,6 +18,22 @@ describe('users and auth tables', () => {
     expect(u).toMatchObject({ role: 'read', isActive: true });
   });
 
+  it.each(['read', 'write', 'admin'])('accepts role %s', async (role) => {
+    await insertUser(t().app, { role });
+  });
+
+  it.each(['superuser', 'Admin', ''])('rejects role %j', async (role) => {
+    await expectPgError(insertUser(t().app, { role }), { code: PG.checkViolation, constraint: 'user_role_valid' });
+  });
+
+  it('rejects an email that differs only in case', async () => {
+    await insertUser(t().app, { email: 'jana.novakova@firma.cz' });
+    await expectPgError(insertUser(t().app, { email: 'Jana.Novakova@Firma.cz' }), {
+      code: PG.uniqueViolation,
+      constraint: 'user_email_lower_key',
+    });
+  });
+
   it('rejects a reused session token', async () => {
     const u = await insertUser(t().app);
     await newSession(u.id, 'same-token');
