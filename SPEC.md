@@ -150,7 +150,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 | `location_types` | code, name, sort_order | HQ, Store, Site, Warehouse; a new type is a new row |
 | `locations` | code, name, parent_id, location_type_id, address, note | tree via `parent_id`, unlimited depth; type required only for a location with no parent; address is a single text line |
 | `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, warranty_until, last_service_on, next_service_on, documents_url, note | N:1 location at any level, N:1 manufacturer (optional) |
-| `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID |
+| `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID; (source, value) is unique across all items, archived ones included, ignoring case |
 | `item_photos` | item_id, storage_key, content_type, width, height, sort_order | N:1 item; the file lives in Cloud Storage |
 | `manufacturers` | name (unique), note | M:N service providers |
 | `service_providers` | code, name, contact_person, phone, email, web, note | M:N manufacturers |
@@ -393,8 +393,8 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-00001, SUP-001)? Can an ID change later?
 5. **Starting data:** Is there an existing spreadsheet to import? Roughly how many locations, sub-locations, and items?
 6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? What should happen when archiving a location that still has sub-locations or items?
-7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? Must an external ID be unique?
-8. **Categories:** Should an item have a category (machine, equipment, IT…) with a list filter?
+7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.
+8. ~~**Categories:** Should an item have a category (machine, equipment, IT…) with a list filter?~~ *Decided:* later, not in v1.
 9. **Service:** Are two dates enough, or do you want a full service history (date, provider, description, report)? Should the next check date be computed from an interval?
 10. **Reminders:** Do you want email alerts or a dashboard of items with service or warranty coming due?
 11. **Documents:** Is a Google Drive folder link enough, or should files be shown inside the app? The latter needs Drive API access and access to the company's Drive.
