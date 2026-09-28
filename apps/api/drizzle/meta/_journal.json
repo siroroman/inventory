@@ -43,6 +43,13 @@
       "when": 1790630313232,
       "tag": "0005_location_cycle_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790630338843,
+      "tag": "0006_audit_log_append_only",
+      "breakpoints": true
     }
   ]
 }
