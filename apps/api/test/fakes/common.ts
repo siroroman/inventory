@@ -1,0 +1,45 @@
+import type { Transact } from '../../src/db/transaction.ts';
+import { decodeNameCursor, type Page, toPage } from '../../src/db/pagination.ts';
+
+// In-memory stand-ins for repositories, for service unit tests. They follow the repository
+// contracts (ordering, archived rows hidden from lists, optimistic versions) closely enough for
+// business rules; SQL details are covered by the repository integration tests.
+
+const collator = new Intl.Collator('cs');
+
+/** Case- and diacritics-insensitive substring match, like containsText. */
+export function fakeContains(text: string | null | undefined, query: string): boolean {
+  const normalize = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  return text != null && normalize(text).includes(normalize(query));
+}
+
+/** Keyset paging by (name, id) in Czech order, like the repositories. */
+export function fakePageByName<T extends { name: string; id: string }>(
+  rows: T[],
+  page: { limit: number; cursor?: string },
+): Page<T> {
+  const byName = (a: { name: string; id: string }, b: { name: string; id: string }) =>
+    collator.compare(a.name, b.name) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  let sorted = [...rows].sort(byName);
+  if (page.cursor) {
+    const key = decodeNameCursor(page.cursor);
+    sorted = sorted.filter((row) => byName(row, key) > 0);
+  }
+  return toPage(sorted.slice(0, page.limit + 1), page.limit, (r) => ({ name: r.name, id: r.id }));
+}
+
+/**
+ * Runs work against the given repositories. On failure it restores the snapshot, so tests can
+ * check that a rejected write left nothing behind (like a rollback).
+ */
+export function fakeTransact<Repos>(repos: Repos, state: { snapshot(): () => void }): Transact<Repos> {
+  return async (work) => {
+    const restore = state.snapshot();
+    try {
+      return await work(repos);
+    } catch (error) {
+      restore();
+      throw error;
+    }
+  };
+}
