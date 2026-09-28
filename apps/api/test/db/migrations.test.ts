@@ -39,7 +39,7 @@ describe('migrations', () => {
 describe('schema', () => {
   const t = useTestDb();
 
-  it('gives every versioned table the common columns', async () => {
+  it('gives every versioned table the common columns and the touch_row trigger', async () => {
     const versioned = await t().owner.execute(sql`
       SELECT table_name FROM information_schema.columns
       WHERE table_schema = 'public' AND column_name = 'version' ORDER BY table_name`);
@@ -50,6 +50,11 @@ describe('schema', () => {
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = ${table}`);
       expect(cols.rows.map((r) => r.column_name), table).toEqual(expect.arrayContaining(COMMON_COLUMNS));
+
+      const trigger = await t().owner.execute(sql`
+        SELECT 1 FROM pg_trigger tg JOIN pg_proc p ON p.oid = tg.tgfoid
+        WHERE tg.tgrelid = ${table}::regclass AND p.proname = 'touch_row' AND NOT tg.tgisinternal`);
+      expect(trigger.rows, `${table} has touch_row`).toHaveLength(1);
     }
   });
 
