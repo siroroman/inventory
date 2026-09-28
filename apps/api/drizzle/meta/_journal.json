@@ -29,6 +29,13 @@
       "when": 1790630201058,
       "tag": "0003_seed_location_types",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790630280131,
+      "tag": "0004_row_versioning",
+      "breakpoints": true
     }
   ]
 }
