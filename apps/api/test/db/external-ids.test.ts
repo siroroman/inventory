@@ -31,16 +31,39 @@ describe('item_external_ids', () => {
     await add(item.id, 'Elektrikář', 'EL-4821');
     await expectPgError(add(item.id, 'Elektrikář', 'EL-4821'), {
       code: PG.uniqueViolation,
-      constraint: 'item_external_ids_item_source_value_key',
+      constraint: 'item_external_ids_source_value_key',
     });
   });
 
-  // SPEC.md open question 7: global uniqueness is undecided, so the DB allows it for now.
-  it('allow the same source and value on two different items', async () => {
+  // One supplier's ID identifies a single item (SPEC.md open question 7).
+  it.each([
+    ['Elektrikář', 'EL-4821'],
+    ['ELEKTRIKÁŘ', 'el-4821'],
+  ])('reject the same source and value on another item (%j, %j)', async (source, value) => {
     const first = await insertItem(t().app);
     const second = await insertItem(t().app, { locationId: first.locationId });
     await add(first.id, 'Elektrikář', 'EL-4821');
-    await add(second.id, 'Elektrikář', 'EL-4821');
+    await expectPgError(add(second.id, source, value), {
+      code: PG.uniqueViolation,
+      constraint: 'item_external_ids_source_value_key',
+    });
+  });
+
+  it('keep an archived item\'s IDs reserved, so restoring it cannot collide', async () => {
+    const archived = await insertItem(t().app, { archivedAt: new Date() });
+    const active = await insertItem(t().app, { locationId: archived.locationId });
+    await add(archived.id, 'Elektrikář', 'EL-4821');
+    await expectPgError(add(active.id, 'Elektrikář', 'EL-4821'), {
+      code: PG.uniqueViolation,
+      constraint: 'item_external_ids_source_value_key',
+    });
+  });
+
+  it('allow the same value from a different source on another item', async () => {
+    const first = await insertItem(t().app);
+    const second = await insertItem(t().app, { locationId: first.locationId });
+    await add(first.id, 'Elektrikář', '100');
+    await add(second.id, 'Vzduchotechnika', '100');
   });
 
   it.each([

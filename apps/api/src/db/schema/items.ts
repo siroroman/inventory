@@ -9,6 +9,7 @@ import {
   smallint,
   text,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { manufacturers } from './catalog.ts';
@@ -66,7 +67,9 @@ export const itemExternalIds = pgTable(
     ...createdColumns(),
   },
   (t) => [
-    unique('item_external_ids_item_source_value_key').on(t.itemId, t.source, t.value),
+    // One supplier's ID identifies one item, across all items (archived too) and ignoring case.
+    uniqueIndex('item_external_ids_source_value_key').on(sql`lower(${t.source})`, sql`lower(${t.value})`),
+    index('item_external_ids_item_id_idx').on(t.itemId),
     check('item_external_ids_source_not_blank', sql`btrim(${t.source}) <> ''`),
     check('item_external_ids_value_not_blank', sql`btrim(${t.value}) <> ''`),
   ],
