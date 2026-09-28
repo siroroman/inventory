@@ -72,7 +72,7 @@ Rules:
 - Locations form a tree via `parent_id` with unlimited depth. Use recursive SQL (`WITH RECURSIVE`) for the path up and for item counts over a whole subtree. A location must never become its own ancestor; check on every parent change.
 - Location type is required only for top-level locations. Default types: HQ, Store, Site, Warehouse (extensible — a new type is just a new row).
 - Items can belong to a location at any level. Item counts and item lists of a location include all its sub-locations.
-- Items can have several external IDs (`source` + `value`, e.g. "Elektrikář: EL-4821"). Item search covers name, code, serial number, external IDs, manufacturer, model and location names.
+- Items can have several external IDs (`source` + `value`, e.g. "Elektrikář: EL-4821"). The pair is unique across all items (archived included, case-insensitive); the same value under another source is allowed. Item search covers name, code, serial number, external IDs, manufacturer, model and location names.
 - Search must ignore diacritics and case (`unaccent` + `pg_trgm`), sorting uses Czech collation.
 - Manufacturer to service provider is many-to-many with a priority (1, 2, 3...). Priority is unique per manufacturer and is saved for the whole list in one transaction.
 - Records are never hard-deleted: archive with `archived_at`, restore possible.
