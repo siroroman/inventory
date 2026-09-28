@@ -50,6 +50,13 @@
       "when": 1790630338843,
       "tag": "0006_audit_log_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790630360635,
+      "tag": "0007_provider_priority_order",
+      "breakpoints": true
     }
   ]
 }
