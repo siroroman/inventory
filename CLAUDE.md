@@ -8,7 +8,7 @@ Priorities, in order: simplicity, reliability, security, user friendliness.
 
 ## Status
 
-Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite). No API routes, `packages/shared` or SPA yet; no CI or Dockerfile yet. Keep this section and Commands current.
+Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. No services, API routes, `packages/shared` or SPA yet; no CI or Dockerfile yet. Keep this section and Commands current.
 
 ## References
 
@@ -133,6 +133,7 @@ pnpm test                           # all tests (DB tests start a Postgres conta
 pnpm --filter api test:watch        # API tests in watch mode
 pnpm db:up                          # start local Postgres 17 (docker compose)
 pnpm db:migrate                     # apply migrations (needs MIGRATION_DATABASE_URL, see .env.example)
+pnpm db:seed                        # fill an empty local DB with sample data and admin@/write@/read@example.test users (needs SEED_USER_PASSWORD)
 pnpm --filter api db:generate       # generate a migration from schema changes
 pnpm --filter api db:generate --custom --name=<name>   # empty migration for custom SQL
 pnpm --filter api db:check          # verify migration consistency
