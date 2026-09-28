@@ -8,6 +8,7 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "typecheck": "pnpm -r --if-present typecheck",
+    "db:up": "docker compose up -d --wait db"
   }
 }
