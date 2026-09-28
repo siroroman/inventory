@@ -47,4 +47,14 @@ describe('audit_log', () => {
     const [b] = await entry();
     expect(b!.id).toBeGreaterThan(a!.id);
   });
+
+  it('cannot be updated or deleted, even by the owner', async () => {
+    await entry();
+    for (const statement of [sql`UPDATE audit_log SET action = 'delete'`, sql`DELETE FROM audit_log`]) {
+      await expectPgError(t().owner.execute(statement), {
+        code: PG.restrictViolation,
+        constraint: 'audit_log_append_only',
+      });
+    }
+  });
 });
