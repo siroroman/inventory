@@ -2,6 +2,8 @@
 
 Simple installable web app (PWA) for a small company to keep an inventory of assets: locations (with unlimited sub-locations), items with photos and service data, manufacturers, and service providers in a priority order. UI is Czech only. A handful of users (up to ~10).
 
+Expected scale: tens of top-level locations, hundreds of sub-locations, hundreds to low thousands of items. Weigh this against the simplicity priority — don't build for scale this app doesn't have.
+
 Priorities, in order: simplicity, reliability, security, user friendliness.
 
 ## Status
@@ -10,10 +12,11 @@ Greenfield: no code yet. Update this file as the project is scaffolded (especial
 
 ## References
 
-- Spec, architecture, data model, API: https://claude.ai/code/artifact/b68ed72e-4c8a-4409-8e2a-c6b1408414aa
+- Working spec (English, day-to-day implementation reference): [SPEC.md](SPEC.md)
+- Original spec, architecture, data model, API (Slovak; authoritative if it and SPEC.md ever disagree): https://claude.ai/code/artifact/b68ed72e-4c8a-4409-8e2a-c6b1408414aa
 - UI design (mobile 390 px + desktop 1280 px, components and tokens): https://claude.ai/artifact/348Z5z5RWitYajoUzqSoDP
 
-The spec is the source of truth. If code and spec disagree, ask before changing either.
+SPEC.md is the source of truth for implementation. If code and SPEC.md disagree, ask before changing either. SPEC.md §12 lists open questions (write-role permissions, record-ID generation, sub-location archiving, service-history depth, reminders, offline mode, budget/SLA, and more) — don't assume an answer, ask.
 
 ## Stack
 
@@ -22,8 +25,11 @@ The spec is the source of truth. If code and spec disagree, ask before changing 
 - Database: PostgreSQL 17+, Drizzle ORM + drizzle-kit migrations
 - Auth: Better Auth (email + password, Google), sessions in the same PostgreSQL. Do not use Auth.js.
 - Files: S3-compatible object storage (Cloud Storage), private bucket, signed URLs for photos
-- Deploy: one Docker image (Node serves `/api/*` and the built SPA), Cloud Run, Cloud SQL
+- Email: transactional provider (e.g. Resend, Postmark) or Google Workspace SMTP, for invitations and password resets — exact provider open, see open questions
+- Deploy: one Docker image (Node serves `/api/*` and the built SPA), Cloud Run, Cloud SQL, region europe-west3 (Frankfurt)
 - Tests: Vitest, Testcontainers (PostgreSQL), Testing Library, MSW, Playwright
+
+Local dev: Docker Compose runs PostgreSQL and a Cloud Storage emulator; the Vite dev server proxies `/api` to the local API. No staging environment until there's a reason for one.
 
 ## Repository layout (planned)
 
@@ -52,10 +58,19 @@ Rules:
 - Zod schemas live in `packages/shared` and are the single source for form validation, API validation and OpenAPI.
 - The SPA talks to the API only through the typed Hono RPC client (`hc`).
 
+## API conventions
+
+- REST under `/api/v1`, JSON, OpenAPI description served at `/api/v1/openapi.json`.
+- Dates in ISO 8601. Errors are RFC 9457 (`problem+json`) with a machine-readable `code`; the SPA maps the code to Czech text, never hardcodes English error strings.
+- Lists: `?q=` for search, `?limit=50&cursor=` for pagination.
+- Updates go through `PATCH` with a `version` field; a stale version returns 409.
+- Archive/restore via `POST /{id}/archive` and `/restore` — never `DELETE`.
+- Photo URLs in responses are signed and valid for 15 minutes.
+
 ## Domain rules
 
 - Locations form a tree via `parent_id` with unlimited depth. Use recursive SQL (`WITH RECURSIVE`) for the path up and for item counts over a whole subtree. A location must never become its own ancestor; check on every parent change.
-- Location type is required only for top-level locations.
+- Location type is required only for top-level locations. Default types: HQ, Store, Site, Warehouse (extensible — a new type is just a new row).
 - Items can belong to a location at any level. Item counts and item lists of a location include all its sub-locations.
 - Items can have several external IDs (`source` + `value`, e.g. "Elektrikář: EL-4821"). Item search covers name, code, serial number, external IDs, manufacturer, model and location names.
 - Search must ignore diacritics and case (`unaccent` + `pg_trgm`), sorting uses Czech collation.
@@ -63,6 +78,7 @@ Rules:
 - Records are never hard-deleted: archive with `archived_at`, restore possible.
 - Optimistic locking: updates send `version`; a stale version returns 409 (`conflict`).
 - Every entity has an internal UUID `id` that never changes and a human `code` (LOC-004, INV-00042, SUP-001), unique. The `code` will later be the content of QR labels (`/q/<code>`).
+- Every row also carries created_at/created_by/updated_at/updated_by, separate from the `audit_log` table.
 - Dates are `date` (no time). Document links accept only https links to drive.google.com or docs.google.com.
 - Roles: `read` views everything; `write` also creates and edits; `admin` also manages users and location types. Open question: whether `write` may manage manufacturers, providers and archiving (currently assumed yes).
 
@@ -72,13 +88,17 @@ Rules:
 - Formats: date `27. 9. 2026`, Czech plurals (1 položka, 3 položky, 5 položek).
 - Follow the UI design: shadcn/ui components, Tailwind, tokens from the design (accent `#2454C7`, neutral gray scale, status colors for overdue service, service within 30 days, expired warranty), system font, 4/8 px grid, radii 6/8/12 px.
 - Mobile first. Touch targets at least 44 x 44 px. WCAG 2.2 AA contrast, full keyboard support.
-- Every screen has loading (skeleton), empty, "nothing found" and error (with retry) states.
+- Every screen has loading (skeleton), empty, "nothing found" and error (with retry) states, plus a "Saved" toast on successful writes.
 - Every screen has its own URL (deep links, browser back, future QR links). Active tab and search text are in the URL.
+- Search runs live with a 300 ms debounce after the last keystroke.
+- Forms warn before discarding unsaved changes; a 409 conflict on save shows a message instead of silently overwriting.
 
 ## Security
 
 - Secrets only on the API, never in the SPA, never in git. Use Secret Manager in production and an untracked `.env` locally.
 - Session cookie: HTTP-only, Secure, SameSite=Lax. SPA and API share one domain, so no CORS.
+- Security headers set by Hono middleware: CSP, HSTS, X-Content-Type-Options, Referrer-Policy.
+- Cloud SQL has a private IP only, reached from Cloud Run via Direct VPC egress — never expose the DB publicly. Cloud Run's service account is scoped to the minimum: DB connect, write to one bucket, read specific secrets.
 - Photos: private bucket, upload only via signed URL for one file, max 10 MB, images only. The SPA resizes to max 2048 px before upload, which also strips EXIF/GPS.
 - No self-registration. Only invited users can sign in; deactivating a user deletes their sessions.
 
@@ -100,3 +120,4 @@ To be filled in once the project is scaffolded (install, dev, test, lint, typech
 - Do not add dependencies without a reason. Keep it simple; this is a small internal app.
 - Out of scope for v1 (but keep the design ready for it): QR inventory scanning, service history, e-mail reminders for service and warranty, offline mode, import/export. Do not build these unless asked.
 - Code, identifiers and comments in English. UI text in Czech.
+- CI gate before every deploy: lint, typecheck, all tests, build. Only a green build from main deploys. Migrations run as a Cloud Run job before the new version deploys; on failure the deploy stops and the old revision keeps running.
