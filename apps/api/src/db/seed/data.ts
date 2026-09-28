@@ -1,7 +1,7 @@
 // Dev sample data. Dates are day offsets from "today", so the service and warranty badges
 // (overdue, due within 30 days, expired warranty) always show up when the seed is run.
 
-import type { Role } from '../../modules/users/repository.ts';
+import type { Role } from '../../auth/roles.ts';
 
 export const seedUsers: { email: string; name: string; role: Role }[] = [
   { email: 'admin@example.test', name: 'Alena Správcová', role: 'admin' },
