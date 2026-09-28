@@ -1,0 +1,26 @@
+#!/bin/sh
+# Enforces the commit message format described in CLAUDE.md ("Commits").
+msg_file="$1"
+header=$(grep -v '^#' "$msg_file" | head -n 1)
+second=$(grep -v '^#' "$msg_file" | sed -n '2p')
+
+case "$header" in
+  "Merge "* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+fail() {
+  echo "commit-msg: $1" >&2
+  echo "  got:      $header" >&2
+  echo "  expected: type(scope): subject   e.g. feat(db): add location cycle guard" >&2
+  echo "  types:    feat fix test refactor perf build ci docs chore revert" >&2
+  exit 1
+}
+
+types='feat|fix|test|refactor|perf|build|ci|docs|chore|revert'
+echo "$header" | grep -Eq "^($types)(\([a-z0-9-]+\))?!?: .+" || fail "header does not match 'type(scope): subject'"
+subject=$(echo "$header" | sed -E 's/^[^:]+: //')
+echo "$subject" | grep -Eq '^[a-z0-9`]' || fail "subject must start with a lowercase letter"
+echo "$subject" | grep -Eq '\.$' && fail "subject must not end with a period"
+[ ${#header} -le 72 ] || fail "header is ${#header} chars, max 72"
+[ -z "$second" ] || fail "leave a blank line between the header and the body"
+exit 0
