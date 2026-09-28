@@ -64,6 +64,13 @@
       "when": 1790630380915,
       "tag": "0008_czech_sort_and_search",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790630408720,
+      "tag": "0009_user_rules",
+      "breakpoints": true
     }
   ]
 }
