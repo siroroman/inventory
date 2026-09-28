@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { itemExternalIds } from '../../src/db/schema/index.ts';
+import { containsText } from '../../src/db/search.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertItem, insertLocation, insertManufacturer } from '../helpers/factories.ts';
 
@@ -14,9 +15,8 @@ const TRIGRAM_INDEXES: [table: string, column: string, index: string][] = [
   ['locations', 'name', 'locations_name_trgm_idx'],
 ];
 
-// The normalization repositories must use so that searches hit the trigram indexes.
-const matches = (column: string, query: string) =>
-  sql`f_unaccent(lower(${sql.identifier(column)})) LIKE '%' || f_unaccent(lower(${query})) || '%'`;
+// Uses the repositories' helper, so these tests prove its expression hits the trigram indexes.
+const matches = (column: string, query: string) => containsText(sql`${sql.identifier(column)}`, query);
 
 describe('search indexes', () => {
   const t = useTestDb();

@@ -1,4 +1,5 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, type NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
 import pg from 'pg';
 import * as schema from './schema/index.ts';
 
@@ -22,3 +23,9 @@ export function createDb(connectionString: string, options: DbOptions = {}) {
 }
 
 export type Db = ReturnType<typeof createDb>['db'];
+
+/**
+ * A database or an open transaction. Repositories take this, so a service can build them inside
+ * `db.transaction((tx) => ...)` and write its changes and the audit log atomically.
+ */
+export type DbExecutor = PgDatabase<NodePgQueryResultHKT, typeof schema>;
