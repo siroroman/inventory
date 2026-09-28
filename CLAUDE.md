@@ -121,3 +121,15 @@ To be filled in once the project is scaffolded (install, dev, test, lint, typech
 - Out of scope for v1 (but keep the design ready for it): QR inventory scanning, service history, e-mail reminders for service and warranty, offline mode, import/export. Do not build these unless asked.
 - Code, identifiers and comments in English. UI text in Czech.
 - CI gate before every deploy: lint, typecheck, all tests, build. Only a green build from main deploys. Migrations run as a Cloud Run job before the new version deploys; on failure the deploy stops and the old revision keeps running.
+
+## Commits
+
+- Format: [Conventional Commits](https://www.conventionalcommits.org), `type(scope): subject`.
+  - Types: `feat`, `fix`, `test`, `refactor`, `perf`, `build`, `ci`, `docs`, `chore`, `revert`.
+  - Scope is optional, lowercase: the module or area (`db`, `auth`, `locations`, `items`, `photos`, `web`, `shared`, `repo`, `deps`).
+  - Subject is imperative, starts lowercase, no trailing period; header at most 72 characters. `!` before the colon marks a breaking change.
+- For anything non-trivial, add a body after a blank line explaining why (wrap at 72).
+- One small logical change per commit. Every commit is green (typecheck and tests pass), so `git bisect` works and any commit could ship. Tests land in the same commit as the code they cover.
+- No `Co-Authored-By` or other AI attribution trailers.
+- Commit directly to `main` for now; switch to feature branches and PRs once CI exists.
+- `.githooks/commit-msg` enforces the format; `pnpm install` enables it (`git config core.hooksPath .githooks`). Never bypass it with `--no-verify`.
