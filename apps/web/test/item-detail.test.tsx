@@ -51,7 +51,9 @@ describe('item detail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Elektrikář: EL-4821')).toBeInTheDocument();
-    expect(screen.getByText('Centrála Praha › Přízemí › Teplá kuchyně')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', expect.stringMatching(/^\/locations\//));
+    expect(screen.getByRole('link', { name: 'Přízemí' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Teplá kuchyně' })).toBeInTheDocument();
     for (const text of ['Rational', 'SCC 101', 'SN-7781', '2018', '1. 5. 2019', '1. 5. 2020', '4. 3. 2026', 'Pravidelně odvápňovat.']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
@@ -141,7 +143,7 @@ describe('item detail', () => {
     expect(await screen.findByRole('heading', { name: 'Konvektomat' })).toBeInTheDocument();
   });
 
-  it('is reached from the item list and leads back to the Items tab', async () => {
+  it('is reached from the item list, and browser Back returns to the Items tab', async () => {
     const summary = { ...detail(), photos: undefined };
     stubApi({
       'GET /api/v1/me': () => jsonResponse(me),
@@ -153,7 +155,7 @@ describe('item detail', () => {
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(`/items/${id}`);
 
-    await userEvent.click(screen.getByRole('link', { name: 'Položky' }));
+    router.history.back();
     expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
   });
 });
