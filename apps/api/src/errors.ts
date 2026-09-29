@@ -22,7 +22,12 @@ export type ErrorCode =
   | 'manufacturer_archived'
   | 'location_not_found'
   | 'location_archived'
-  | 'duplicate_external_id';
+  | 'duplicate_external_id'
+  | 'invalid_photo_key'
+  | 'photo_not_uploaded'
+  | 'photo_too_large'
+  | 'photo_type_not_allowed'
+  | 'invalid_photo_order';
 
 export class DomainError extends Error {
   constructor(

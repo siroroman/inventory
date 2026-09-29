@@ -140,6 +140,7 @@ export function createFakeItemStore() {
   return {
     state,
     repos,
+    snapshot,
     transact: fakeTransact(repos, { snapshot }),
     locationStore,
     catalog,
