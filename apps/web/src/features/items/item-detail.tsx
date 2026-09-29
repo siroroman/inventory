@@ -134,7 +134,7 @@ function LocationPath({ path }: { path: ItemDetailDto['path'] }) {
           <Link
             to="/locations/$id"
             params={{ id: segment.id }}
-            className={cn(crumbLink, 'text-primary')}
+            className={cn(crumbLink, '-my-3 underline underline-offset-2')}
           >
             {segment.name}
           </Link>
