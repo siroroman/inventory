@@ -3,3 +3,6 @@ export * from './http.ts';
 export * from './roles.ts';
 export * from './me.ts';
 export * from './fields.ts';
+export * from './location-types.ts';
+export * from './locations.ts';
+export * from './items.ts';
