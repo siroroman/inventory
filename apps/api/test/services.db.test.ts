@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Actor } from '../src/auth/roles.ts';
 import { createServices } from '../src/services.ts';
+import { createFakeInvites } from './fakes/invites.ts';
 import { createFakeStorage } from './fakes/storage.ts';
 import { useTestDb } from './helpers/db.ts';
 import { insertUser, locationTypeId } from './helpers/factories.ts';
@@ -12,7 +13,8 @@ describe('createServices', () => {
 
   it('wires the services to one database', async () => {
     const bucket = createFakeStorage();
-    const services = createServices({ db: t().app, storage: bucket.storage });
+    const invitations = createFakeInvites(t().app);
+    const services = createServices({ db: t().app, storage: bucket.storage, invites: invitations.invites });
     const user = await insertUser(t().app, { role: 'admin' });
     const actor: Actor = { id: user.id, role: 'admin' };
 
@@ -35,9 +37,13 @@ describe('createServices', () => {
     bucket.upload(key, { contentType: 'image/png' });
     const photo = await services.photos.confirm(actor, item.id, { key, width: 800, height: 600 });
     expect((await services.photos.list(actor, item.id)).map((p) => p.id)).toEqual([photo.id]);
+    const invited = await services.users.invite(actor, { email: 'jana@example.test', name: 'Jana', role: 'write' });
+    expect((await services.users.list(actor)).map((u) => u.id)).toContain(invited.id);
     const history = await services.audit.history(actor, { entityType: 'item', entityId: item.id }, { limit: 10 });
     expect(history.items.map((entry) => entry.action)).toEqual(['create']);
     const photoHistory = await services.audit.history(actor, { entityType: 'photo', entityId: photo.id }, { limit: 10 });
     expect(photoHistory.items.map((entry) => entry.action)).toEqual(['create']);
+    const userHistory = await services.audit.history(actor, { entityType: 'user', entityId: invited.id }, { limit: 10 });
+    expect(userHistory.items.map((entry) => entry.action)).toEqual(['create']);
   });
 });

@@ -7,6 +7,7 @@ import type { Db } from '../../src/db/client.ts';
 import { account, user } from '../../src/db/schema/index.ts';
 import type { LogEntry } from '../../src/http/logger.ts';
 import { createServices } from '../../src/services.ts';
+import { createFakeInvites } from '../fakes/invites.ts';
 import { createFakeStorage } from '../fakes/storage.ts';
 import { insertUser } from './factories.ts';
 
@@ -26,19 +27,20 @@ export function createTestAuth(db: Db, options: TestAppOptions = {}) {
   });
 }
 
-/** The API against a test database, an in-memory bucket and in-memory logging. Requests go through `app.request()`. */
+/** The API against a test database, an in-memory bucket, a fake invitation adapter and in-memory logging. Requests go through `app.request()`. */
 export function createTestApp(db: Db, options: TestAppOptions = {}) {
   const logs: LogEntry[] = [];
   const auth = createTestAuth(db, options);
   const bucket = createFakeStorage();
+  const invitations = createFakeInvites(db);
   const app = createApp({
     auth,
     baseUrl: BASE_URL,
     isProduction: options.isProduction ?? false,
     log: (entry) => logs.push(entry),
-    services: createServices({ db, storage: bucket.storage }),
+    services: createServices({ db, storage: bucket.storage, invites: invitations.invites }),
   });
-  return { app, auth, logs, bucket };
+  return { app, auth, logs, bucket, invitations };
 }
 
 /** A user who can sign in with email and password, like the seeded ones. */
