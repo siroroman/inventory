@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { codeRef, hasChange, nullableText, pageOf, recordFields, requiredText, searchQuery } from './fields.ts';
-import { pageQuery, versionField } from './http.ts';
+import { codeRef, hasChange, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
+import { searchPageQuery, versionField } from './http.ts';
 
 export const locationSchema = z.object({
   ...recordFields,
@@ -48,7 +48,4 @@ export type UpdateLocationBody = z.infer<typeof updateLocationBody>;
  * `?parentId=` lists that location's direct children. Without it the list is the top-level
  * locations, or, when `q` is given, every level (to pick a location for an item).
  */
-export const locationListQuery = pageQuery.extend({
-  parentId: z.uuid().optional(),
-  q: searchQuery.optional(),
-});
+export const locationListQuery = searchPageQuery.extend({ parentId: z.uuid().optional() });

@@ -1,7 +1,8 @@
 import { problemSchema } from '@inventory/shared';
 import { expect } from 'vitest';
 import type { z } from 'zod';
-import { BASE_URL } from './app.ts';
+import type { Db } from '../../src/db/client.ts';
+import { BASE_URL, loginAs } from './app.ts';
 
 type Requester = { request: (path: string, init?: RequestInit) => Response | Promise<Response> };
 
@@ -46,4 +47,10 @@ export function api(app: Requester, headers: Record<string, string> = {}) {
     put: (path: string, body: unknown) => send('PUT', path, body),
     delete: (path: string) => send('DELETE', path),
   };
+}
+
+/** One signed-in client per role, for route tests that check who may do what. */
+export async function roleClients(app: Requester, db: Db) {
+  const as = async (role: 'read' | 'write' | 'admin') => api(app, (await loginAs(app, db, role)).headers);
+  return { read: await as('read'), write: await as('write'), admin: await as('admin') };
 }

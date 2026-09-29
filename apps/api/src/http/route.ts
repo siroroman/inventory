@@ -2,6 +2,9 @@ import { createRoute, type RouteConfig } from '@hono/zod-openapi';
 import { problemSchema, type Role } from '@inventory/shared';
 import { requireRole } from './middleware/authenticate.ts';
 
+/** A JSON body or response of the given schema, for `request.body` and `responses`. */
+export const jsonContent = <T extends object>(schema: T) => ({ 'application/json': { schema } });
+
 const problemContent = { 'application/problem+json': { schema: problemSchema } };
 
 type ProblemResponse = { description: string; content: typeof problemContent };

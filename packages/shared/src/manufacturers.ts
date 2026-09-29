@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { hasChange, nullableText, pageOf, recordFields, requiredText, searchQuery, timestamp } from './fields.ts';
-import { pageQuery, versionField } from './http.ts';
+import { hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
+import { searchPageQuery, versionField } from './http.ts';
 
 const manufacturerFields = {
   name: requiredText(120),
@@ -46,7 +46,7 @@ export const updateManufacturerBody = z
   .refine(hasChange, { message: 'Nothing to change' });
 export type UpdateManufacturerBody = z.infer<typeof updateManufacturerBody>;
 
-export const manufacturerListQuery = pageQuery.extend({ q: searchQuery.optional() });
+export const manufacturerListQuery = searchPageQuery;
 
 /** The whole new order at once: the first id gets priority 1, an empty list clears the order. */
 export const setProvidersBody = z.strictObject({ providerIds: z.array(z.uuid()).max(100) });

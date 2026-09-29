@@ -10,12 +10,10 @@ import {
   updateManufacturerBody,
   versionBody,
 } from '@inventory/shared';
-import { defineRoute } from '../../http/route.ts';
+import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
 import { toManufacturerDetailDto, toManufacturerDto, toRankedProviderDto } from './dto.ts';
 import type { ManufacturerService } from './service.ts';
-
-const json = <T extends object>(schema: T) => ({ 'application/json': { schema } });
 
 const list = defineRoute({
   method: 'get',
@@ -24,7 +22,7 @@ const list = defineRoute({
   tags: ['manufacturers'],
   summary: 'List active manufacturers by name',
   request: { query: manufacturerListQuery },
-  responses: { 200: { description: 'One page of manufacturers', content: json(manufacturerListSchema) } },
+  responses: { 200: { description: 'One page of manufacturers', content: jsonContent(manufacturerListSchema) } },
 });
 
 const get = defineRoute({
@@ -35,7 +33,7 @@ const get = defineRoute({
   summary: 'A manufacturer with its service providers in contact order; archived ones too',
   request: { params: idParam },
   errors: [404],
-  responses: { 200: { description: 'The manufacturer', content: json(manufacturerDetailSchema) } },
+  responses: { 200: { description: 'The manufacturer', content: jsonContent(manufacturerDetailSchema) } },
 });
 
 const create = defineRoute({
@@ -44,9 +42,9 @@ const create = defineRoute({
   minRole: 'write',
   tags: ['manufacturers'],
   summary: 'Create a manufacturer; the name must be new, ignoring case',
-  request: { body: { required: true, content: json(createManufacturerBody) } },
+  request: { body: { required: true, content: jsonContent(createManufacturerBody) } },
   errors: [409],
-  responses: { 201: { description: 'The new manufacturer', content: json(manufacturerSchema) } },
+  responses: { 201: { description: 'The new manufacturer', content: jsonContent(manufacturerSchema) } },
 });
 
 const update = defineRoute({
@@ -55,9 +53,9 @@ const update = defineRoute({
   minRole: 'write',
   tags: ['manufacturers'],
   summary: 'Edit a manufacturer',
-  request: { params: idParam, body: { required: true, content: json(updateManufacturerBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(updateManufacturerBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The updated manufacturer', content: json(manufacturerSchema) } },
+  responses: { 200: { description: 'The updated manufacturer', content: jsonContent(manufacturerSchema) } },
 });
 
 const archive = defineRoute({
@@ -66,9 +64,9 @@ const archive = defineRoute({
   minRole: 'write',
   tags: ['manufacturers'],
   summary: 'Archive a manufacturer',
-  request: { params: idParam, body: { required: true, content: json(versionBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The archived manufacturer', content: json(manufacturerSchema) } },
+  responses: { 200: { description: 'The archived manufacturer', content: jsonContent(manufacturerSchema) } },
 });
 
 const restore = defineRoute({
@@ -77,9 +75,9 @@ const restore = defineRoute({
   minRole: 'write',
   tags: ['manufacturers'],
   summary: 'Restore an archived manufacturer',
-  request: { params: idParam, body: { required: true, content: json(versionBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The restored manufacturer', content: json(manufacturerSchema) } },
+  responses: { 200: { description: 'The restored manufacturer', content: jsonContent(manufacturerSchema) } },
 });
 
 const setProviders = defineRoute({
@@ -88,9 +86,9 @@ const setProviders = defineRoute({
   minRole: 'write',
   tags: ['manufacturers'],
   summary: 'Save the whole contact order of service providers at once; the last save wins',
-  request: { params: idParam, body: { required: true, content: json(setProvidersBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(setProvidersBody) } },
   errors: [404, 409, 422],
-  responses: { 200: { description: 'The providers in their new order', content: json(rankedProviderListSchema) } },
+  responses: { 200: { description: 'The providers in their new order', content: jsonContent(rankedProviderListSchema) } },
 });
 
 /** Manufacturers and the contact order of their service providers. Mounted under /api/v1. */
