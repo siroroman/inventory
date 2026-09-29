@@ -137,11 +137,11 @@ export function LocationDetail({ id }: { id: string }) {
           {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
         </div>
       </header>
-      <dl className="flex flex-col gap-3 px-4">
+      <dl className="mx-4 flex flex-col gap-3 rounded-lg border bg-card p-4">
         <Field label={t('locationDetail.fields.code')}>{location.code}</Field>
         <Field label={t('locationDetail.fields.parent')}>
           {parent && (
-            <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, 'text-primary')}>
+            <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, '-my-3 text-primary')}>
               {parent.name}
             </Link>
           )}
