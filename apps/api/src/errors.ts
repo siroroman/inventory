@@ -13,7 +13,10 @@ export type ErrorCode =
   | 'location_cycle'
   | 'location_type_required'
   | 'location_type_not_allowed'
-  | 'location_type_not_found';
+  | 'location_type_not_found'
+  | 'duplicate_provider'
+  | 'provider_not_found'
+  | 'provider_archived';
 
 export class DomainError extends Error {
   constructor(

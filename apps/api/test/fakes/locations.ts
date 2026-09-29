@@ -9,7 +9,7 @@ import type {
 } from '../../src/modules/locations/repository.ts';
 import type { LocationRepos } from '../../src/modules/locations/service.ts';
 import { createFakeAuditRepository } from './audit.ts';
-import { fakeContains, fakePageByName, fakeTransact } from './common.ts';
+import { bumpVersion as bump, fakeContains, fakePageByName, fakeTransact } from './common.ts';
 
 type FakeItem = { locationId: string; archived: boolean };
 
@@ -34,13 +34,6 @@ export function createFakeLocationStore() {
   };
   const activeChildren = (id: string) => state.locations.filter((l) => l.parentId === id && !l.archivedAt);
   const subtree = (id: string): string[] => [id, ...activeChildren(id).flatMap((c) => subtree(c.id))];
-
-  function bump<T extends { version: number; updatedAt: Date }>(row: T, version: number, patch: Partial<T>): T | undefined {
-    if (row.version !== version) return undefined;
-    const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
-    Object.assign(row, defined, { version: row.version + 1, updatedAt: now() });
-    return { ...row };
-  }
 
   const locations: LocationRepository = {
     async findById(id) {
