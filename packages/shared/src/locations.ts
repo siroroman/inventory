@@ -1,10 +1,6 @@
 import { z } from 'zod';
-import { nullableText, pageOf, recordFields, requiredText, searchQuery } from './fields.ts';
+import { codeRef, nullableText, pageOf, recordFields, requiredText, searchQuery } from './fields.ts';
 import { pageQuery, versionField } from './http.ts';
-
-/** One step of a location's path from the top-level location down. */
-export const pathSegmentSchema = z.object({ id: z.uuid(), code: z.string(), name: z.string() });
-export type PathSegmentDto = z.infer<typeof pathSegmentSchema>;
 
 export const locationSchema = z.object({
   ...recordFields,
@@ -12,11 +8,11 @@ export const locationSchema = z.object({
   name: z.string(),
   parentId: z.uuid().nullable(),
   /** Set on top-level locations only. */
-  type: z.object({ id: z.uuid(), code: z.string(), name: z.string() }).nullable(),
+  type: codeRef.nullable(),
   address: z.string().nullable(),
   note: z.string().nullable(),
   /** From the top-level location down to this one, itself included. */
-  path: z.array(pathSegmentSchema),
+  path: z.array(codeRef),
   /** Active items in this location and everything below it. */
   itemCount: z.number().int().min(0),
   /** Active direct sub-locations. */
@@ -36,13 +32,9 @@ const locationFields = {
   note: nullableText(2000),
 };
 
-export const createLocationBody = z.strictObject({
-  ...locationFields,
-  parentId: locationFields.parentId.optional(),
-  locationTypeId: locationFields.locationTypeId.optional(),
-  address: locationFields.address.optional(),
-  note: locationFields.note.optional(),
-});
+export const createLocationBody = z
+  .strictObject(locationFields)
+  .partial({ parentId: true, locationTypeId: true, address: true, note: true });
 export type CreateLocationBody = z.infer<typeof createLocationBody>;
 
 /** Only the fields present change; `null` clears one. Moving under a parent drops the type. */

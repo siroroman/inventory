@@ -23,6 +23,10 @@ export const documentsUrl = z
 /** `?q=`: what the user typed in a search box. */
 export const searchQuery = z.string().trim().min(1).max(100);
 
+/** A reference to a record by id, code and name, e.g. a location on a path or a location type. */
+export const codeRef = z.object({ id: z.uuid(), code: z.string(), name: z.string() });
+export type CodeRef = z.infer<typeof codeRef>;
+
 /** A list response: one page plus the total for the list heading. */
 export const pageOf = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), nextCursor: z.string().nullable(), total: z.number().int().min(0) });

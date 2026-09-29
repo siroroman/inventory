@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { isoDate, pageOf, recordFields, searchQuery } from './fields.ts';
+import { codeRef, isoDate, pageOf, recordFields, searchQuery } from './fields.ts';
 import { pageQuery } from './http.ts';
-import { pathSegmentSchema } from './locations.ts';
 
 /** One row of an item list. The detail schema extends it when the item routes arrive. */
 export const itemListEntrySchema = z.object({
@@ -12,8 +11,8 @@ export const itemListEntrySchema = z.object({
   serialNumber: z.string().nullable(),
   manufacturer: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   /** The location the item is in, and its path from the top. */
-  location: pathSegmentSchema,
-  path: z.array(pathSegmentSchema),
+  location: codeRef,
+  path: z.array(codeRef),
   warrantyUntil: isoDate.nullable(),
   lastServiceOn: isoDate.nullable(),
   nextServiceOn: isoDate.nullable(),
