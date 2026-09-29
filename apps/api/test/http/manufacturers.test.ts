@@ -6,7 +6,7 @@ import {
 } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { auditLog, serviceProviders } from '../../src/db/schema/index.ts';
+import { auditLog } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertManufacturer, insertProvider } from '../helpers/factories.ts';
@@ -16,14 +16,12 @@ const db = useTestDb();
 
 const MISSING = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
 
-/** Service provider routes do not exist yet, so a provider is archived in the database. */
-async function archiveProvider(id: string) {
-  await db().app.update(serviceProviders).set({ archivedAt: new Date() }).where(eq(serviceProviders.id, id));
-}
-
 async function setup() {
   const { app } = createTestApp(db().app);
-  return roleClients(app, db().app);
+  const clients = await roleClients(app, db().app);
+  const archiveProvider = async (id: string) =>
+    expect((await clients.write.post(`/service-providers/${id}/archive`, { version: 1 })).status).toBe(200);
+  return { ...clients, archiveProvider };
 }
 
 describe('GET /manufacturers', () => {
@@ -244,7 +242,7 @@ describe('PUT /manufacturers/{id}/service-providers', () => {
   });
 
   it('keeps an already ranked provider that was archived since', async () => {
-    const { write } = await setup();
+    const { write, archiveProvider } = await setup();
     const bosch = await insertManufacturer(db().app, { name: 'Bosch' });
     const { a, b } = await providers();
     await write.put(`/manufacturers/${bosch.id}/service-providers`, { providerIds: [a.id, b.id] });
@@ -255,7 +253,7 @@ describe('PUT /manufacturers/{id}/service-providers', () => {
   });
 
   it('lets an archived provider be dropped from the order', async () => {
-    const { write } = await setup();
+    const { write, archiveProvider } = await setup();
     const bosch = await insertManufacturer(db().app, { name: 'Bosch' });
     const { a, b } = await providers();
     await write.put(`/manufacturers/${bosch.id}/service-providers`, { providerIds: [a.id, b.id] });
@@ -282,7 +280,7 @@ describe('PUT /manufacturers/{id}/service-providers', () => {
   });
 
   it('answers 422 for an unknown provider and for a newly added archived one, saving nothing', async () => {
-    const { write, read } = await setup();
+    const { write, read, archiveProvider } = await setup();
     const bosch = await insertManufacturer(db().app, { name: 'Bosch' });
     const { a, b } = await providers();
     await write.put(`/manufacturers/${bosch.id}/service-providers`, { providerIds: [a.id] });

@@ -16,6 +16,11 @@ async function expectCode(action: Promise<unknown>, code: ErrorCode) {
   await expect(action).rejects.toMatchObject({ code });
 }
 
+/** Saves the brands on top of the provider's current version, as a form that just loaded would. */
+async function setBrands(service: ReturnType<typeof createServiceProviderService>, id: string, ids: string[]) {
+  return service.setManufacturers(writer, id, (await service.get(writer, id)).version, ids);
+}
+
 function setup() {
   const store = createFakeCatalogStore();
   const service = createServiceProviderService(store);
@@ -35,7 +40,7 @@ describe('service provider service', () => {
       await expect(service.list(reader, {}, { limit: 50 })).resolves.toMatchObject({ total: 1 });
       await expectCode(service.create(reader, { name: 'X' }), 'forbidden');
       await expectCode(service.update(reader, provider.id, { version: 1, name: 'X' }), 'forbidden');
-      await expectCode(service.setManufacturers(reader, provider.id, [rational.id]), 'forbidden');
+      await expectCode(service.setManufacturers(reader, provider.id, 1, [rational.id]), 'forbidden');
       await expectCode(service.archive(reader, provider.id, 1), 'forbidden');
       await expectCode(service.restore(reader, provider.id, 1), 'forbidden');
 
@@ -138,7 +143,7 @@ describe('service provider service', () => {
       const { service, manufacturers, novak, other, rational, unox } = await withBrands();
       await manufacturers.setProviders(writer, rational.id, [other.id]);
 
-      const brands = await service.setManufacturers(writer, novak.id, [rational.id, unox.id]);
+      const { manufacturers: brands } = await setBrands(service, novak.id, [rational.id, unox.id]);
 
       expect(brands.map((b) => [b.name, b.priority])).toEqual([
         ['Rational', 2],
@@ -152,7 +157,7 @@ describe('service provider service', () => {
       await manufacturers.setProviders(writer, rational.id, [other.id, novak.id]);
       await manufacturers.setProviders(writer, unox.id, [novak.id, other.id]);
 
-      const brands = await service.setManufacturers(writer, novak.id, [unox.id]);
+      const { manufacturers: brands } = await setBrands(service, novak.id, [unox.id]);
 
       expect(brands.map((b) => b.name)).toEqual(['Unox']);
       expect((await manufacturers.get(reader, rational.id)).providers.map((p) => [p.id, p.priority])).toEqual([[other.id, 1]]);
@@ -164,10 +169,10 @@ describe('service provider service', () => {
 
     it('audits the provider and every manufacturer whose order changed', async () => {
       const { store, service, novak, rational, unox } = await withBrands();
-      await service.setManufacturers(writer, novak.id, [rational.id]);
+      await setBrands(service, novak.id, [rational.id]);
       const before = store.state.audit.length;
 
-      await service.setManufacturers(writer, novak.id, [unox.id]);
+      await setBrands(service, novak.id, [unox.id]);
 
       const entries = store.state.audit.slice(before);
       expect(entries).toHaveLength(3);
@@ -194,22 +199,22 @@ describe('service provider service', () => {
 
     it('writes nothing when the brands are unchanged', async () => {
       const { store, service, novak, rational } = await withBrands();
-      await service.setManufacturers(writer, novak.id, [rational.id]);
+      await setBrands(service, novak.id, [rational.id]);
       const before = store.state.audit.length;
-      await service.setManufacturers(writer, novak.id, [rational.id]);
+      await setBrands(service, novak.id, [rational.id]);
       expect(store.state.audit).toHaveLength(before);
     });
 
     it('rejects a repeated brand, an unknown brand and an archived brand, leaving the links as they were', async () => {
       const { store, service, manufacturers, novak, rational, unox } = await withBrands();
-      await service.setManufacturers(writer, novak.id, [rational.id]);
+      await setBrands(service, novak.id, [rational.id]);
       const auditBefore = store.state.audit.length;
 
-      await expectCode(service.setManufacturers(writer, novak.id, [unox.id, unox.id]), 'duplicate_manufacturer');
-      await expectCode(service.setManufacturers(writer, novak.id, [unox.id, randomUUID()]), 'manufacturer_not_found');
+      await expectCode(setBrands(service, novak.id, [unox.id, unox.id]), 'duplicate_manufacturer');
+      await expectCode(setBrands(service, novak.id, [unox.id, randomUUID()]), 'manufacturer_not_found');
       await manufacturers.archive(writer, unox.id, 1);
       const archivedBefore = store.state.audit.length;
-      await expectCode(service.setManufacturers(writer, novak.id, [unox.id]), 'manufacturer_archived');
+      await expectCode(setBrands(service, novak.id, [unox.id]), 'manufacturer_archived');
 
       expect(store.state.links).toEqual([{ manufacturerId: rational.id, providerId: novak.id, priority: 1 }]);
       expect(store.state.audit).toHaveLength(archivedBefore);
@@ -218,16 +223,42 @@ describe('service provider service', () => {
 
     it('lets a provider leave an archived brand', async () => {
       const { service, manufacturers, novak, rational } = await withBrands();
-      await service.setManufacturers(writer, novak.id, [rational.id]);
+      await setBrands(service, novak.id, [rational.id]);
       await manufacturers.archive(writer, rational.id, 1);
-      expect(await service.setManufacturers(writer, novak.id, [])).toEqual([]);
+      expect((await setBrands(service, novak.id, [])).manufacturers).toEqual([]);
+    });
+
+    it('bumps the provider version only when the brands change', async () => {
+      const { service, novak, rational, unox } = await withBrands();
+      expect(await setBrands(service, novak.id, [rational.id])).toMatchObject({ version: 2 });
+      expect(await setBrands(service, novak.id, [rational.id])).toMatchObject({ version: 2 });
+      expect(await setBrands(service, novak.id, [unox.id])).toMatchObject({ version: 3 });
+    });
+
+    it('rejects a stale version without changing anything', async () => {
+      const { store, service, manufacturers, novak, rational, unox } = await withBrands();
+      await service.setManufacturers(writer, novak.id, 1, [rational.id]);
+      const auditBefore = store.state.audit.length;
+
+      await expectCode(service.setManufacturers(writer, novak.id, 1, [unox.id]), 'conflict');
+      await expectCode(service.setManufacturers(writer, novak.id, 1, [rational.id]), 'conflict');
+
+      expect((await service.get(reader, novak.id)).manufacturers.map((b) => b.id)).toEqual([rational.id]);
+      expect((await manufacturers.get(reader, unox.id)).providers).toEqual([]);
+      expect(store.state.audit).toHaveLength(auditBefore);
+    });
+
+    it('conflicts with an edit made after the form was loaded', async () => {
+      const { service, novak, rational } = await withBrands();
+      await service.update(writer, novak.id, { version: 1, phone: '123' });
+      await expectCode(service.setManufacturers(writer, novak.id, 1, [rational.id]), 'conflict');
     });
 
     it('rejects an unknown or archived provider', async () => {
       const { service, novak, rational } = await withBrands();
-      await expectCode(service.setManufacturers(writer, randomUUID(), [rational.id]), 'not_found');
+      await expectCode(service.setManufacturers(writer, randomUUID(), 1, [rational.id]), 'not_found');
       await service.archive(writer, novak.id, 1);
-      await expectCode(service.setManufacturers(writer, novak.id, [rational.id]), 'archived');
+      await expectCode(setBrands(service, novak.id, [rational.id]), 'archived');
     });
   });
 });
