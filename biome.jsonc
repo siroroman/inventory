@@ -5,6 +5,8 @@
     "includes": ["**", "!**/drizzle/meta", "!apps/api/src/db/schema/auth.ts"]
   },
   "formatter": { "enabled": false },
+  // Tailwind's @theme/@apply/@custom-variant are not plain CSS.
+  "css": { "parser": { "tailwindDirectives": true } },
   "assist": { "enabled": false },
   "linter": {
     "enabled": true,
