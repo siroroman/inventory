@@ -154,6 +154,15 @@ describe('sign-in', () => {
     expect(res.headers.getSetCookie()).toHaveLength(0);
   });
 
+  it('does not start a session for a deactivated user', async () => {
+    const { app } = createTestApp(db().app);
+    const row = await insertUserWithPassword(db().app, { isActive: false });
+    const res = await signIn(app, row.email);
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.headers.getSetCookie().filter((c) => c.includes('session_token='))).toHaveLength(0);
+    expect(await db().app.select().from(session).where(eq(session.userId, row.id))).toHaveLength(0);
+  });
+
   it('does not let anyone sign themselves up', async () => {
     const { app } = createTestApp(db().app);
     const res = await app.request('/api/auth/sign-up/email', {

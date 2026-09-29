@@ -1,6 +1,8 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
+import { user } from '../db/schema/index.ts';
 
 export type AuthDeps = {
   db: Db;
@@ -28,6 +30,17 @@ export function createAuth({ db, baseUrl, secret, isProduction, google }: AuthDe
       // The session cookie is HTTP-only and SameSite=Lax always, and Secure in production.
       useSecureCookies: isProduction,
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax' },
+    },
+    databaseHooks: {
+      session: {
+        create: {
+          // A deactivated user cannot start a new session, by password or through Google.
+          before: async (newSession) => {
+            const [row] = await db.select({ isActive: user.isActive }).from(user).where(eq(user.id, newSession.userId));
+            if (!row?.isActive) return false;
+          },
+        },
+      },
     },
     user: {
       additionalFields: {

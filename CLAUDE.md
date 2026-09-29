@@ -116,7 +116,7 @@ Rules:
 - Build routes on `createRouter()` (`src/http/router.ts`, installs the validation hook) and define them with `defineRoute({ minRole, ... })` (`src/http/route.ts`), never bare `createRoute`; it attaches `requireRole`, records `x-min-role` in OpenAPI and adds the 401/403 responses. `test/http/openapi.test.ts` fails on any operation without a role or that answers an anonymous caller.
 - Errors are `problem+json` (`src/http/errors.ts`). `statusByCode` covers every code in `@inventory/shared` (typecheck fails on a new code without a status): 409 = clashes with current state, 422 = refers to something missing or not allowed. Unique-constraint names map through `constraintErrors`; add a module's names there. Unexpected errors return a generic 500 and are logged without driver error messages (they contain query parameters).
 - Tests build the app with `createTestApp(db)` and sign in with `loginAs(app, db, role)` (`test/helpers/app.ts`): real Better Auth, real cookie, `app.request()`.
-- The session cookie is refreshed by the authentication middleware (sliding 7-day session). Deactivated users are refused even if a session survives.
+- The session cookie is refreshed by the authentication middleware (sliding 7-day session). Deactivated users cannot start a session (Better Auth database hook) and are refused even if one survives.
 - Dependency versions must pass the workspace release-age policy. If pnpm offers to add `minimumReleaseAgeExclude`, pick an older release instead.
 
 ## Database conventions
