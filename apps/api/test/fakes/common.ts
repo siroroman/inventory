@@ -43,3 +43,15 @@ export function fakeTransact<Repos>(repos: Repos, state: { snapshot(): () => voi
     }
   };
 }
+
+/** Optimistic update of a fake row: undefined when the version is stale, like the real repositories. */
+export function bumpVersion<T extends { version: number; updatedAt: Date }>(
+  row: T,
+  version: number,
+  patch: Partial<T>,
+): T | undefined {
+  if (row.version !== version) return undefined;
+  const defined = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+  Object.assign(row, defined, { version: row.version + 1, updatedAt: new Date() });
+  return { ...row };
+}
