@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serviceStatus } from '../src/lib/service-status.ts';
+import { serviceStatus, warrantyExpired } from '../src/lib/service-status.ts';
 
 // Noon local time, so "today" is unambiguous in any time zone.
 const now = new Date(2026, 8, 29, 12);
@@ -22,5 +22,14 @@ describe('serviceStatus', () => {
   it('counts 30 days across a month and a year boundary', () => {
     expect(serviceStatus('2027-01-08', new Date(2026, 11, 9, 12))).toBe('soon');
     expect(serviceStatus('2027-01-09', new Date(2026, 11, 9, 12))).toBeUndefined();
+  });
+});
+
+describe('warrantyExpired', () => {
+  const now = new Date(2026, 8, 27, 12);
+  it('is true only after the last day of the warranty', () => {
+    expect(warrantyExpired('2026-09-26', now)).toBe(true);
+    expect(warrantyExpired('2026-09-27', now)).toBe(false);
+    expect(warrantyExpired(null, now)).toBe(false);
   });
 });
