@@ -10,14 +10,25 @@
     "itemCount_one": "{{count}} položka",
     "itemCount_few": "{{count}} položky",
     "itemCount_many": "{{count}} položky",
-    "itemCount_other": "{{count}} položek"
+    "itemCount_other": "{{count}} položek",
+    "loadMore": "Načíst další",
+    "locationCount_one": "{{count}} lokalita",
+    "locationCount_few": "{{count}} lokality",
+    "locationCount_many": "{{count}} lokality",
+    "locationCount_other": "{{count}} lokalit",
+    "subLocationCount_one": "{{count}} podlokalita",
+    "subLocationCount_few": "{{count}} podlokality",
+    "subLocationCount_many": "{{count}} podlokality",
+    "subLocationCount_other": "{{count}} podlokalit"
   },
   "states": {
     "loading": "Načítání",
     "errorTitle": "Něco se nepovedlo",
     "notFoundTitle": "Stránka nenalezena",
     "notFoundHint": "Adresa neexistuje nebo byla přesunuta.",
-    "backHome": "Zpět na úvodní stránku"
+    "backHome": "Zpět na úvodní stránku",
+    "noResultsTitle": "Nic jsme nenašli",
+    "noResultsHint": "Zkuste upravit hledaný text."
   },
   "auth": {
     "tagline": "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě.",
@@ -38,7 +49,38 @@
   },
   "home": {
     "title": "Přehled",
-    "placeholder": "Aplikace se připravuje."
+    "locations": {
+      "tab": "Lokality",
+      "searchLabel": "Hledat lokality",
+      "searchPlaceholder": "Hledat podle názvu…",
+      "emptyTitle": "Zatím tu nic není",
+      "emptyHint": "Lokality se tu zobrazí, jakmile je někdo přidá.",
+      "columns": {
+        "name": "Název",
+        "type": "Typ",
+        "address": "Adresa",
+        "items": "Položky",
+        "subLocations": "Podlokality"
+      }
+    },
+    "items": {
+      "tab": "Položky",
+      "searchLabel": "Hledat položky",
+      "searchPlaceholder": "Hledat podle názvu, ID, sériového čísla, externího ID…",
+      "emptyTitle": "Zatím tu nic není",
+      "emptyHint": "Položky se tu zobrazí, jakmile je někdo přidá.",
+      "columns": {
+        "name": "Název",
+        "code": "ID",
+        "location": "Lokalita",
+        "brand": "Výrobce a model",
+        "service": "Servis"
+      },
+      "service": {
+        "overdue": "Servis po termínu",
+        "soon": "Servis do 30 dní"
+      }
+    }
   },
   "errors": {
     "unauthenticated": "Přihlášení vypršelo. Přihlaste se prosím znovu.",

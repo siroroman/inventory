@@ -82,7 +82,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - **Items** search placeholder: "Search by name, ID, serial number, external ID…". Mobile: thumbnail, name, ID with the full location path, manufacturer and model. Desktop: table with Name, ID, Location, Manufacturer & model, Service.
 - Status badges: "Service overdue" and "Service due within 30 days".
 - Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path.
-- Lists load in pages of 50.
+- Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
 
 ### 3.3 Location / sub-location detail
 
