@@ -5,5 +5,6 @@ export const Route = createFileRoute('/_app/locations/$id')({ component: Locatio
 
 function LocationDetailRoute() {
   const { id } = Route.useParams();
-  return <LocationDetail id={id} />;
+  // Keyed: another location must not inherit the previous one's list state (kept rows while loading).
+  return <LocationDetail key={id} id={id} />;
 }

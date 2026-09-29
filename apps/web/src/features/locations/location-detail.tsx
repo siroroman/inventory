@@ -11,9 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { useItemRows } from '@/features/items/item-list';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
+import { cn } from '@/lib/utils';
 import { locationChildrenQueryOptions, locationItemsQueryOptions, locationQueryOptions } from './api';
 import { useLocationRows } from './location-list';
 
+/** A link in the detail's header or fields: at least 44 px tall to tap. */
+const crumbLink =
+  'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
 const sectionHeading = 'px-4 pb-1 text-xs font-bold tracking-wide text-muted-foreground uppercase';
 
 /** The way up: every ancestor links to its own detail, the location itself is the current page. */
@@ -23,7 +27,7 @@ function Breadcrumb({ path }: { path: LocationDto['path'] }) {
     <nav aria-label={t('locationDetail.breadcrumb')}>
       <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
         <li>
-          <Link to="/" className="rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring">
+          <Link to="/" className={crumbLink}>
             {t('home.locations.tab')}
           </Link>
         </li>
@@ -38,7 +42,7 @@ function Breadcrumb({ path }: { path: LocationDto['path'] }) {
               <Link
                 to="/locations/$id"
                 params={{ id: segment.id }}
-                className="rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                className={crumbLink}
               >
                 {segment.name}
               </Link>
@@ -60,6 +64,18 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** A titled list on the detail page. */
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="pt-8">
+      <h2 id={id} className={sectionHeading}>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 function SubLocations({ location }: { location: LocationDto }) {
   const { t } = useTranslation();
   const query = useInfiniteQuery({ ...locationChildrenQueryOptions(location.id), enabled: location.childCount > 0 });
@@ -67,10 +83,7 @@ function SubLocations({ location }: { location: LocationDto }) {
   // A location without sub-locations (most of them) has no section rather than an empty one.
   if (location.childCount === 0) return null;
   return (
-    <section aria-labelledby="sub-locations" className="pt-8">
-      <h2 id="sub-locations" className={sectionHeading}>
-        {t('locationDetail.subLocations', { count: location.childCount })}
-      </h2>
+    <Section id="sub-locations" title={t('locationDetail.subLocations', { count: location.childCount })}>
       <PagedList
         query={query}
         searching={false}
@@ -78,7 +91,7 @@ function SubLocations({ location }: { location: LocationDto }) {
         columns={columns}
         card={card}
       />
-    </section>
+    </Section>
   );
 }
 
@@ -87,10 +100,7 @@ function Items({ location }: { location: LocationDto }) {
   const query = useInfiniteQuery(locationItemsQueryOptions(location.id));
   const { columns, card } = useItemRows();
   return (
-    <section aria-labelledby="location-items" className="pt-8">
-      <h2 id="location-items" className={sectionHeading}>
-        {t('locationDetail.items', { count: location.itemCount })}
-      </h2>
+    <Section id="location-items" title={t('locationDetail.items', { count: location.itemCount })}>
       <PagedList
         query={query}
         searching={false}
@@ -98,7 +108,7 @@ function Items({ location }: { location: LocationDto }) {
         columns={columns}
         card={card}
       />
-    </section>
+    </Section>
   );
 }
 
@@ -120,7 +130,7 @@ export function LocationDetail({ id }: { id: string }) {
   const parent = location.path.at(-2);
   return (
     <div className="mx-auto w-full max-w-6xl pb-8">
-      <header className="flex flex-col gap-2 px-4 pt-4 pb-4">
+      <header className="flex flex-col px-4 pt-2 pb-4">
         <Breadcrumb path={location.path} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{location.name}</h1>
@@ -131,7 +141,7 @@ export function LocationDetail({ id }: { id: string }) {
         <Field label={t('locationDetail.fields.code')}>{location.code}</Field>
         <Field label={t('locationDetail.fields.parent')}>
           {parent && (
-            <Link to="/locations/$id" params={{ id: parent.id }} className="text-primary hover:underline">
+            <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, 'text-primary')}>
               {parent.name}
             </Link>
           )}

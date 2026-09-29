@@ -156,14 +156,29 @@ describe('location detail: sub-locations and items', () => {
 });
 
 describe('location detail: navigation', () => {
-  it('opens a sub-location from the list and an ancestor from the breadcrumb', async () => {
+  it('opens a sub-location from the list', async () => {
     const child = location({ name: 'Lednice', type: null, parentId: sub.id, path: [hq, floor, kitchen, ref('LOC-020', 'Lednice')] });
-    api(sub, { children: () => page([child]) });
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      [`GET /api/v1/locations/${sub.id}`]: () => jsonResponse(sub),
+      [`GET /api/v1/locations/${child.id}`]: () => jsonResponse(child),
+      'GET /api/v1/locations': () => page([child]),
+      [`GET /api/v1/locations/${sub.id}/items`]: () => page([]),
+      [`GET /api/v1/locations/${child.id}/items`]: () => page([]),
+    });
+    const { router } = renderApp(`/locations/${sub.id}`);
+
+    await userEvent.click(await screen.findByRole('link', { name: /Lednice/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/locations/${child.id}`));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lednice' })).toBeInTheDocument();
+  });
+
+  it('opens an ancestor from the breadcrumb', async () => {
     stubApi({
       'GET /api/v1/me': () => jsonResponse(me),
       [`GET /api/v1/locations/${sub.id}`]: () => jsonResponse(sub),
       [`GET /api/v1/locations/${floor.id}`]: () => jsonResponse(location({ id: floor.id, name: 'Přízemí', path: [hq, floor] })),
-      'GET /api/v1/locations': () => page([child]),
+      'GET /api/v1/locations': () => page([]),
       [`GET /api/v1/locations/${sub.id}/items`]: () => page([]),
       [`GET /api/v1/locations/${floor.id}/items`]: () => page([]),
     });
@@ -174,6 +189,31 @@ describe('location detail: navigation', () => {
     );
     await waitFor(() => expect(router.state.location.pathname).toBe(`/locations/${floor.id}`));
     expect(await screen.findByRole('heading', { level: 1, name: 'Přízemí' })).toBeInTheDocument();
+  });
+
+  it('does not show the previous location\'s items while the next one loads, even with its detail cached', async () => {
+    const parent = location({ id: floor.id, name: 'Přízemí', path: [hq, floor], childCount: 0, itemCount: 5 });
+    let release: (res: Response) => void = () => {};
+    const { queryClient, router } = (() => {
+      stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/locations/${sub.id}`]: () => jsonResponse(sub),
+        [`GET /api/v1/locations/${parent.id}`]: () => jsonResponse(parent),
+        'GET /api/v1/locations': () => page([]),
+        [`GET /api/v1/locations/${sub.id}/items`]: () => page([item({ name: 'Položka z kuchyně' })]),
+        [`GET /api/v1/locations/${parent.id}/items`]: () => new Promise<Response>((resolve) => (release = resolve)) as never,
+      });
+      return renderApp(`/locations/${sub.id}`);
+    })();
+    queryClient.setQueryData(['locations', 'detail', parent.id], parent);
+    expect(await screen.findByText('Položka z kuchyně')).toBeInTheDocument();
+
+    await router.navigate({ to: '/locations/$id', params: { id: parent.id } });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Přízemí' })).toBeInTheDocument();
+    expect(screen.queryByText('Položka z kuchyně')).not.toBeInTheDocument();
+
+    release(page([item({ name: 'Položka z přízemí' })]));
+    expect(await screen.findByText('Položka z přízemí')).toBeInTheDocument();
   });
 
   it('is reached from a row on Home', async () => {

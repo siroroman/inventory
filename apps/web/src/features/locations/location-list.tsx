@@ -46,30 +46,29 @@ export function useLocationRows({ nested }: { nested: boolean }) {
   ];
   const path = (location: LocationDto) => (nested ? '' : parentPath(location));
 
+  const typeColumn: Column<LocationDto> = {
+    header: t('home.locations.columns.type'),
+    className: 'w-32',
+    cell: (location) => location.type && <Badge>{location.type.name}</Badge>,
+  };
+
   const columns: Column<LocationDto>[] = [
     {
       header: t('home.locations.columns.name'),
       primary: true,
-      cell: (location) => (
-        <>
-          <LocationLink location={location}>
-            <span className="block truncate">{location.name}</span>
-          </LocationLink>
-          {path(location) && (
-            <p className="truncate text-xs font-normal text-muted-foreground">{path(location)}</p>
-          )}
-        </>
-      ),
+      cell: (location) => {
+        const above = path(location);
+        return (
+          <>
+            <LocationLink location={location}>
+              <span className="block truncate">{location.name}</span>
+            </LocationLink>
+            {above && <p className="truncate text-xs font-normal text-muted-foreground">{above}</p>}
+          </>
+        );
+      },
     },
-    ...(nested
-      ? []
-      : [
-          {
-            header: t('home.locations.columns.type'),
-            className: 'w-32',
-            cell: (location: LocationDto) => location.type && <Badge>{location.type.name}</Badge>,
-          },
-        ]),
+    ...(nested ? [] : [typeColumn]),
     { header: t('home.locations.columns.address'), cell: (location) => location.address },
     {
       header: t('home.locations.columns.items'),
@@ -83,16 +82,19 @@ export function useLocationRows({ nested }: { nested: boolean }) {
     },
   ];
 
-  const card = (location: LocationDto) => (
-    <LocationLink location={location} card>
-      <p className="truncate text-[15px] font-semibold">{location.name}</p>
-      {path(location) && <p className="truncate text-xs text-muted-foreground">{path(location)}</p>}
-      <p className="mt-1 text-sm text-muted-foreground">
-        {location.type && <Badge className="mr-2">{location.type.name}</Badge>}
-        {[location.address, ...counts(location)].filter(Boolean).join(' · ')}
-      </p>
-    </LocationLink>
-  );
+  const card = (location: LocationDto) => {
+    const above = path(location);
+    return (
+      <LocationLink location={location} card>
+        <p className="truncate text-[15px] font-semibold">{location.name}</p>
+        {above && <p className="truncate text-xs text-muted-foreground">{above}</p>}
+        <p className="mt-1 text-sm text-muted-foreground">
+          {location.type && <Badge className="mr-2">{location.type.name}</Badge>}
+          {[location.address, ...counts(location)].filter(Boolean).join(' · ')}
+        </p>
+      </LocationLink>
+    );
+  };
 
   return { columns, card };
 }
