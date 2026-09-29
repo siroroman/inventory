@@ -24,3 +24,8 @@ export function serviceStatus(
   if (nextServiceOn <= localDay(limit)) return 'soon';
   return undefined;
 }
+
+/** Whether the warranty ended before today. Dates are `YYYY-MM-DD`. */
+export function warrantyExpired(warrantyUntil: string | null, now: Date = new Date()): boolean {
+  return warrantyUntil !== null && warrantyUntil < localDay(now);
+}

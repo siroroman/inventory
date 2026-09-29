@@ -82,6 +82,42 @@
       }
     }
   },
+  "item": {
+    "back": "Položky",
+    "empty": "—",
+    "archived": "Archivováno",
+    "notFoundTitle": "Položka nenalezena",
+    "notFoundHint": "Položka neexistuje nebo byla odstraněna.",
+    "photosLabel": "Fotografie",
+    "photoAlt": "{{name}}, fotografie {{n}} z {{total}}",
+    "showPhoto": "Zobrazit fotografii {{n}}",
+    "sections": {
+      "basic": "Základní údaje",
+      "warranty": "Registrace a záruka",
+      "service": "Servis",
+      "documents": "Dokumenty",
+      "note": "Poznámka"
+    },
+    "fields": {
+      "code": "ID",
+      "externalIds": "Externí ID",
+      "location": "Lokalita",
+      "manufacturer": "Výrobce",
+      "model": "Model",
+      "serialNumber": "Sériové číslo",
+      "manufactureYear": "Rok výroby",
+      "registeredOn": "Registrováno",
+      "warrantyUntil": "Záruka do",
+      "lastServiceOn": "Poslední servis",
+      "nextServiceOn": "Příští servis"
+    },
+    "warrantyExpired": "Záruka vypršela",
+    "service": {
+      "overdue": "Po termínu",
+      "soon": "Do 30 dní"
+    },
+    "openDocuments": "Otevřít složku na Google Drive"
+  },
   "errors": {
     "unauthenticated": "Přihlášení vypršelo. Přihlaste se prosím znovu.",
     "forbidden": "K této akci nemáte oprávnění.",
