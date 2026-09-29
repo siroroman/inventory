@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
 const ref = (code: string, name: string) => ({ id: crypto.randomUUID(), code, name });
 const record = { version: 1, archivedAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' };
@@ -113,6 +113,85 @@ describe('home: locations tab', () => {
   });
 });
 
+describe('home: paging', () => {
+  it('starts at the first page again after a search is cleared, not with every page loaded before', async () => {
+    const calls = api({
+      items: (request) => {
+        const params = new URL(request.url).searchParams;
+        if (params.get('q')) return page([item({ name: 'Nalezená položka' })]);
+        return params.get('cursor')
+          ? page([item({ name: 'Druhá strana' })], { total: 2 })
+          : page([item({ name: 'První strana' })], { nextCursor: 'abc', total: 2 });
+      },
+    });
+    renderApp('/?tab=items');
+    await userEvent.click(await screen.findByRole('button', { name: 'Načíst další' }));
+    expect(await screen.findByText('Druhá strana')).toBeInTheDocument();
+
+    const box = screen.getByRole('searchbox', { name: 'Hledat položky' });
+    await userEvent.type(box, 'nalezena');
+    expect(await screen.findByText('Nalezená položka')).toBeInTheDocument();
+    await userEvent.clear(box);
+
+    expect(await screen.findByText('První strana')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Druhá strana')).not.toBeInTheDocument());
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Načíst další' })).toBeInTheDocument();
+    // Fetched again from scratch, not served from what was loaded before.
+    const firstPages = listCalls(calls, '/api/v1/items').filter((p) => !p.get('q') && !p.get('cursor'));
+    expect(firstPages).toHaveLength(2);
+  });
+});
+
+describe('home: desktop table', () => {
+  it('shows locations as a table with column headings', async () => {
+    stubWideScreen(true);
+    api({ locations: () => page([location()]) });
+    renderApp('/');
+
+    const table = await screen.findByRole('table');
+    const headings = within(table).getAllByRole('columnheader').map((h) => h.textContent);
+    expect(headings).toEqual(['Název', 'Typ', 'Adresa', 'Položky', 'Podlokality']);
+    const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
+    expect(cells).toEqual(['Centrála Praha', 'Centrála', 'Vinohradská 12, Praha', '38 položek', '4 podlokality']);
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('shows items as a table, with the service status in its own column', async () => {
+    stubWideScreen(true);
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 5);
+    const nextServiceOn = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, '0')}-${String(soon.getDate()).padStart(2, '0')}`;
+    api({ items: () => page([item({ nextServiceOn })]) });
+    renderApp('/?tab=items');
+
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Název',
+      'ID',
+      'Lokalita',
+      'Výrobce a model',
+      'Servis',
+    ]);
+    const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
+    expect(cells).toEqual([
+      'Konvektomat',
+      'INV-00042',
+      'Centrála Praha › Přízemí › Teplá kuchyně',
+      'Rational SCC 101',
+      'Servis do 30 dní',
+    ]);
+  });
+
+  it('uses cards, not a table, on a narrow screen', async () => {
+    stubWideScreen(false);
+    api({ locations: () => page([location()]) });
+    renderApp('/');
+    expect(await screen.findByRole('list')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+});
+
 describe('home: items tab', () => {
   it('lists items with ID, full location path, brand and model, from the tab in the URL', async () => {
     api({ items: () => page([item()]) });
@@ -195,6 +274,13 @@ describe('home: search and tabs', () => {
     expect(listCalls(calls, '/api/v1/items')[0]?.get('q')).toBe('007');
   });
 
+  it('treats a blank search text in the URL as no search', async () => {
+    const calls = api({});
+    renderApp('/?q=%20%20');
+    expect(await screen.findByText('Zatím tu nic není')).toBeInTheDocument();
+    expect(listCalls(calls, '/api/v1/locations')[0]?.has('q')).toBe(false);
+  });
+
   it('says nothing was found, with a tip, when a search has no match', async () => {
     api({});
     renderApp('/?q=nic');
@@ -225,6 +311,29 @@ describe('home: search and tabs', () => {
     api({});
     renderApp('/?tab=users');
     expect(await screen.findByRole('tab', { name: 'Lokality', selected: true })).toBeInTheDocument();
+  });
+});
+
+describe('home: search while an empty result is on screen', () => {
+  it('shows the skeleton, not "nothing found", until the new search has answered', async () => {
+    let release: (res: Response) => void = () => {};
+    api({
+      locations: (request) =>
+        new URL(request.url).searchParams.get('q') === 'kon'
+          ? (new Promise<Response>((resolve) => (release = resolve)) as never)
+          : page([]),
+    });
+    renderApp('/?q=zzz');
+    expect(await screen.findByText('Nic jsme nenašli')).toBeInTheDocument();
+
+    const box = screen.getByRole('searchbox', { name: 'Hledat lokality' });
+    await userEvent.clear(box);
+    await userEvent.type(box, 'kon');
+    expect(await screen.findByRole('status', { name: 'Načítání' })).toBeInTheDocument();
+    expect(screen.queryByText('Nic jsme nenašli')).not.toBeInTheDocument();
+
+    release(page([location({ name: 'Konírna' })]));
+    expect(await screen.findByText('Konírna')).toBeInTheDocument();
   });
 });
 
@@ -262,6 +371,6 @@ describe('home: loading and failure', () => {
       },
     });
     renderApp('/?tab=items');
-    expect(await screen.findByRole('alert', {}, { timeout: 5000 })).toHaveTextContent('Server není dostupný.');
-  }, 10_000);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server není dostupný.');
+  });
 });

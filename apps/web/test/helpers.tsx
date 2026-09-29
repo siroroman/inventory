@@ -5,15 +5,27 @@ import { App } from '../src/App.tsx';
 import { createQueryClient } from '../src/lib/query.ts';
 import { createAppRouter } from '../src/router.tsx';
 
-/** Renders the whole app (router, query client, toaster) at `path`. */
+/** Renders the whole app (router, query client without retries, toaster) at `path`. */
 export function renderApp(path = '/') {
   const queryClient = createQueryClient();
+  // The retry policy has its own tests; here a failing call should fail at once, not after back-off.
+  queryClient.setDefaultOptions({ queries: { ...queryClient.getDefaultOptions().queries, retry: false } });
   const router = createAppRouter({
     queryClient,
     history: createMemoryHistory({ initialEntries: [path] }),
   });
   render(<App router={router} queryClient={queryClient} />);
   return { queryClient, router };
+}
+
+/** Makes the window as wide as a desktop (true) or a phone (false, the default in tests). */
+export function stubWideScreen(wide: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: wide && query.includes('min-width'),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
 }
 
 /** A JSON `Response`, the way the API answers (`application/problem+json` for errors). */

@@ -16,7 +16,7 @@ const searchSchema = z.object({
   tab: z.enum(tabs).optional().catch(undefined),
   q: z
     .union([z.string(), z.number()])
-    .transform(String)
+    .transform((value) => String(value).trim())
     .optional()
     .catch(undefined),
 });

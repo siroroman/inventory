@@ -5,8 +5,20 @@ import { ErrorState } from '@/components/error-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { problemMessage } from '@/lib/problem';
+import { useMediaQuery } from '@/lib/use-media-query';
+import { cn } from '@/lib/utils';
 
 type Page<T> = { items: T[]; nextCursor: string | null; total: number };
+
+/** One column of the desktop table. */
+export type Column<T> = {
+  header: string;
+  /** Width and the like; applied to the heading and to every cell of the column. */
+  className?: string;
+  /** The first column: the record's name, in stronger type. */
+  primary?: boolean;
+  cell: (item: T) => ReactNode;
+};
 
 type Props<T extends { id: string }> = {
   query: UseInfiniteQueryResult<InfiniteData<Page<T>>>;
@@ -14,12 +26,14 @@ type Props<T extends { id: string }> = {
   searching: boolean;
   /** What to say when there is nothing at all. */
   empty: { title: string; hint: string };
-  /** Column headings, shown from the `md` breakpoint up (the mobile layout has none). */
-  header: ReactNode;
-  /** Grid columns of a row from the `md` breakpoint up; the header uses the same ones. */
-  columns: string;
-  row: (item: T) => ReactNode;
+  /** A table with these columns from 768 px up (Tailwind's `md`)... */
+  columns: Column<T>[];
+  /** ...and a list of these cards below it. */
+  card: (item: T) => ReactNode;
 };
+
+// Tailwind's `md` breakpoint.
+const wideScreen = '(min-width: 768px)';
 
 /** The count for a list heading, once the first page is there. */
 export function pagedTotal<T>(data: InfiniteData<Page<T>> | undefined): number | undefined {
@@ -42,18 +56,19 @@ function ListSkeleton() {
 
 /**
  * The body of a searchable, paged list with every state the screens need: loading skeleton, error
- * with retry, empty, nothing found, and the rows with a "load more" button. While a new search is
+ * with retry, empty, nothing found, and the rows with a "load more" button. The rows are a table
+ * on wide screens and cards on narrow ones (only one of them is rendered). While a new search is
  * loading the previous rows stay on screen (dimmed) instead of flashing a skeleton.
  */
 export function PagedList<T extends { id: string }>({
   query,
   searching,
   empty,
-  header,
   columns,
-  row,
+  card,
 }: Props<T>) {
   const { t } = useTranslation();
+  const wide = useMediaQuery(wideScreen);
   const { data } = query;
 
   if (!data) {
@@ -65,6 +80,8 @@ export function PagedList<T extends { id: string }>({
 
   const items = data.pages.flatMap((page) => page.items);
   if (items.length === 0) {
+    // An empty result of the previous search is only a stand-in; the new one has not answered yet.
+    if (query.isPlaceholderData) return <ListSkeleton />;
     return searching ? (
       <EmptyState title={t('states.noResultsTitle')} hint={t('states.noResultsHint')} />
     ) : (
@@ -74,19 +91,45 @@ export function PagedList<T extends { id: string }>({
 
   return (
     <div aria-busy={query.isPlaceholderData} className={query.isPlaceholderData ? 'opacity-60' : undefined}>
-      <div
-        aria-hidden
-        className={`hidden gap-4 border-b px-4 py-2 text-xs font-bold tracking-wide text-muted-foreground uppercase md:grid ${columns}`}
-      >
-        {header}
-      </div>
-      <ul className="divide-y">
-        {items.map((item) => (
-          <li key={item.id} className={`px-4 py-3 md:grid md:items-center md:gap-4 ${columns}`}>
-            {row(item)}
-          </li>
-        ))}
-      </ul>
+      {wide ? (
+        <table className="w-full table-fixed text-left">
+          <thead>
+            <tr className="border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
+              {columns.map((column) => (
+                <th key={column.header} scope="col" className={cn('px-4 py-2', column.className)}>
+                  {column.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {items.map((item) => (
+              <tr key={item.id}>
+                {columns.map((column) => (
+                  <td
+                    key={column.header}
+                    className={cn(
+                      'overflow-hidden px-4 py-3 align-middle text-sm text-ellipsis whitespace-nowrap text-muted-foreground',
+                      column.primary && 'text-[15px] font-semibold text-foreground',
+                      column.className,
+                    )}
+                  >
+                    {column.cell(item)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <ul className="divide-y">
+          {items.map((item) => (
+            <li key={item.id} className="px-4 py-3">
+              {card(item)}
+            </li>
+          ))}
+        </ul>
+      )}
       {query.isError && (
         <div role="alert" className="flex flex-col items-center gap-2 px-4 py-4 text-center">
           <p className="text-sm text-muted-foreground">{problemMessage(query.error)}</p>
