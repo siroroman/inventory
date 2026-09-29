@@ -31,10 +31,10 @@ describe('service provider service with the database', () => {
     const novak = await service.create(actor, { name: 'Servis Novák' });
     await manufacturers.setProviders(actor, rational.id, [other.id]);
 
-    await service.setManufacturers(actor, novak.id, [rational.id]);
+    await service.setManufacturers(actor, novak.id, 1, [rational.id]);
     expect((await manufacturers.get(actor, rational.id)).providers.map((p) => p.priority)).toEqual([1, 2]);
 
-    await service.setManufacturers(actor, novak.id, []);
+    await service.setManufacturers(actor, novak.id, 2, []);
     expect((await manufacturers.get(actor, rational.id)).providers.map((p) => [p.id, p.priority])).toEqual([[other.id, 1]]);
 
     const history = await repos.audit.list({ entityType: 'service_provider', entityId: novak.id }, { limit: 10 });

@@ -13,6 +13,7 @@ import { securityHeaders } from './http/middleware/security-headers.ts';
 import { createItemRoutes } from './modules/items/routes.ts';
 import { createLocationRoutes, createLocationTypeRoutes } from './modules/locations/routes.ts';
 import { createManufacturerRoutes } from './modules/manufacturers/routes.ts';
+import { createServiceProviderRoutes } from './modules/service-providers/routes.ts';
 import { createSystemRoutes } from './routes/system.ts';
 import type { Services } from './services.ts';
 
@@ -63,7 +64,8 @@ export function createApp({ auth, baseUrl, isProduction, log, services }: AppDep
     .route('/api/v1', createLocationRoutes(services))
     .route('/api/v1', createLocationTypeRoutes(services.locationTypes))
     .route('/api/v1', createItemRoutes(services.items))
-    .route('/api/v1', createManufacturerRoutes(services.manufacturers));
+    .route('/api/v1', createManufacturerRoutes(services.manufacturers))
+    .route('/api/v1', createServiceProviderRoutes(services.serviceProviders));
 
   routes.openAPIRegistry.registerComponent('securitySchemes', 'cookieAuth', {
     type: 'apiKey',

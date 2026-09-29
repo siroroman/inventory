@@ -141,12 +141,17 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
      * Sets which brands the provider services. A new brand ranks the provider last; a dropped
      * brand closes the gap in its order. Per-brand order is changed on the manufacturer
      * (`setProviders`). Only active brands can be added; leaving an archived brand is allowed.
+     * A change bumps the provider's version like any edit, so a stale form gets a conflict.
      */
-    async setManufacturers(actor: Actor, id: string, manufacturerIds: string[]): Promise<ServicedBrand[]> {
+    async setManufacturers(
+      actor: Actor,
+      id: string,
+      version: number,
+      manufacturerIds: string[],
+    ): Promise<ServiceProviderDetail> {
       assertRole(actor, 'write');
       return transact(async (r) => {
-        const current = await r.serviceProviders.findById(id);
-        if (!current) throw new DomainError('not_found');
+        const current = await loadCurrent(r, id, version);
         if (current.archivedAt) throw new DomainError('archived');
         if (new Set(manufacturerIds).size !== manufacturerIds.length) throw new DomainError('duplicate_manufacturer');
 
@@ -157,6 +162,9 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
           const manufacturer = await r.manufacturers.findById(manufacturerId);
           if (!manufacturer) throw new DomainError('manufacturer_not_found', { manufacturerId });
           if (manufacturer.archivedAt) throw new DomainError('manufacturer_archived', { manufacturerId });
+        }
+        if (!added.length && !removed.length) {
+          return { ...current, manufacturers: await r.serviceProviders.listManufacturers(id) };
         }
 
         for (const manufacturerId of [...added, ...removed]) {
@@ -171,16 +179,16 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
             changes: { providers: { from: order, to: next } },
           });
         }
-        if (added.length || removed.length) {
-          await r.audit.record({
-            userId: actor.id,
-            entityType: 'service_provider',
-            entityId: id,
-            action: 'update',
-            changes: { manufacturers: { from: before, to: [...before.filter((m) => !removed.includes(m)), ...added] } },
-          });
-        }
-        return r.serviceProviders.listManufacturers(id);
+        const touched = await r.serviceProviders.update(id, version, { updatedBy: actor.id });
+        if (!touched) throw new DomainError('conflict');
+        await r.audit.record({
+          userId: actor.id,
+          entityType: 'service_provider',
+          entityId: id,
+          action: 'update',
+          changes: { manufacturers: { from: before, to: [...before.filter((m) => !removed.includes(m)), ...added] } },
+        });
+        return { ...touched, manufacturers: await r.serviceProviders.listManufacturers(id) };
       });
     },
 
