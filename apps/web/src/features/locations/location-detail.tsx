@@ -141,7 +141,7 @@ export function LocationDetail({ id }: { id: string }) {
         <Field label={t('locationDetail.fields.code')}>{location.code}</Field>
         <Field label={t('locationDetail.fields.parent')}>
           {parent && (
-            <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, '-my-3 text-primary')}>
+            <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, '-my-3 underline underline-offset-2')}>
               {parent.name}
             </Link>
           )}
