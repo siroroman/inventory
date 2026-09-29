@@ -1,5 +1,6 @@
 import { Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { UserMenu } from '@/features/auth/user-menu';
 
 /** Frame around every screen: skip link, top bar (56 px, as designed) and the page content. */
 export function AppShell() {
@@ -14,6 +15,7 @@ export function AppShell() {
       </a>
       <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-3">
         <span className="flex-1 truncate text-[17px] font-semibold">{t('app.name')}</span>
+        <UserMenu />
       </header>
       <main id="content" tabIndex={-1} className="flex-1 outline-none">
         <Outlet />

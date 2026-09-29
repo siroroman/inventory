@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-export const Route = createFileRoute('/')({ component: Home });
+export const Route = createFileRoute('/_app/')({ component: Home });
 
 function Home() {
   const { t } = useTranslation();

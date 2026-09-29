@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Evidence majetku"
+    "name": "Evidence majetku",
+    "logo": "EM"
   },
   "common": {
     "retry": "Zkusit znovu",
@@ -12,10 +13,28 @@
     "itemCount_other": "{{count}} položek"
   },
   "states": {
+    "loading": "Načítání",
     "errorTitle": "Něco se nepovedlo",
     "notFoundTitle": "Stránka nenalezena",
     "notFoundHint": "Adresa neexistuje nebo byla přesunuta.",
     "backHome": "Zpět na úvodní stránku"
+  },
+  "auth": {
+    "tagline": "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě.",
+    "email": "E-mail",
+    "password": "Heslo",
+    "submit": "Přihlásit se",
+    "submitting": "Přihlašuji…",
+    "emailRequired": "Zadejte e-mail.",
+    "emailInvalid": "Zadejte platný e-mail.",
+    "passwordRequired": "Zadejte heslo.",
+    "userMenu": "Uživatelské menu",
+    "signOut": "Odhlásit se"
+  },
+  "roles": {
+    "read": "Čtenář",
+    "write": "Editor",
+    "admin": "Správce"
   },
   "home": {
     "title": "Přehled",
@@ -57,6 +76,8 @@
     "payload_too_large": "Odesílaná data jsou příliš velká.",
     "rate_limited": "Příliš mnoho požadavků. Zkuste to prosím za chvíli.",
     "internal_error": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "invalid_credentials": "Nesprávný e-mail nebo heslo.",
+    "no_access": "Tento účet nemá do aplikace přístup. Obraťte se na správce.",
     "network": "Server není dostupný. Zkontrolujte připojení k internetu a zkuste to znovu.",
     "unexpected": "Něco se nepovedlo. Zkuste to prosím znovu."
   }
