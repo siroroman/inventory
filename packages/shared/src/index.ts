@@ -9,3 +9,4 @@ export * from './items.ts';
 export * from './photos.ts';
 export * from './manufacturers.ts';
 export * from './service-providers.ts';
+export * from './users.ts';

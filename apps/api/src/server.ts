@@ -5,6 +5,7 @@ import { parseConfig } from './config.ts';
 import { createDb } from './db/client.ts';
 import { jsonLogger as log } from './http/logger.ts';
 import type { PhotoStorage } from './modules/photos/storage.ts';
+import type { UserInvites } from './modules/users/service.ts';
 import { createServices } from './services.ts';
 
 const config = parseConfig(process.env);
@@ -25,12 +26,15 @@ const storage: PhotoStorage = {
   head: notConfigured,
   delete: notConfigured,
 };
+// Likewise the invitation adapter (Better Auth account plus email): inviting fails with a logged 500
+// until it exists. Listing, role changes and deactivation do not need it.
+const invites: UserInvites = { invite: () => Promise.reject(new Error('User invitations are not configured')) };
 const app = createApp({
   auth,
   baseUrl: config.auth.baseUrl,
   isProduction: config.isProduction,
   log,
-  services: createServices({ db, storage }),
+  services: createServices({ db, storage, invites }),
 });
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {

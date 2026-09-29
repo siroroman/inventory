@@ -12,13 +12,14 @@ import { createManufacturerService, manufacturerRepos } from './modules/manufact
 import { createPhotoService, photoRepos } from './modules/photos/service.ts';
 import type { PhotoStorage } from './modules/photos/storage.ts';
 import { createServiceProviderService, serviceProviderRepos } from './modules/service-providers/service.ts';
+import { createUserService, type UserInvites, userRepos } from './modules/users/service.ts';
 
 /**
  * The composition root: every service, wired to one database. Routes receive this (through
  * `createApp`) instead of building services themselves, so tests can build the app against a
- * throwaway database. The user service joins when its port (invites) exists.
+ * throwaway database.
  */
-export function createServices({ db, storage }: { db: Db; storage: PhotoStorage }) {
+export function createServices({ db, storage, invites }: { db: Db; storage: PhotoStorage; invites: UserInvites }) {
   return {
     locations: createLocationService({ repos: locationRepos(db), transact: transactor(db, locationRepos) }),
     locationTypes: createLocationTypeService({ repos: locationRepos(db), transact: transactor(db, locationRepos) }),
@@ -37,6 +38,7 @@ export function createServices({ db, storage }: { db: Db; storage: PhotoStorage 
       storage,
       newId: randomUUID,
     }),
+    users: createUserService({ repos: userRepos(db), transact: transactor(db, userRepos), invites }),
     audit: createAuditService({ repos: auditRepos(db) }),
   };
 }

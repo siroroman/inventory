@@ -4,6 +4,7 @@ import type { Actor } from '../../../src/auth/roles.ts';
 import { transactor } from '../../../src/db/transaction.ts';
 import { session, user } from '../../../src/db/schema/index.ts';
 import { createUserService, userRepos } from '../../../src/modules/users/service.ts';
+import { createFakeInvites } from '../../fakes/invites.ts';
 import { useTestDb } from '../../helpers/db.ts';
 import { insertUser } from '../../helpers/factories.ts';
 import { expectCode } from '../../helpers/service-errors.ts';
@@ -19,9 +20,7 @@ describe('user service with the database', () => {
     const service = createUserService({
       repos: userRepos(t().app),
       transact: transactor(t().app, userRepos),
-      invites: {
-        invite: async ({ email, name, role }) => insertUser(t().app, { email, name, role }),
-      },
+      invites: createFakeInvites(t().app).invites,
     });
     const addSession = (userId: string) =>
       t().app.insert(session).values({ userId, token: randomUUID(), expiresAt: new Date(Date.now() + 3_600_000), updatedAt: new Date() });
