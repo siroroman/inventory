@@ -6,5 +6,6 @@ export * from './fields.ts';
 export * from './location-types.ts';
 export * from './locations.ts';
 export * from './items.ts';
+export * from './photos.ts';
 export * from './manufacturers.ts';
 export * from './service-providers.ts';

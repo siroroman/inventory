@@ -53,7 +53,7 @@ const itemFields = {
   externalIds: z.array(externalIdSchema).max(20),
 };
 
-/** An item with everything the detail screen shows. Photos join with the photo routes. */
+/** An item's own fields; `itemDetailSchema` (photos.ts) adds the gallery for the detail screen. */
 export const itemSchema = itemListEntrySchema.extend({
   manufactureYear: z.number().int().nullable(),
   registeredOn: isoDate.nullable(),
