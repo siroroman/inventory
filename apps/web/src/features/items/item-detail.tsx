@@ -1,7 +1,7 @@
 import type { ItemDetailDto, PhotoDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ExternalLink } from 'lucide-react';
+import { ChevronRight, ExternalLink } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
@@ -134,13 +134,47 @@ function LocationPath({ path }: { path: ItemDetailDto['path'] }) {
           <Link
             to="/locations/$id"
             params={{ id: segment.id }}
-            className="inline-flex min-h-11 items-center rounded-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            className={cn(crumbLink, '-my-3 underline underline-offset-2')}
           >
             {segment.name}
           </Link>
         </span>
       ))}
     </span>
+  );
+}
+
+/** A link in the breadcrumb or the location field: at least 44 px tall to tap. */
+const crumbLink =
+  'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
+
+/** The way up: the Items tab, every level of the location, then the item itself as the current page. */
+function Breadcrumb({ item }: { item: ItemDetailDto }) {
+  const { t } = useTranslation();
+  return (
+    <nav aria-label={t('item.breadcrumb')}>
+      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+        <li>
+          <Link to="/" search={{ tab: 'items' }} className={crumbLink}>
+            {t('home.items.tab')}
+          </Link>
+        </li>
+        {item.path.map((segment) => (
+          <li key={segment.id} className="flex items-center gap-x-1">
+            <ChevronRight aria-hidden className="size-3.5" />
+            <Link to="/locations/$id" params={{ id: segment.id }} className={crumbLink}>
+              {segment.name}
+            </Link>
+          </li>
+        ))}
+        <li className="flex items-center gap-x-1">
+          <ChevronRight aria-hidden className="size-3.5" />
+          <span aria-current="page" className="text-foreground">
+            {item.name}
+          </span>
+        </li>
+      </ol>
+    </nav>
   );
 }
 
@@ -151,6 +185,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
   return (
     <>
       <div>
+        <Breadcrumb item={item} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{item.name}</h1>
           {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
