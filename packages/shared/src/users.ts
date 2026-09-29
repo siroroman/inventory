@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { requiredText, timestamp } from './fields.ts';
 import { roles } from './roles.ts';
 
-const email = z.string().trim().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
+/** Stored lower-case: Better Auth looks users up by the lower-cased address, so a mixed-case row could not sign in. */
+const email = z.string().trim().toLowerCase().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
 
 /** A user as the admin screens see them. Users are managed by Better Auth, so there is no `version` and no archiving: deactivate instead. */
 export const userSchema = z.object({
@@ -29,10 +30,8 @@ export type InviteUserBody = z.infer<typeof inviteUserBody>;
  * Change the role or the activity, one at a time: the two are separate actions on the user's row,
  * and separate changes cannot half-apply.
  */
-export const updateUserBody = z
-  .strictObject({ role: z.enum(roles), isActive: z.boolean() })
-  .partial()
-  .refine((body) => Object.values(body).filter((value) => value !== undefined).length === 1, {
-    message: 'Send exactly one of role and isActive',
-  });
+export const updateUserBody = z.union([
+  z.strictObject({ role: z.enum(roles) }),
+  z.strictObject({ isActive: z.boolean() }),
+]);
 export type UpdateUserBody = z.infer<typeof updateUserBody>;

@@ -48,10 +48,9 @@ export function createUserRoutes(users: UserService) {
     })
     .openapi(update, async (c) => {
       const { id } = c.req.valid('param');
-      const { role, isActive } = c.req.valid('json');
+      const body = c.req.valid('json');
       const actor = c.get('actor');
-      // The body holds exactly one of the two (see `updateUserBody`).
-      const row = role !== undefined ? await users.changeRole(actor, id, role) : await users.setActive(actor, id, isActive!);
+      const row = 'role' in body ? await users.changeRole(actor, id, body.role) : await users.setActive(actor, id, body.isActive);
       return c.json(toUserDto(row), 200);
     });
 }

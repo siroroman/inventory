@@ -56,7 +56,7 @@ describe('GET /users', () => {
 });
 
 describe('POST /users', () => {
-  it('invites a user, sends the invitation and audits it', async () => {
+  it('invites a user with a lower-cased email, sends the invitation and audits it', async () => {
     const { admin, adminUser, invitations } = await setup();
     const body = await expectJson(
       await admin.post('/users', { email: '  Jana@Example.test ', name: ' Jana Nováková ', role: 'write' }),
@@ -64,8 +64,8 @@ describe('POST /users', () => {
       userSchema,
     );
 
-    expect(body).toMatchObject({ email: 'Jana@Example.test', name: 'Jana Nováková', role: 'write', isActive: true });
-    expect(invitations.sent).toEqual([{ email: 'Jana@Example.test', name: 'Jana Nováková', role: 'write' }]);
+    expect(body).toMatchObject({ email: 'jana@example.test', name: 'Jana Nováková', role: 'write', isActive: true });
+    expect(invitations.sent).toEqual([{ email: 'jana@example.test', name: 'Jana Nováková', role: 'write' }]);
     expect((await expectJson(await admin.get('/users'), 200, userListSchema)).items.map((u) => u.id)).toContain(body.id);
     const entries = await auditOf(body.id);
     expect(entries).toHaveLength(1);
@@ -73,7 +73,7 @@ describe('POST /users', () => {
       userId: adminUser.id,
       action: 'create',
       changes: {
-        email: { from: null, to: 'Jana@Example.test' },
+        email: { from: null, to: 'jana@example.test' },
         name: { from: null, to: 'Jana Nováková' },
         role: { from: null, to: 'write' },
       },
