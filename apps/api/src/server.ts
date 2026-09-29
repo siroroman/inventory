@@ -4,6 +4,7 @@ import { createAuth } from './auth/auth.ts';
 import { parseConfig } from './config.ts';
 import { createDb } from './db/client.ts';
 import { jsonLogger as log } from './http/logger.ts';
+import { createServices } from './services.ts';
 
 const config = parseConfig(process.env);
 const { db, pool } = createDb(config.databaseUrl);
@@ -14,7 +15,13 @@ const auth = createAuth({
   isProduction: config.isProduction,
   google: config.auth.google,
 });
-const app = createApp({ auth, baseUrl: config.auth.baseUrl, isProduction: config.isProduction, log });
+const app = createApp({
+  auth,
+  baseUrl: config.auth.baseUrl,
+  isProduction: config.isProduction,
+  log,
+  services: createServices({ db }),
+});
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   log({ severity: 'INFO', message: 'listening', port: info.port, env: config.env });
