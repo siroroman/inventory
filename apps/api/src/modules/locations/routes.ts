@@ -105,9 +105,7 @@ export function createLocationRoutes({ locations, items }: LocationServices) {
   return createRouter()
     .openapi(list, async (c) => {
       const { parentId, q, limit, cursor } = c.req.valid('query');
-      // No parent and no search means the top level; a search without a parent looks at every level.
-      const filter = parentId ? { parentId, q } : q ? { q } : { parentId: null };
-      const page = await locations.list(c.get('actor'), filter, { limit, cursor });
+      const page = await locations.list(c.get('actor'), { parentId, q }, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toLocationDto) }, 200);
     })
     .openapi(get, async (c) => {
@@ -118,30 +116,24 @@ export function createLocationRoutes({ locations, items }: LocationServices) {
       const actor = c.get('actor');
       const { id } = c.req.valid('param');
       const { q, limit, cursor } = c.req.valid('query');
-      await locations.get(actor, id); // 404 for an unknown location instead of an empty list
-      const page = await items.list(actor, { locationId: id, q }, { limit, cursor });
+      const page = await items.listInLocation(actor, id, { q }, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toItemListEntryDto) }, 200);
     })
     .openapi(create, async (c) => {
-      const actor = c.get('actor');
-      const row = await locations.create(actor, c.req.valid('json'));
-      return c.json(toLocationDto(await locations.get(actor, row.id)), 201);
+      const row = await locations.create(c.get('actor'), c.req.valid('json'));
+      return c.json(toLocationDto(row), 201);
     })
     .openapi(update, async (c) => {
-      const actor = c.get('actor');
-      const { id } = c.req.valid('param');
-      const row = await locations.update(actor, id, c.req.valid('json'));
-      return c.json(toLocationDto(await locations.get(actor, row.id)), 200);
+      const row = await locations.update(c.get('actor'), c.req.valid('param').id, c.req.valid('json'));
+      return c.json(toLocationDto(row), 200);
     })
     .openapi(archive, async (c) => {
-      const actor = c.get('actor');
-      const row = await locations.archive(actor, c.req.valid('param').id, c.req.valid('json').version);
-      return c.json(toLocationDto(await locations.get(actor, row.id)), 200);
+      const row = await locations.archive(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toLocationDto(row), 200);
     })
     .openapi(restore, async (c) => {
-      const actor = c.get('actor');
-      const row = await locations.restore(actor, c.req.valid('param').id, c.req.valid('json').version);
-      return c.json(toLocationDto(await locations.get(actor, row.id)), 200);
+      const row = await locations.restore(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toLocationDto(row), 200);
     });
 }
 

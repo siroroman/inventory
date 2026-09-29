@@ -196,6 +196,28 @@ describe('item service', () => {
     });
   });
 
+  describe('listInLocation', () => {
+    it('lists the items of a location and its sub-locations, narrowed by a search', async () => {
+      const { service, praha, sklad, create } = await setup();
+      await create('Konvektomat');
+      await create('Váha', { locationId: praha.id });
+      await create('Regál', { locationId: sklad.id });
+
+      const all = await service.listInLocation(reader, praha.id, {}, { limit: 50 });
+      expect(all.items.map((i) => i.name)).toEqual(['Konvektomat', 'Váha']);
+      expect(all.total).toBe(2);
+      const found = await service.listInLocation(reader, praha.id, { q: 'vaha' }, { limit: 50 });
+      expect(found.items.map((i) => i.name)).toEqual(['Váha']);
+    });
+
+    it('reports an unknown location as not found instead of an empty list', async () => {
+      const { service, sklad, create } = await setup();
+      await expectCode(service.listInLocation(reader, randomUUID(), {}, { limit: 50 }), 'not_found');
+      await create('Regál', { locationId: sklad.id });
+      await expect(service.listInLocation(reader, sklad.id, {}, { limit: 50 })).resolves.toMatchObject({ total: 1 });
+    });
+  });
+
   describe('update', () => {
     it('changes only the sent fields, can clear a field, and audits the difference', async () => {
       const { store, service, rational, create } = await setup();

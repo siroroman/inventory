@@ -32,7 +32,7 @@ describe('location service', () => {
       const auditBefore = store.state.audit.length;
 
       await expect(service.get(reader, praha.id)).resolves.toMatchObject({ name: 'Centrála Praha' });
-      await expect(service.list(reader, { parentId: null }, { limit: 50 })).resolves.toMatchObject({ total: 1 });
+      await expect(service.list(reader, {}, { limit: 50 })).resolves.toMatchObject({ total: 1 });
       await expectCode(service.create(reader, { name: 'X', locationTypeId: store.typeId('HQ') }), 'forbidden');
       await expectCode(service.update(reader, praha.id, { version: 1, name: 'X' }), 'forbidden');
       await expectCode(service.archive(reader, praha.id, 1), 'forbidden');
@@ -46,6 +46,25 @@ describe('location service', () => {
       const { service, hq } = setup();
       await expect(service.create(writer, { name: 'A', locationTypeId: hq })).resolves.toBeDefined();
       await expect(service.create(admin, { name: 'B', locationTypeId: hq })).resolves.toBeDefined();
+    });
+  });
+
+  describe('what a write returns', () => {
+    it('is the location as get shows it: type, path and counts', async () => {
+      const { store, service, top, sub } = setup();
+      const praha = await top('Centrála Praha');
+      const floor = await sub('Přízemí', praha.id);
+      expect(floor).toMatchObject({ type: null, path: [{ name: 'Centrála Praha' }, { name: 'Přízemí' }], itemCount: 0, childCount: 0 });
+      expect(await service.get(reader, praha.id)).toMatchObject({ childCount: 1 });
+
+      store.addItem(floor.id);
+      const moved = await service.update(writer, floor.id, { version: 1, parentId: null, locationTypeId: store.typeId('STORE') });
+      expect(moved).toMatchObject({ version: 2, type: { code: 'STORE' }, path: [{ name: 'Přízemí' }], itemCount: 1 });
+
+      const archived = await service.archive(writer, floor.id, 2);
+      expect(archived).toEqual(await service.get(reader, floor.id));
+      expect(archived.archivedAt).toBeInstanceOf(Date);
+      expect(await service.restore(writer, floor.id, 3)).toMatchObject({ version: 4, archivedAt: null });
     });
   });
 
@@ -257,14 +276,18 @@ describe('location service', () => {
       await sub('Sklad', brno.id);
       store.addItem(brno.id);
 
-      const first = await service.list(reader, { parentId: null }, { limit: 2 });
+      const first = await service.list(reader, {}, { limit: 2 });
       expect(first.total).toBe(3);
       expect(first.items.map((l) => [l.name, l.itemCount, l.childCount])).toEqual([['Brno', 1, 1], ['Cheb', 0, 0]]);
-      const second = await service.list(reader, { parentId: null }, { limit: 2, cursor: first.nextCursor! });
+      const second = await service.list(reader, {}, { limit: 2, cursor: first.nextCursor! });
       expect(second.items.map((l) => l.name)).toEqual(['Žatec']);
 
+      // A search without a parent looks at every level; a parent lists its direct children only.
       const search = await service.list(reader, { q: 'sklad' }, { limit: 50 });
       expect(search.items[0]?.path.map((p) => p.name)).toEqual(['Brno', 'Sklad']);
+      const children = await service.list(reader, { parentId: brno.id }, { limit: 50 });
+      expect(children.items.map((l) => l.name)).toEqual(['Sklad']);
+      expect((await service.list(reader, { parentId: brno.id, q: 'xyz' }, { limit: 50 })).total).toBe(0);
     });
   });
 });
