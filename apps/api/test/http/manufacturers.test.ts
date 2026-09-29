@@ -4,13 +4,13 @@ import {
   manufacturerSchema,
   rankedProviderListSchema,
 } from '@inventory/shared';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { serviceProviders } from '../../src/db/schema/index.ts';
-import { createTestApp, loginAs } from '../helpers/app.ts';
+import { auditLog, serviceProviders } from '../../src/db/schema/index.ts';
+import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertManufacturer, insertProvider } from '../helpers/factories.ts';
-import { api, expectJson, expectProblem } from '../helpers/http.ts';
+import { expectJson, expectProblem, roleClients } from '../helpers/http.ts';
 
 const db = useTestDb();
 
@@ -23,8 +23,7 @@ async function archiveProvider(id: string) {
 
 async function setup() {
   const { app } = createTestApp(db().app);
-  const as = async (role: 'read' | 'write' | 'admin') => api(app, (await loginAs(app, db().app, role)).headers);
-  return { read: await as('read'), write: await as('write'), admin: await as('admin') };
+  return roleClients(app, db().app);
 }
 
 describe('GET /manufacturers', () => {
@@ -255,6 +254,33 @@ describe('PUT /manufacturers/{id}/service-providers', () => {
     expect(body.items.map((p) => [p.id, p.archivedAt !== null])).toEqual([[b.id, false], [a.id, true]]);
   });
 
+  it('lets an archived provider be dropped from the order', async () => {
+    const { write } = await setup();
+    const bosch = await insertManufacturer(db().app, { name: 'Bosch' });
+    const { a, b } = await providers();
+    await write.put(`/manufacturers/${bosch.id}/service-providers`, { providerIds: [a.id, b.id] });
+    await archiveProvider(a.id);
+
+    const body = await expectJson(await write.put(`/manufacturers/${bosch.id}/service-providers`, { providerIds: [b.id] }), 200, rankedProviderListSchema);
+    expect(body.items.map((p) => [p.id, p.priority])).toEqual([[b.id, 1]]);
+  });
+
+  it('writes one audit entry per changed order and none for an unchanged one', async () => {
+    const { write } = await setup();
+    const bosch = await insertManufacturer(db().app, { name: 'Bosch' });
+    const { a, b } = await providers();
+    const path = `/manufacturers/${bosch.id}/service-providers`;
+    await write.put(path, { providerIds: [a.id, b.id] });
+    await write.put(path, { providerIds: [a.id, b.id] });
+    await write.put(path, { providerIds: [b.id, a.id] });
+
+    const entries = await db().app.select().from(auditLog).where(and(eq(auditLog.entityType, 'manufacturer'), eq(auditLog.entityId, bosch.id))).orderBy(auditLog.id);
+    expect(entries.map((e) => e.changes)).toEqual([
+      { providers: { from: [], to: [a.id, b.id] } },
+      { providers: { from: [a.id, b.id], to: [b.id, a.id] } },
+    ]);
+  });
+
   it('answers 422 for an unknown provider and for a newly added archived one, saving nothing', async () => {
     const { write, read } = await setup();
     const bosch = await insertManufacturer(db().app, { name: 'Bosch' });
@@ -285,6 +311,7 @@ describe('PUT /manufacturers/{id}/service-providers', () => {
     await expectProblem(await write.put(path, {}), 400, 'validation_error');
     await expectProblem(await write.put(path, { providerIds: ['nope'] }), 400, 'validation_error');
     await expectProblem(await write.put(path, { providerIds: [], extra: 1 }), 400, 'validation_error');
+    await expectProblem(await write.put(path, { providerIds: Array.from({ length: 101 }, () => MISSING) }), 400, 'validation_error');
   });
 });
 
