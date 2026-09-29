@@ -19,7 +19,10 @@ export type ErrorCode =
   | 'provider_archived'
   | 'duplicate_manufacturer'
   | 'manufacturer_not_found'
-  | 'manufacturer_archived';
+  | 'manufacturer_archived'
+  | 'location_not_found'
+  | 'location_archived'
+  | 'duplicate_external_id';
 
 export class DomainError extends Error {
   constructor(

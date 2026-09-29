@@ -143,6 +143,7 @@ export function createFakeLocationStore() {
   return {
     state,
     repos,
+    snapshot,
     transact: fakeTransact(repos, { snapshot }),
     typeId: (code: string) => state.types.find((t) => t.code === code)!.id,
     addItem: (locationId: string, archived = false) => state.items.push({ locationId, archived }),

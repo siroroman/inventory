@@ -144,6 +144,7 @@ export function createFakeCatalogStore() {
   return {
     state,
     repos,
+    snapshot,
     transact: fakeTransact(repos, { snapshot }),
     /** Test setup shortcuts that skip the services. */
     addProvider: (name: string, archived = false) =>
