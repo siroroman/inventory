@@ -2,8 +2,16 @@ import { type ErrorCode, type Problem, problemSchema } from '@inventory/shared';
 import { type ClientResponse, hc } from 'hono/client';
 import type { AppType } from '../../../api/src/app.ts';
 
-/** API error codes plus the two the browser makes up: no response at all, and an unreadable one. */
-export type ApiErrorCode = ErrorCode | 'network' | 'unexpected';
+/**
+ * API error codes plus the ones the browser makes up: no response at all, an unreadable one, and
+ * the two sign-in failures (Better Auth answers those in its own format, not problem+json).
+ */
+export type ApiErrorCode =
+  | ErrorCode
+  | 'network'
+  | 'unexpected'
+  | 'invalid_credentials'
+  | 'no_access';
 
 /** A failed API call. The SPA shows `problemMessage(error)`, never the server's English text. */
 export class ApiError extends Error {

@@ -57,6 +57,8 @@
     "payload_too_large": "Odesílaná data jsou příliš velká.",
     "rate_limited": "Příliš mnoho požadavků. Zkuste to prosím za chvíli.",
     "internal_error": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "invalid_credentials": "Nesprávný e-mail nebo heslo.",
+    "no_access": "Tento účet nemá do aplikace přístup. Obraťte se na správce.",
     "network": "Server není dostupný. Zkontrolujte připojení k internetu a zkuste to znovu.",
     "unexpected": "Něco se nepovedlo. Zkuste to prosím znovu."
   }
