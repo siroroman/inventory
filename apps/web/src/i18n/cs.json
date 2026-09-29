@@ -1,6 +1,7 @@
 {
   "app": {
-    "name": "Evidence majetku"
+    "name": "Evidence majetku",
+    "logo": "EM"
   },
   "common": {
     "retry": "Zkusit znovu",
@@ -16,6 +17,16 @@
     "notFoundTitle": "Stránka nenalezena",
     "notFoundHint": "Adresa neexistuje nebo byla přesunuta.",
     "backHome": "Zpět na úvodní stránku"
+  },
+  "auth": {
+    "tagline": "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě.",
+    "email": "E-mail",
+    "password": "Heslo",
+    "submit": "Přihlásit se",
+    "submitting": "Přihlašuji…",
+    "emailRequired": "Zadejte e-mail.",
+    "emailInvalid": "Zadejte platný e-mail.",
+    "passwordRequired": "Zadejte heslo."
   },
   "home": {
     "title": "Přehled",

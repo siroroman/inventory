@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import '../src/i18n';
 
 // jsdom has no matchMedia (sonner and the theme code read it): default to a light system.
@@ -20,4 +20,7 @@ Object.defineProperty(window, 'matchMedia', {
 // The router restores scroll positions; jsdom only logs "not implemented".
 window.scrollTo = () => {};
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
