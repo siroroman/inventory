@@ -1,13 +1,10 @@
 import type { ItemListEntryDto } from '@inventory/shared';
+import { recordDto } from '../../http/dto.ts';
 import type { ItemListEntry } from './service.ts';
 
 export function toItemListEntryDto(row: ItemListEntry): ItemListEntryDto {
   return {
-    id: row.id,
-    version: row.version,
-    archivedAt: row.archivedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    ...recordDto(row),
     code: row.code,
     name: row.name,
     model: row.model,

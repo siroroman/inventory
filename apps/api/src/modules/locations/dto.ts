@@ -1,15 +1,12 @@
 import type { LocationDto, LocationTypeDto } from '@inventory/shared';
+import { recordDto } from '../../http/dto.ts';
 import type { LocationSummary } from './service.ts';
 import type { LocationType } from './repository.ts';
 
-/** Timestamps become ISO strings; everything else the database returns is already JSON-ready. */
+/** Only the record fields need converting (`recordDto`); the rest the database returns is JSON-ready. */
 export function toLocationDto(row: LocationSummary): LocationDto {
   return {
-    id: row.id,
-    version: row.version,
-    archivedAt: row.archivedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    ...recordDto(row),
     code: row.code,
     name: row.name,
     parentId: row.parentId,
@@ -24,11 +21,7 @@ export function toLocationDto(row: LocationSummary): LocationDto {
 
 export function toLocationTypeDto(row: LocationType): LocationTypeDto {
   return {
-    id: row.id,
-    version: row.version,
-    archivedAt: row.archivedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
+    ...recordDto(row),
     code: row.code,
     name: row.name,
     sortOrder: row.sortOrder,
