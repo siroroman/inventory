@@ -1,0 +1,257 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { item, location, page, ref } from './fixtures.ts';
+import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
+
+const hq = ref('LOC-001', 'Centrála Praha');
+const floor = ref('LOC-004', 'Přízemí');
+const kitchen = ref('LOC-019', 'Teplá kuchyně');
+
+/** A sub-location two levels down, with everything filled in. */
+const sub = location({
+  id: kitchen.id,
+  code: 'LOC-019',
+  name: 'Teplá kuchyně',
+  parentId: floor.id,
+  type: null,
+  address: 'Vchod z dvora',
+  note: 'Klíče u vrátného.\nDruhý řádek.',
+  path: [hq, floor, kitchen],
+  itemCount: 12,
+  childCount: 2,
+});
+
+type Answers = {
+  detail?: (request: Request) => Response | Promise<Response>;
+  children?: (request: Request) => Response;
+  items?: (request: Request) => Response;
+};
+
+/** Signed in; answers the detail of `loc` and the two lists under it. */
+function api(loc: { id: string }, answers: Answers = {}) {
+  return stubApi({
+    'GET /api/v1/me': () => jsonResponse(me),
+    [`GET /api/v1/locations/${loc.id}`]: answers.detail ?? (() => jsonResponse(loc)),
+    'GET /api/v1/locations': answers.children ?? (() => page([])),
+    [`GET /api/v1/locations/${loc.id}/items`]: answers.items ?? (() => page([])),
+  });
+}
+
+const callsTo = (calls: Request[], path: string) =>
+  calls.filter((call) => new URL(call.url).pathname === path).map((call) => new URL(call.url).searchParams);
+
+describe('location detail: header and fields', () => {
+  it('shows the name, the breadcrumb of the whole path and the fields', async () => {
+    api(sub);
+    renderApp(`/locations/${sub.id}`);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Teplá kuchyně' })).toBeInTheDocument();
+    const crumbs = within(screen.getByRole('navigation', { name: 'Umístění' }));
+    expect(crumbs.getByRole('link', { name: 'Lokality' })).toHaveAttribute('href', '/');
+    expect(crumbs.getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', `/locations/${hq.id}`);
+    expect(crumbs.getByRole('link', { name: 'Přízemí' })).toHaveAttribute('href', `/locations/${floor.id}`);
+    // The location itself is where you are, not a link.
+    expect(crumbs.getByText('Teplá kuchyně')).toHaveAttribute('aria-current', 'page');
+    expect(crumbs.queryByRole('link', { name: 'Teplá kuchyně' })).not.toBeInTheDocument();
+
+    expect(screen.getByText('LOC-019')).toBeInTheDocument();
+    expect(screen.getByText('Vchod z dvora')).toBeInTheDocument();
+    expect(screen.getByText(/Klíče u vrátného\./)).toBeInTheDocument();
+    // The parent is a link, and a sub-location has no type row.
+    expect(screen.getByText('Nadřazená lokalita').nextElementSibling).toContainElement(
+      screen.getAllByRole('link', { name: 'Přízemí' })[1]!,
+    );
+    expect(screen.queryByText('Typ')).not.toBeInTheDocument();
+  });
+
+  it('shows the type and a dash for empty fields on a top-level location', async () => {
+    const top = location({ address: null, note: null });
+    api(top);
+    renderApp(`/locations/${top.id}`);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Centrála Praha' })).toBeInTheDocument();
+    const value = (label: string) => screen.getByText(label).nextElementSibling;
+    expect(value('Typ')).toHaveTextContent('Centrála');
+    expect(value('Nadřazená lokalita')).toHaveTextContent('—');
+    expect(value('Adresa')).toHaveTextContent('—');
+    expect(value('Poznámka')).toHaveTextContent('—');
+  });
+
+  it('marks an archived location', async () => {
+    const archived = location({ archivedAt: '2026-05-01T00:00:00.000Z' });
+    api(archived);
+    renderApp(`/locations/${archived.id}`);
+    expect(await screen.findByText('Archivováno')).toBeInTheDocument();
+  });
+
+  it('offers no way to change the location yet', async () => {
+    api(sub);
+    renderApp(`/locations/${sub.id}`);
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('button', { name: /upravit|archivovat|přidat/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('location detail: sub-locations and items', () => {
+  it('lists the direct sub-locations and the items of the subtree, with the counts in the headings', async () => {
+    const calls = api(sub, {
+      children: () => page([location({ name: 'Lednice', type: null, address: null, path: [hq, floor, kitchen], itemCount: 3, childCount: 0 })]),
+      items: () => page([item({ name: 'Konvektomat' })]),
+    });
+    renderApp(`/locations/${sub.id}`);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Podlokality (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Položky (12)' })).toBeInTheDocument();
+    const child = await within(screen.getByRole('region', { name: 'Podlokality (2)' })).findByRole('listitem');
+    const thing = await within(screen.getByRole('region', { name: 'Položky (12)' })).findByRole('listitem');
+    expect(child).toHaveTextContent('Lednice');
+    expect(child).toHaveTextContent('3 položky');
+    // The parent path is the page's own breadcrumb, so a child does not repeat it.
+    expect(child).not.toHaveTextContent('Přízemí');
+    expect(thing).toHaveTextContent('Konvektomat');
+    expect(thing).toHaveTextContent('Centrála Praha › Přízemí › Teplá kuchyně');
+
+    expect(callsTo(calls, '/api/v1/locations')).toEqual([new URLSearchParams({ limit: '20', parentId: sub.id })]);
+    expect(callsTo(calls, `/api/v1/locations/${sub.id}/items`)).toEqual([new URLSearchParams({ limit: '20' })]);
+  });
+
+  it('says so when there are no sub-locations or no items', async () => {
+    api(sub);
+    renderApp(`/locations/${sub.id}`);
+    expect(await screen.findByText('Žádné podlokality')).toBeInTheDocument();
+    expect(screen.getByText('Žádné položky')).toBeInTheDocument();
+  });
+
+  it('loads more items with the cursor', async () => {
+    const calls = api(sub, {
+      items: (request) =>
+        new URL(request.url).searchParams.get('cursor')
+          ? page([item({ name: 'Druhá strana' })], { total: 2 })
+          : page([item({ name: 'První strana' })], { nextCursor: 'abc', total: 2 }),
+    });
+    renderApp(`/locations/${sub.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Načíst další' }));
+    expect(await screen.findByText('Druhá strana')).toBeInTheDocument();
+    expect(callsTo(calls, `/api/v1/locations/${sub.id}/items`).at(-1)?.get('cursor')).toBe('abc');
+  });
+
+  it('shows both lists as tables on a wide screen', async () => {
+    stubWideScreen(true);
+    api(sub, { children: () => page([location({ name: 'Lednice' })]), items: () => page([item()]) });
+    renderApp(`/locations/${sub.id}`);
+    const children = await within(await screen.findByRole('region', { name: 'Podlokality (2)' })).findByRole('table');
+    const items = await within(screen.getByRole('region', { name: 'Položky (12)' })).findByRole('table');
+    expect(within(children).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Název',
+      'Adresa',
+      'Položky',
+      'Podlokality',
+    ]);
+    expect(within(items).getByRole('columnheader', { name: 'Servis' })).toBeInTheDocument();
+  });
+});
+
+describe('location detail: navigation', () => {
+  it('opens a sub-location from the list and an ancestor from the breadcrumb', async () => {
+    const child = location({ name: 'Lednice', type: null, parentId: sub.id, path: [hq, floor, kitchen, ref('LOC-020', 'Lednice')] });
+    api(sub, { children: () => page([child]) });
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      [`GET /api/v1/locations/${sub.id}`]: () => jsonResponse(sub),
+      [`GET /api/v1/locations/${floor.id}`]: () => jsonResponse(location({ id: floor.id, name: 'Přízemí', path: [hq, floor] })),
+      'GET /api/v1/locations': () => page([child]),
+      [`GET /api/v1/locations/${sub.id}/items`]: () => page([]),
+      [`GET /api/v1/locations/${floor.id}/items`]: () => page([]),
+    });
+    const { router } = renderApp(`/locations/${sub.id}`);
+
+    await userEvent.click(
+      within(await screen.findByRole('navigation', { name: 'Umístění' })).getByRole('link', { name: 'Přízemí' }),
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/locations/${floor.id}`));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Přízemí' })).toBeInTheDocument();
+  });
+
+  it('is reached from a row on Home', async () => {
+    const top = location();
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      'GET /api/v1/locations': (request) =>
+        new URL(request.url).searchParams.has('parentId') ? page([]) : page([top]),
+      [`GET /api/v1/locations/${top.id}`]: () => jsonResponse(top),
+      [`GET /api/v1/locations/${top.id}/items`]: () => page([]),
+    });
+    const { router } = renderApp('/');
+
+    await userEvent.click(await screen.findByRole('link', { name: /Centrála Praha/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/locations/${top.id}`));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Centrála Praha' })).toBeInTheDocument();
+  });
+
+  it('makes the name a link in the desktop table too', async () => {
+    stubWideScreen(true);
+    const top = location();
+    stubApi({ 'GET /api/v1/me': () => jsonResponse(me), 'GET /api/v1/locations': () => page([top]) });
+    renderApp('/');
+    expect(await screen.findByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', `/locations/${top.id}`);
+  });
+});
+
+describe('location detail: loading and failure', () => {
+  it('shows a skeleton until the location arrives', async () => {
+    let release: (res: Response) => void = () => {};
+    api(sub, { detail: () => new Promise<Response>((resolve) => (release = resolve)) });
+    renderApp(`/locations/${sub.id}`);
+    expect(await screen.findByRole('status', { name: 'Načítání' }, { timeout: 2000 })).toBeInTheDocument();
+    release(jsonResponse(sub));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Teplá kuchyně' })).toBeInTheDocument();
+  });
+
+  it('says the page does not exist for an unknown location, without a retry', async () => {
+    api(sub, {
+      detail: () =>
+        jsonResponse({ type: 'about:blank', title: 'Not Found', status: 404, code: 'not_found' }, { status: 404, problem: true }),
+    });
+    renderApp(`/locations/${sub.id}`);
+    expect(await screen.findByText('Stránka nenalezena')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Zpět na úvodní stránku' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Zkusit znovu' })).not.toBeInTheDocument();
+  });
+
+  it('treats an id that is not a UUID as a page that does not exist', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      'GET /api/v1/locations/abc': () =>
+        jsonResponse({ type: 'about:blank', title: 'Bad Request', status: 400, code: 'validation_error' }, { status: 400, problem: true }),
+    });
+    renderApp('/locations/abc');
+    expect(await screen.findByText('Stránka nenalezena')).toBeInTheDocument();
+  });
+
+  it('shows the Czech error with a retry that loads the location', async () => {
+    let failing = true;
+    api(sub, {
+      detail: () =>
+        failing
+          ? jsonResponse({ type: 'about:blank', title: 'Server Error', status: 500, code: 'internal_error' }, { status: 500, problem: true })
+          : jsonResponse(sub),
+    });
+    renderApp(`/locations/${sub.id}`);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Něco se nepovedlo. Zkuste to prosím znovu.');
+    failing = false;
+    await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Teplá kuchyně' })).toBeInTheDocument();
+  });
+
+  it('keeps the page and shows an error inside the items section when only the items fail', async () => {
+    api(sub, {
+      items: () =>
+        jsonResponse({ type: 'about:blank', title: 'Server Error', status: 500, code: 'internal_error' }, { status: 500, problem: true }),
+    });
+    renderApp(`/locations/${sub.id}`);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Teplá kuchyně' })).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Něco se nepovedlo');
+    expect(screen.getByRole('heading', { level: 2, name: 'Podlokality (2)' })).toBeInTheDocument();
+  });
+});
