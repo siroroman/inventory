@@ -1,7 +1,6 @@
 import type { ItemDetailDto, PhotoDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import { ChevronLeft, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
@@ -19,18 +18,6 @@ import { ServiceBadge } from './service-badge';
 
 // Tailwind's `md` breakpoint.
 const wideScreen = '(min-width: 768px)';
-
-function BackLink() {
-  const { t } = useTranslation();
-  return (
-    <Button asChild variant="ghost" size="sm" className="-ml-2 self-start">
-      <Link to="/" search={{ tab: 'items' }}>
-        <ChevronLeft aria-hidden />
-        {t('item.back')}
-      </Link>
-    </Button>
-  );
-}
 
 function DetailSkeleton() {
   const { t } = useTranslation();
@@ -264,7 +251,6 @@ export function ItemDetail({ id }: { id: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4">
-      <BackLink />
       {body}
     </div>
   );
