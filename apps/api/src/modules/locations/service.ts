@@ -8,7 +8,6 @@ import { type AuditRepository, createAuditRepository } from '../audit/repository
 import {
   createLocationRepository,
   createLocationTypeRepository,
-  type Location,
   type LocationFilter,
   type LocationRepository,
   type LocationType,
@@ -81,6 +80,35 @@ async function checkPlacement(r: LocationRepos, p: Placement): Promise<void> {
   if (!type || type.archivedAt) throw new DomainError('location_type_not_found');
 }
 
+/** What a list request asks for. See `toFilter` for how a missing parent is read. */
+export type LocationQuery = { parentId?: string; q?: string };
+
+/**
+ * `parentId` lists that location's direct children. Without it the list is the top level, or every
+ * level when searching (to pick a location for an item).
+ */
+function toFilter({ parentId, q }: LocationQuery): LocationFilter {
+  if (parentId) return { parentId, q };
+  return q ? { q } : { parentId: null };
+}
+
+/** Adds the path and subtree counts. Takes the repos to read from, so a write can do it in its transaction. */
+async function summarize(r: LocationRepos, rows: LocationWithType[]): Promise<LocationSummary[]> {
+  const ids = rows.map((row) => row.id);
+  const [paths, counts] = await Promise.all([r.locations.findPaths(ids), r.locations.countSubtree(ids)]);
+  return rows.map((row) => ({
+    ...row,
+    path: paths.get(row.id) ?? [],
+    ...(counts.get(row.id) ?? { itemCount: 0, childCount: 0 }),
+  }));
+}
+
+/** The stored location as `get` shows it, read back with the connection that wrote it. */
+async function reload(r: LocationRepos, id: string): Promise<LocationSummary> {
+  const [summary] = await summarize(r, [(await r.locations.findById(id))!]);
+  return summary!;
+}
+
 async function loadCurrent(r: LocationRepos, id: string, version: number): Promise<LocationWithType> {
   const current = await r.locations.findById(id);
   if (!current) throw new DomainError('not_found');
@@ -89,17 +117,7 @@ async function loadCurrent(r: LocationRepos, id: string, version: number): Promi
 }
 
 export function createLocationService({ repos, transact }: LocationDeps) {
-  async function summarize(rows: LocationWithType[]): Promise<LocationSummary[]> {
-    const ids = rows.map((row) => row.id);
-    const [paths, counts] = await Promise.all([repos.locations.findPaths(ids), repos.locations.countSubtree(ids)]);
-    return rows.map((row) => ({
-      ...row,
-      path: paths.get(row.id) ?? [],
-      ...(counts.get(row.id) ?? { itemCount: 0, childCount: 0 }),
-    }));
-  }
-
-  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<Location> {
+  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<LocationSummary> {
     assertRole(actor, 'write');
     return transact(async (r) => {
       const current = await loadCurrent(r, id, version);
@@ -114,7 +132,7 @@ export function createLocationService({ repos, transact }: LocationDeps) {
         entityId: id,
         action: archive ? 'archive' : 'restore',
       });
-      return row;
+      return reload(r, row.id);
     });
   }
 
@@ -124,25 +142,26 @@ export function createLocationService({ repos, transact }: LocationDeps) {
       assertRole(actor, 'read');
       const row = await repos.locations.findById(id);
       if (!row) throw new DomainError('not_found');
-      const [summary] = await summarize([row]);
+      const [summary] = await summarize(repos, [row]);
       return summary!;
     },
 
     /** Active locations with counts and paths, plus the total for the list heading. */
     async list(
       actor: Actor,
-      filter: LocationFilter,
+      query: LocationQuery,
       page: { limit: number; cursor?: string },
     ): Promise<Page<LocationSummary> & { total: number }> {
       assertRole(actor, 'read');
+      const filter = toFilter(query);
       const [result, total] = await Promise.all([
         repos.locations.list(filter, page),
         repos.locations.count(filter),
       ]);
-      return { items: await summarize(result.items), nextCursor: result.nextCursor, total };
+      return { items: await summarize(repos, result.items), nextCursor: result.nextCursor, total };
     },
 
-    async create(actor: Actor, input: CreateLocationInput): Promise<Location> {
+    async create(actor: Actor, input: CreateLocationInput): Promise<LocationSummary> {
       assertRole(actor, 'write');
       return transact(async (r) => {
         const parentId = input.parentId ?? null;
@@ -163,11 +182,11 @@ export function createLocationService({ repos, transact }: LocationDeps) {
           action: 'create',
           changes: initialFields(row, AUDITED),
         });
-        return row;
+        return reload(r, row.id);
       });
     },
 
-    async update(actor: Actor, id: string, input: UpdateLocationInput): Promise<Location> {
+    async update(actor: Actor, id: string, input: UpdateLocationInput): Promise<LocationSummary> {
       assertRole(actor, 'write');
       return transact(async (r) => {
         const current = await loadCurrent(r, id, input.version);
@@ -196,7 +215,7 @@ export function createLocationService({ repos, transact }: LocationDeps) {
           action: 'update',
           changes: changedFields(current, updated, AUDITED),
         });
-        return updated;
+        return reload(r, id);
       });
     },
 

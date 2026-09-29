@@ -6,6 +6,7 @@ import { type AuthDeps, createAuth } from '../../src/auth/auth.ts';
 import type { Db } from '../../src/db/client.ts';
 import { account, user } from '../../src/db/schema/index.ts';
 import type { LogEntry } from '../../src/http/logger.ts';
+import { createServices } from '../../src/services.ts';
 import { insertUser } from './factories.ts';
 
 export const BASE_URL = 'http://localhost:8080';
@@ -33,6 +34,7 @@ export function createTestApp(db: Db, options: TestAppOptions = {}) {
     baseUrl: BASE_URL,
     isProduction: options.isProduction ?? false,
     log: (entry) => logs.push(entry),
+    services: createServices({ db }),
   });
   return { app, auth, logs };
 }

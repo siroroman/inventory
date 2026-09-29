@@ -10,7 +10,9 @@ import { authenticate } from './http/middleware/authenticate.ts';
 import { noStore } from './http/middleware/no-store.ts';
 import { requestLog } from './http/middleware/request-log.ts';
 import { securityHeaders } from './http/middleware/security-headers.ts';
+import { createLocationRoutes, createLocationTypeRoutes } from './modules/locations/routes.ts';
 import { createSystemRoutes } from './routes/system.ts';
+import type { Services } from './services.ts';
 
 /** Requests are small JSON documents; photos go straight to storage through signed URLs. */
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -27,13 +29,14 @@ export type AppDeps = {
   baseUrl: string;
   isProduction: boolean;
   log: Logger;
+  services: Services;
 };
 
 /**
  * Builds the API. Everything it needs comes in through `deps`, so tests can build it against a
  * throwaway database and read the log.
  */
-export function createApp({ auth, baseUrl, isProduction, log }: AppDeps) {
+export function createApp({ auth, baseUrl, isProduction, log, services }: AppDeps) {
   const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
 
   app.use(requestId());
@@ -52,7 +55,11 @@ export function createApp({ auth, baseUrl, isProduction, log }: AppDeps) {
   app.use('/api/v1/*', csrf({ origin: baseUrl }));
   app.use('/api/v1/*', authenticate(auth, { publicPaths }));
 
-  const routes = app.route('/api/v1', createSystemRoutes());
+  // Chained, so `AppType` keeps every route for the typed client.
+  const routes = app
+    .route('/api/v1', createSystemRoutes())
+    .route('/api/v1', createLocationRoutes(services))
+    .route('/api/v1', createLocationTypeRoutes(services.locationTypes));
 
   routes.openAPIRegistry.registerComponent('securitySchemes', 'cookieAuth', {
     type: 'apiKey',

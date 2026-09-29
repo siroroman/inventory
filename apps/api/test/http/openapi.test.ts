@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { publicPaths } from '../../src/app.ts';
-import { createTestApp, loginAs } from '../helpers/app.ts';
+import { BASE_URL, createTestApp, loginAs } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 
 const db = useTestDb();
@@ -84,7 +84,8 @@ describe('auth matrix', () => {
         expect(op['x-min-role'], `${label} has no x-min-role`).toBeDefined();
         expect(op.security, `${label} does not declare cookieAuth`).toEqual([{ cookieAuth: [] }]);
 
-        const res = await app.request(url, { method: method.toUpperCase() });
+        // Same origin, so the CSRF check passes and it is authentication that answers.
+        const res = await app.request(url, { method: method.toUpperCase(), headers: { origin: BASE_URL } });
         expect(res.status, `${label} answered an anonymous caller`).toBe(401);
         checked.push(label);
       }

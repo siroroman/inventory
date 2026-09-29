@@ -124,6 +124,22 @@ export function createItemService({ repos, transact }: ItemDeps) {
     });
   }
 
+  /** Active items by name with location paths, plus the total for the list heading. */
+  async function list(
+    actor: Actor,
+    filter: ItemFilter,
+    page: { limit: number; cursor?: string },
+  ): Promise<Page<ItemListEntry> & { total: number }> {
+    assertRole(actor, 'read');
+    const [result, total] = await Promise.all([repos.items.list(filter, page), repos.items.count(filter)]);
+    const paths = await repos.locations.findPaths([...new Set(result.items.map((item) => item.location.id))]);
+    return {
+      items: result.items.map((item) => ({ ...item, path: paths.get(item.location.id) ?? [] })),
+      nextCursor: result.nextCursor,
+      total,
+    };
+  }
+
   return {
     /** Detail: archived items are returned too, so they can be viewed and restored. */
     async get(actor: Actor, id: string): Promise<ItemDetail> {
@@ -137,20 +153,18 @@ export function createItemService({ repos, transact }: ItemDeps) {
       return { ...row, externalIds, path: paths.get(row.locationId) ?? [] };
     },
 
-    /** Active items by name with location paths, plus the total for the list heading. */
-    async list(
+    list,
+
+    /** Items in a location and all its sub-locations; an unknown location is not found, not an empty list. */
+    async listInLocation(
       actor: Actor,
-      filter: ItemFilter,
+      locationId: string,
+      filter: Pick<ItemFilter, 'q'>,
       page: { limit: number; cursor?: string },
     ): Promise<Page<ItemListEntry> & { total: number }> {
       assertRole(actor, 'read');
-      const [result, total] = await Promise.all([repos.items.list(filter, page), repos.items.count(filter)]);
-      const paths = await repos.locations.findPaths([...new Set(result.items.map((item) => item.location.id))]);
-      return {
-        items: result.items.map((item) => ({ ...item, path: paths.get(item.location.id) ?? [] })),
-        nextCursor: result.nextCursor,
-        total,
-      };
+      if (!(await repos.locations.findById(locationId))) throw new DomainError('not_found');
+      return list(actor, { ...filter, locationId }, page);
     },
 
     async create(actor: Actor, input: CreateItemInput): Promise<Item> {
