@@ -14,6 +14,7 @@ export const domainErrorCodes = [
   'location_type_required',
   'location_type_not_allowed',
   'location_type_not_found',
+  'duplicate_location_type',
   'duplicate_provider',
   'provider_not_found',
   'provider_archived',
