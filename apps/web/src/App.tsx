@@ -1,7 +1,13 @@
-export function App() {
+import { type QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
+import { Toaster } from '@/components/ui/sonner';
+import type { AppRouter } from './router.tsx';
+
+export function App({ router, queryClient }: { router: AppRouter; queryClient: QueryClient }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-3xl items-center justify-center p-4">
-      <h1 className="text-xl font-semibold">Evidence majetku</h1>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+      <Toaster />
+    </QueryClientProvider>
   );
 }

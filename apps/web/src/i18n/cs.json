@@ -1,0 +1,63 @@
+{
+  "app": {
+    "name": "Evidence majetku"
+  },
+  "common": {
+    "retry": "Zkusit znovu",
+    "saved": "Uloženo",
+    "skipToContent": "Přeskočit na obsah",
+    "itemCount_one": "{{count}} položka",
+    "itemCount_few": "{{count}} položky",
+    "itemCount_many": "{{count}} položky",
+    "itemCount_other": "{{count}} položek"
+  },
+  "states": {
+    "errorTitle": "Něco se nepovedlo",
+    "notFoundTitle": "Stránka nenalezena",
+    "notFoundHint": "Adresa neexistuje nebo byla přesunuta.",
+    "backHome": "Zpět na úvodní stránku"
+  },
+  "home": {
+    "title": "Přehled",
+    "placeholder": "Aplikace se připravuje."
+  },
+  "errors": {
+    "unauthenticated": "Přihlášení vypršelo. Přihlaste se prosím znovu.",
+    "forbidden": "K této akci nemáte oprávnění.",
+    "cannot_modify_self": "Nemůžete změnit vlastní účet.",
+    "not_found": "Záznam nebyl nalezen.",
+    "conflict": "Záznam mezitím někdo upravil. Načtěte ho znovu a proveďte změny znovu.",
+    "archived": "Záznam je archivovaný.",
+    "not_archived": "Záznam není archivovaný.",
+    "location_cycle": "Lokalitu nelze přesunout pod sebe samu ani pod některou z jejích podlokalit.",
+    "duplicate_location_type": "Typ lokality s tímto názvem nebo kódem už existuje.",
+    "duplicate_provider": "Takový servisní dodavatel už existuje.",
+    "duplicate_manufacturer": "Výrobce s tímto názvem už existuje.",
+    "duplicate_external_id": "Toto externí ID už je u jiné položky použité.",
+    "email_taken": "Uživatel s tímto e-mailem už existuje.",
+    "last_admin": "Posledního administrátora nelze odebrat ani deaktivovat.",
+    "parent_not_found": "Nadřazená lokalita neexistuje.",
+    "parent_archived": "Nadřazená lokalita je archivovaná.",
+    "location_type_required": "U lokality nejvyšší úrovně je typ povinný.",
+    "location_type_not_allowed": "Typ lze zadat jen u lokality nejvyšší úrovně.",
+    "location_type_not_found": "Typ lokality neexistuje.",
+    "provider_not_found": "Servisní dodavatel neexistuje.",
+    "provider_archived": "Servisní dodavatel je archivovaný.",
+    "manufacturer_not_found": "Výrobce neexistuje.",
+    "manufacturer_archived": "Výrobce je archivovaný.",
+    "location_not_found": "Lokalita neexistuje.",
+    "location_archived": "Lokalita je archivovaná.",
+    "invalid_photo_key": "Fotografie není platná. Nahrajte ji prosím znovu.",
+    "photo_not_uploaded": "Fotografie se nenahrála. Zkuste to prosím znovu.",
+    "photo_too_large": "Fotografie je příliš velká (nejvýše 10 MB).",
+    "photo_type_not_allowed": "Nahrát lze jen obrázky.",
+    "invalid_photo_order": "Pořadí fotografií není platné.",
+    "validation_error": "Zkontrolujte prosím vyplněné údaje.",
+    "invalid_cursor": "Seznam se mezitím změnil. Načtěte ho prosím znovu.",
+    "payload_too_large": "Odesílaná data jsou příliš velká.",
+    "rate_limited": "Příliš mnoho požadavků. Zkuste to prosím za chvíli.",
+    "internal_error": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "network": "Server není dostupný. Zkontrolujte připojení k internetu a zkuste to znovu.",
+    "unexpected": "Něco se nepovedlo. Zkuste to prosím znovu."
+  }
+}
