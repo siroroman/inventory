@@ -1,6 +1,7 @@
 import {
   createItemBody,
   idParam,
+  itemDetailSchema,
   itemListSchema,
   itemSchema,
   itemSearchQuery,
@@ -9,6 +10,8 @@ import {
 } from '@inventory/shared';
 import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
+import { toPhotoDto } from '../photos/dto.ts';
+import type { PhotoService } from '../photos/service.ts';
 import { toItemDto, toItemListEntryDto } from './dto.ts';
 import type { ItemService } from './service.ts';
 
@@ -28,10 +31,10 @@ const get = defineRoute({
   path: '/items/{id}',
   minRole: 'read',
   tags: ['items'],
-  summary: 'An item with its location path and external IDs; archived ones too',
+  summary: 'An item with its location path, external IDs and photos (read URLs valid for 15 minutes); archived ones too',
   request: { params: idParam },
   errors: [404],
-  responses: { 200: { description: 'The item', content: jsonContent(itemSchema) } },
+  responses: { 200: { description: 'The item', content: jsonContent(itemDetailSchema) } },
 });
 
 const create = defineRoute({
@@ -78,8 +81,10 @@ const restore = defineRoute({
   responses: { 200: { description: 'The restored item', content: jsonContent(itemSchema) } },
 });
 
-/** Items. Mounted under /api/v1; `GET /locations/{id}/items` lives with the locations. */
-export function createItemRoutes(items: ItemService) {
+type ItemServices = { items: ItemService; photos: PhotoService };
+
+/** Items. Mounted under /api/v1; `GET /locations/{id}/items` lives with the locations, the photo writes with the photos. */
+export function createItemRoutes({ items, photos }: ItemServices) {
   return createRouter()
     .openapi(list, async (c) => {
       const { q, locationId, manufacturerId, limit, cursor } = c.req.valid('query');
@@ -87,8 +92,10 @@ export function createItemRoutes(items: ItemService) {
       return c.json({ ...page, items: page.items.map(toItemListEntryDto) }, 200);
     })
     .openapi(get, async (c) => {
-      const row = await items.get(c.get('actor'), c.req.valid('param').id);
-      return c.json(toItemDto(row), 200);
+      const actor = c.get('actor');
+      const { id } = c.req.valid('param');
+      const [row, gallery] = await Promise.all([items.get(actor, id), photos.list(actor, id)]);
+      return c.json({ ...toItemDto(row), photos: gallery.map(toPhotoDto) }, 200);
     })
     .openapi(create, async (c) => {
       const row = await items.create(c.get('actor'), c.req.valid('json'));

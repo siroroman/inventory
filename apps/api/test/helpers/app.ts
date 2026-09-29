@@ -7,6 +7,7 @@ import type { Db } from '../../src/db/client.ts';
 import { account, user } from '../../src/db/schema/index.ts';
 import type { LogEntry } from '../../src/http/logger.ts';
 import { createServices } from '../../src/services.ts';
+import { createFakeStorage } from '../fakes/storage.ts';
 import { insertUser } from './factories.ts';
 
 export const BASE_URL = 'http://localhost:8080';
@@ -25,18 +26,19 @@ export function createTestAuth(db: Db, options: TestAppOptions = {}) {
   });
 }
 
-/** The API against a test database and in-memory logging. Requests go through `app.request()`. */
+/** The API against a test database, an in-memory bucket and in-memory logging. Requests go through `app.request()`. */
 export function createTestApp(db: Db, options: TestAppOptions = {}) {
   const logs: LogEntry[] = [];
   const auth = createTestAuth(db, options);
+  const bucket = createFakeStorage();
   const app = createApp({
     auth,
     baseUrl: BASE_URL,
     isProduction: options.isProduction ?? false,
     log: (entry) => logs.push(entry),
-    services: createServices({ db }),
+    services: createServices({ db, storage: bucket.storage }),
   });
-  return { app, auth, logs };
+  return { app, auth, logs, bucket };
 }
 
 /** A user who can sign in with email and password, like the seeded ones. */
