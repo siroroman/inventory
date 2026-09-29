@@ -51,9 +51,12 @@ describe('item detail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Elektrikář: EL-4821')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', expect.stringMatching(/^\/locations\//));
-    expect(screen.getByRole('link', { name: 'Přízemí' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Teplá kuchyně' })).toBeInTheDocument();
+    // The Location field links every level, like the breadcrumb does.
+    const field = screen.getByText('Lokalita').closest('div')!;
+    expect(within(field).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^\/locations\//)]),
+    );
+    expect(within(field).getAllByRole('link')).toHaveLength(3);
     for (const text of ['Rational', 'SCC 101', 'SN-7781', '2018', '1. 5. 2019', '1. 5. 2020', '4. 3. 2026', 'Pravidelně odvápňovat.']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
@@ -63,6 +66,19 @@ describe('item detail', () => {
     expect(link).toHaveAttribute('href', 'https://drive.google.com/drive/folders/abc');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('has a breadcrumb through the Items tab and the location levels, ending at the item', async () => {
+    signedIn(() => jsonResponse(detail()));
+    renderApp(`/items/${id}`);
+    const nav = await screen.findByRole('navigation', { name: 'Umístění' });
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Položky',
+      'Centrála Praha',
+      'Přízemí',
+      'Teplá kuchyně',
+    ]);
+    expect(within(nav).getByText('Konvektomat')).toHaveAttribute('aria-current', 'page');
   });
 
   it('shows a dash for empty fields and omits the documents and note sections', async () => {
