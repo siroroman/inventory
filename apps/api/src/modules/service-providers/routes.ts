@@ -5,14 +5,13 @@ import {
   serviceProviderListQuery,
   serviceProviderListSchema,
   serviceProviderSchema,
-  servicedBrandListSchema,
   setManufacturersBody,
   updateServiceProviderBody,
   versionBody,
 } from '@inventory/shared';
 import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
-import { toServiceProviderDetailDto, toServiceProviderDto, toServicedBrandDto } from './dto.ts';
+import { toServiceProviderDetailDto, toServiceProviderDto } from './dto.ts';
 import type { ServiceProviderService } from './service.ts';
 
 const list = defineRoute({
@@ -85,10 +84,12 @@ const setManufacturers = defineRoute({
   minRole: 'write',
   tags: ['service-providers'],
   summary:
-    'Save the whole set of brands the provider services; a new brand ranks it last, a dropped brand closes the gap',
+    'Save the whole set of brands the provider services; a new brand ranks it last, a dropped brand closes the gap. A change bumps the provider version',
   request: { params: idParam, body: { required: true, content: jsonContent(setManufacturersBody) } },
   errors: [404, 409, 422],
-  responses: { 200: { description: 'The brands with the provider’s priority for each', content: jsonContent(servicedBrandListSchema) } },
+  responses: {
+    200: { description: 'The provider with its brands and their new version', content: jsonContent(serviceProviderDetailSchema) },
+  },
 });
 
 /** Service providers and the brands they service. Mounted under /api/v1. */
@@ -120,11 +121,8 @@ export function createServiceProviderRoutes(serviceProviders: ServiceProviderSer
       return c.json(toServiceProviderDto(row), 200);
     })
     .openapi(setManufacturers, async (c) => {
-      const rows = await serviceProviders.setManufacturers(
-        c.get('actor'),
-        c.req.valid('param').id,
-        c.req.valid('json').manufacturerIds,
-      );
-      return c.json({ items: rows.map(toServicedBrandDto) }, 200);
+      const { version, manufacturerIds } = c.req.valid('json');
+      const row = await serviceProviders.setManufacturers(c.get('actor'), c.req.valid('param').id, version, manufacturerIds);
+      return c.json(toServiceProviderDetailDto(row), 200);
     });
 }

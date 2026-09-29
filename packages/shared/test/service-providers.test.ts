@@ -23,6 +23,12 @@ describe('createServiceProviderBody', () => {
     ).toMatchObject({ email: 'novak@example.test', web: 'https://novak.example.test/servis', note: null });
   });
 
+  it('accepts internationalised email addresses', () => {
+    for (const email of ['servis@příklad.cz', 'jiří.novák@example.test']) {
+      expect(createServiceProviderBody.safeParse({ name: 'x', email }).success, email).toBe(true);
+    }
+  });
+
   it('accepts plain http links, which small firms still use', () => {
     expect(createServiceProviderBody.safeParse({ name: 'x', web: 'http://novak.example.test' }).success).toBe(true);
   });
@@ -37,6 +43,8 @@ describe('createServiceProviderBody', () => {
       { name: 'x', web: 'javascript:alert(1)' },
       { name: 'x', web: 'ftp://novak.example.test' },
       { name: 'x', web: 'novak.example.test' },
+      { name: 'x', web: 'https://known-supplier.cz@elsewhere.test' },
+      { name: 'x', web: 'https://user:secret@novak.example.test' },
       { name: 'x', web: '' },
       { name: 'x', phone: '' },
       { name: 'x', phone: '1'.repeat(41) },
@@ -80,17 +88,20 @@ describe('serviceProviderListQuery', () => {
 });
 
 describe('setManufacturersBody', () => {
-  it('takes a list of ids, empty included', () => {
-    expect(setManufacturersBody.parse({ manufacturerIds: [ID] })).toEqual({ manufacturerIds: [ID] });
-    expect(setManufacturersBody.parse({ manufacturerIds: [] })).toEqual({ manufacturerIds: [] });
+  it('takes the version and a list of ids, empty included', () => {
+    expect(setManufacturersBody.parse({ version: 3, manufacturerIds: [ID] })).toEqual({ version: 3, manufacturerIds: [ID] });
+    expect(setManufacturersBody.parse({ version: 1, manufacturerIds: [] })).toEqual({ version: 1, manufacturerIds: [] });
   });
 
-  it('rejects a missing list, bad ids, unknown keys and more than 100 brands', () => {
+  it('rejects a missing version or list, bad ids, unknown keys and more than 100 brands', () => {
     for (const body of [
       {},
-      { manufacturerIds: ['nope'] },
-      { manufacturerIds: [], extra: 1 },
-      { manufacturerIds: Array.from({ length: 101 }, () => ID) },
+      { manufacturerIds: [] },
+      { version: 1 },
+      { version: 0, manufacturerIds: [] },
+      { version: 1, manufacturerIds: ['nope'] },
+      { version: 1, manufacturerIds: [], extra: 1 },
+      { version: 1, manufacturerIds: Array.from({ length: 101 }, () => ID) },
     ]) {
       expect(setManufacturersBody.safeParse(body).success, JSON.stringify(body)).toBe(false);
     }

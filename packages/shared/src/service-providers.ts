@@ -2,15 +2,23 @@ import { z } from 'zod';
 import { hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
 import { searchPageQuery, versionField } from './http.ts';
 
-/** A valid address; the database keeps whatever text it is given. */
-const email = z.string().trim().max(254).pipe(z.email());
+/** A valid address, internationalised ones included (`servis@příklad.cz`). */
+const email = z.string().trim().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
 
-/** A web link the SPA renders as an anchor, so only http(s): a `javascript:` link never gets in. */
+/**
+ * A web link the SPA renders as an anchor: only http(s), so a `javascript:` link never gets in,
+ * and no `user:pass@`, so `https://known-supplier.cz@elsewhere.test` cannot pose as a trusted host.
+ */
 const web = z
   .string()
   .trim()
   .max(2048)
-  .pipe(z.url({ protocol: /^https?$/ }));
+  .pipe(z.url({ protocol: /^https?$/ }))
+  .refine((link) => {
+    // Runs even when the URL check failed, so an unparsable link is left to that check.
+    const url = URL.canParse(link) ? new URL(link) : undefined;
+    return !url?.username && !url?.password;
+  });
 
 const providerFields = {
   name: requiredText(120),
@@ -39,8 +47,6 @@ export const servicedBrandSchema = z.object({
 });
 export type ServicedBrandDto = z.infer<typeof servicedBrandSchema>;
 
-export const servicedBrandListSchema = z.object({ items: z.array(servicedBrandSchema) });
-
 /** A provider with the brands it services. */
 export const serviceProviderDetailSchema = serviceProviderSchema.extend({
   manufacturers: z.array(servicedBrandSchema),
@@ -62,8 +68,12 @@ export type UpdateServiceProviderBody = z.infer<typeof updateServiceProviderBody
 export const serviceProviderListQuery = searchPageQuery;
 
 /**
- * The whole set of brands at once. A new brand ranks the provider last for it; the order per
- * brand is changed on the manufacturer. An empty list drops the provider from every brand.
+ * The whole set of brands at once, based on the provider's `version`. A new brand ranks the
+ * provider last for it; the order per brand is changed on the manufacturer. An empty list drops
+ * the provider from every brand.
  */
-export const setManufacturersBody = z.strictObject({ manufacturerIds: z.array(z.uuid()).max(100) });
+export const setManufacturersBody = z.strictObject({
+  version: versionField,
+  manufacturerIds: z.array(z.uuid()).max(100),
+});
 export type SetManufacturersBody = z.infer<typeof setManufacturersBody>;

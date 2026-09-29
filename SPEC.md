@@ -292,7 +292,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `GET /service-providers`, `GET /service-providers/{id}` | list, detail with brands | Read |
 | `POST /service-providers`, `PATCH /service-providers/{id}` | create, edit | Write |
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
-| `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services; a new brand ranks it last | Write |
+| `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |
 | `GET /users`, `POST /users`, `PATCH /users/{id}` | list, invite, role, deactivate | Admin |
 | `GET /audit?entityType=&entityId=` | change history of a record | Admin |
 | `/api/auth/*` | Better Auth: login, Google, password reset | none |

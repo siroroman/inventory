@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
+import { hasChange, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
 import { searchPageQuery, versionField } from './http.ts';
+import { serviceProviderSchema } from './service-providers.ts';
 
 const manufacturerFields = {
   name: requiredText(120),
@@ -16,18 +17,12 @@ export const manufacturerListSchema = pageOf(manufacturerSchema);
  * A service provider in a manufacturer's contact order. Archived providers stay ranked (and are
  * marked) until someone removes them from the order.
  */
-export const rankedProviderSchema = z.object({
-  id: z.uuid(),
-  code: z.string(),
-  name: z.string(),
-  contactPerson: z.string().nullable(),
-  phone: z.string().nullable(),
-  email: z.string().nullable(),
-  web: z.string().nullable(),
-  archivedAt: timestamp.nullable(),
-  /** 1 is contacted first. */
-  priority: z.number().int().min(1),
-});
+export const rankedProviderSchema = serviceProviderSchema
+  .pick({ id: true, code: true, name: true, contactPerson: true, phone: true, email: true, web: true, archivedAt: true })
+  .extend({
+    /** 1 is contacted first. */
+    priority: z.number().int().min(1),
+  });
 export type RankedProviderDto = z.infer<typeof rankedProviderSchema>;
 
 export const rankedProviderListSchema = z.object({ items: z.array(rankedProviderSchema) });
