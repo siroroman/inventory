@@ -141,7 +141,7 @@ describe('item detail', () => {
     expect(await screen.findByRole('heading', { name: 'Konvektomat' })).toBeInTheDocument();
   });
 
-  it('is reached from the item list and leads back to the Items tab', async () => {
+  it('is reached from the item list, and browser Back returns to the Items tab', async () => {
     const summary = { ...detail(), photos: undefined };
     stubApi({
       'GET /api/v1/me': () => jsonResponse(me),
@@ -153,7 +153,7 @@ describe('item detail', () => {
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(`/items/${id}`);
 
-    await userEvent.click(screen.getByRole('link', { name: 'Položky' }));
+    router.history.back();
     expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
   });
 });

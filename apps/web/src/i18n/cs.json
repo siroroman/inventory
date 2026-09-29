@@ -83,7 +83,6 @@
     }
   },
   "item": {
-    "back": "Položky",
     "empty": "—",
     "archived": "Archivováno",
     "notFoundTitle": "Položka nenalezena",
