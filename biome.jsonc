@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!**/drizzle/meta", "!apps/api/src/db/schema/auth.ts"]
+  },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      // `row!` after INSERT ... RETURNING and in tests is the deliberate style here.
+      "style": { "noNonNullAssertion": "off" }
+    }
+  }
+}
