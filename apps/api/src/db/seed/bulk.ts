@@ -1,4 +1,4 @@
-import { count, eq } from 'drizzle-orm';
+import { asc, count, eq } from 'drizzle-orm';
 import { createItemRepository } from '../../modules/items/repository.ts';
 import {
   createLocationRepository,
@@ -113,11 +113,17 @@ export async function seedBulk(db: Db, options: BulkSeedOptions): Promise<BulkSe
     const typeIds = new Map((await createLocationTypeRepository(tx).list()).map((t) => [t.code, t.id]));
     const locationRepo = createLocationRepository(tx);
 
-    // Existing locations count as depth 1 parents for the new ones.
-    const places = (await tx.select({ id: locations.id, parentId: locations.parentId }).from(locations)).map((l) => ({
-      id: l.id,
-      depth: l.parentId ? 2 : 1,
-    }));
+    // Existing locations are parents for the new ones too, at their real depth.
+    const existingRows = await tx
+      .select({ id: locations.id, parentId: locations.parentId })
+      .from(locations)
+      .orderBy(asc(locations.createdAt), asc(locations.id));
+    const parentOf = new Map(existingRows.map((l) => [l.id, l.parentId]));
+    const depthOf = (id: string): number => {
+      const parentId = parentOf.get(id);
+      return parentId ? depthOf(parentId) + 1 : 1;
+    };
+    const places = existingRows.map((l) => ({ id: l.id, depth: depthOf(l.id) }));
 
     let created = 0;
     const topLevelTarget = Math.max(1, Math.round(options.locations * 0.15));
