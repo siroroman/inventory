@@ -26,7 +26,14 @@
     "submitting": "Přihlašuji…",
     "emailRequired": "Zadejte e-mail.",
     "emailInvalid": "Zadejte platný e-mail.",
-    "passwordRequired": "Zadejte heslo."
+    "passwordRequired": "Zadejte heslo.",
+    "userMenu": "Uživatelské menu",
+    "signOut": "Odhlásit se"
+  },
+  "roles": {
+    "read": "Čtenář",
+    "write": "Editor",
+    "admin": "Správce"
   },
   "home": {
     "title": "Přehled",

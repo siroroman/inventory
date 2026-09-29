@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query';
+import { type QueryClient, queryOptions } from '@tanstack/react-query';
 import { ApiError, api, unwrap } from '@/lib/api';
 
 /** The signed-in user. Its query is the session: a 401 here means "not signed in". */
@@ -6,6 +6,15 @@ export const meQueryOptions = queryOptions({
   queryKey: ['me'],
   queryFn: () => unwrap(api.api.v1.me.$get()),
 });
+
+/**
+ * The signed-in user, from the cache while it is fresh (30 s) and from the server after that, so
+ * an expired or deactivated session is noticed on the next navigation. No retries: the caller is
+ * a route guard, and its error screen has a retry button.
+ */
+export function currentUser(queryClient: QueryClient) {
+  return queryClient.fetchQuery({ ...meQueryOptions, retry: false });
+}
 
 /**
  * Better Auth answers `{ code, message }`, not problem+json, so these two calls do not go through

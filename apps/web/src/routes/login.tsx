@@ -1,11 +1,19 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { currentUser } from '@/features/auth/api';
 import { LoginForm } from '@/features/auth/login-form';
+import { safeRedirect } from '@/features/auth/redirect';
 
 export const Route = createFileRoute('/login')({
   // `redirect` is where to go after signing in; a value that is not a string is ignored.
   validateSearch: z.object({ redirect: z.string().optional().catch(undefined) }),
+  // Someone who is already signed in has no business here. If the check fails for any reason the
+  // form is shown: signing in is what fixes it.
+  beforeLoad: async ({ context, search }) => {
+    const user = await currentUser(context.queryClient).catch(() => undefined);
+    if (user) throw redirect({ href: safeRedirect(search.redirect) });
+  },
   component: LoginPage,
 });
 
