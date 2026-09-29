@@ -71,6 +71,7 @@ describe('statusByCode', () => {
       'archived',
       'not_archived',
       'location_cycle',
+      'duplicate_location_type',
       'duplicate_provider',
       'duplicate_manufacturer',
       'duplicate_external_id',
@@ -147,7 +148,10 @@ describe('domain errors', () => {
 describe('database errors', () => {
   it.each([
     ['item_external_ids_source_value_key', 409, 'duplicate_external_id'],
+    ['location_types_code_key', 409, 'duplicate_location_type'],
+    ['location_types_name_key', 409, 'duplicate_location_type'],
     ['manufacturers_name_lower_key', 409, 'duplicate_manufacturer'],
+    ['manufacturer_service_providers_manufacturer_priority_key', 409, 'conflict'],
     ['item_photos_storage_key_key', 409, 'conflict'],
     ['user_email_lower_key', 409, 'email_taken'],
   ] as const)('maps unique violation %s', async (constraint, status, code) => {
