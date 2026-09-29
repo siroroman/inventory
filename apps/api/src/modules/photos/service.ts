@@ -55,15 +55,17 @@ async function loadActiveItem(r: PhotoRepos, itemId: string): Promise<void> {
  * URL, the browser uploads the file, then `confirm` records it once the file is really there.
  */
 export function createPhotoService({ repos, transact, storage, newId }: PhotoDeps) {
+  const withUrl = async (photo: Photo): Promise<PhotoWithUrl> => ({
+    ...photo,
+    url: await storage.createReadUrl(photo.storageKey, PHOTO_URL_TTL_SECONDS),
+  });
+
   return {
     /** Gallery order, each photo with a read URL valid for 15 minutes. Archived items included. */
     async list(actor: Actor, itemId: string): Promise<PhotoWithUrl[]> {
       assertRole(actor, 'read');
       if (!(await repos.items.findById(itemId))) throw new DomainError('not_found');
-      const photos = await repos.photos.list(itemId);
-      return Promise.all(
-        photos.map(async (photo) => ({ ...photo, url: await storage.createReadUrl(photo.storageKey, PHOTO_URL_TTL_SECONDS) })),
-      );
+      return Promise.all((await repos.photos.list(itemId)).map(withUrl));
     },
 
     async requestUpload(actor: Actor, itemId: string, input: { contentType: string }): Promise<UploadTarget> {
@@ -75,9 +77,9 @@ export function createPhotoService({ repos, transact, storage, newId }: PhotoDep
     },
 
     /** Records an uploaded photo at the end of the gallery. The stored file is checked, not the client's word. */
-    async confirm(actor: Actor, itemId: string, input: ConfirmPhotoInput): Promise<Photo> {
+    async confirm(actor: Actor, itemId: string, input: ConfirmPhotoInput): Promise<PhotoWithUrl> {
       assertRole(actor, 'write');
-      return transact(async (r) => {
+      const row = await transact(async (r) => {
         await loadActiveItem(r, itemId);
         if (!keyPattern(itemId).test(input.key)) throw new DomainError('invalid_photo_key');
         const stored = await storage.head(input.key);
@@ -106,12 +108,13 @@ export function createPhotoService({ repos, transact, storage, newId }: PhotoDep
         });
         return row;
       });
+      return withUrl(row);
     },
 
     /** `orderedIds` must be exactly this item's photos; the first becomes the main photo. */
-    async reorder(actor: Actor, itemId: string, orderedIds: string[]): Promise<Photo[]> {
+    async reorder(actor: Actor, itemId: string, orderedIds: string[]): Promise<PhotoWithUrl[]> {
       assertRole(actor, 'write');
-      return transact(async (r) => {
+      const photos = await transact(async (r) => {
         await loadActiveItem(r, itemId);
         const current = (await r.photos.list(itemId)).map((p) => p.id);
         const sameSet = orderedIds.length === current.length && new Set(orderedIds).size === current.length && orderedIds.every((id) => current.includes(id));
@@ -128,6 +131,7 @@ export function createPhotoService({ repos, transact, storage, newId }: PhotoDep
         }
         return r.photos.list(itemId);
       });
+      return Promise.all(photos.map(withUrl));
     },
 
     /** Deletes the row, then the stored file. A failed file delete only leaves an orphan behind. */

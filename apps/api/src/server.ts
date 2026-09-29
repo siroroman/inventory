@@ -4,6 +4,7 @@ import { createAuth } from './auth/auth.ts';
 import { parseConfig } from './config.ts';
 import { createDb } from './db/client.ts';
 import { jsonLogger as log } from './http/logger.ts';
+import type { PhotoStorage } from './modules/photos/storage.ts';
 import { createServices } from './services.ts';
 
 const config = parseConfig(process.env);
@@ -15,12 +16,21 @@ const auth = createAuth({
   isProduction: config.isProduction,
   google: config.auth.google,
 });
+// The Cloud Storage adapter is not written yet. Until it is, every photo call that reaches the
+// bucket fails with a logged 500; reading items works, since a gallery stays empty without uploads.
+const notConfigured = () => Promise.reject(new Error('Photo storage is not configured'));
+const storage: PhotoStorage = {
+  createUploadUrl: notConfigured,
+  createReadUrl: notConfigured,
+  head: notConfigured,
+  delete: notConfigured,
+};
 const app = createApp({
   auth,
   baseUrl: config.auth.baseUrl,
   isProduction: config.isProduction,
   log,
-  services: createServices({ db }),
+  services: createServices({ db, storage }),
 });
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {

@@ -85,6 +85,7 @@ describe('photo service', () => {
       const first = await addPhoto();
       const second = await addPhoto(item.id, { contentType: 'image/png' });
 
+      expect(first.url).toBe(`https://storage.test/${first.storageKey}?ttl=900`);
       expect(first).toMatchObject({ itemId: item.id, sortOrder: 1, contentType: 'image/jpeg', width: 2048, height: 1536, createdBy: writer.id });
       expect(second).toMatchObject({ sortOrder: 2, contentType: 'image/png' });
       expect(store.state.audit.at(-1)).toMatchObject({
@@ -178,6 +179,7 @@ describe('photo service', () => {
       const [a, b, c] = [await addPhoto(), await addPhoto(), await addPhoto()];
       const result = await service.reorder(writer, item.id, [c.id, a.id, b.id]);
       expect(result.map((p) => p.id)).toEqual([c.id, a.id, b.id]);
+      expect(result.map((p) => p.url)).toEqual([c, a, b].map((p) => `https://storage.test/${p.storageKey}?ttl=900`));
       expect(store.state.audit.at(-1)).toMatchObject({
         entityType: 'item',
         entityId: item.id,

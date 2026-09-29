@@ -1,4 +1,4 @@
-import { itemListSchema, itemSchema } from '@inventory/shared';
+import { itemDetailSchema, itemListSchema, itemSchema } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { auditLog, locations, manufacturers } from '../../src/db/schema/index.ts';
@@ -191,8 +191,8 @@ describe('GET /items/{id}', () => {
       itemSchema,
     );
 
-    const body = await expectJson(await read.get(`/items/${created.id}`), 200, itemSchema);
-    expect(body).toEqual(created);
+    const body = await expectJson(await read.get(`/items/${created.id}`), 200, itemDetailSchema);
+    expect(body).toEqual({ ...created, photos: [] });
     expect(body).toMatchObject({
       name: 'Konvektomat',
       manufacturer: { id: rational.id, name: 'Rational' },
@@ -219,7 +219,7 @@ describe('GET /items/{id}', () => {
     const loc = await insertLocation(db().app, { name: 'Sklad' });
     const item = await insertItem(db().app, { name: 'Váha', locationId: loc.id });
     await write.post(`/items/${item.id}/archive`, { version: 1 });
-    const body = await expectJson(await read.get(`/items/${item.id}`), 200, itemSchema);
+    const body = await expectJson(await read.get(`/items/${item.id}`), 200, itemDetailSchema);
     expect(body.archivedAt).toEqual(expect.any(String));
     await expectProblem(await read.get(`/items/${MISSING}`), 404, 'not_found');
   });
