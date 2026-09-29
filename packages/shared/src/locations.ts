@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codeRef, nullableText, pageOf, recordFields, requiredText, searchQuery } from './fields.ts';
+import { codeRef, hasChange, nullableText, pageOf, recordFields, requiredText, searchQuery } from './fields.ts';
 import { pageQuery, versionField } from './http.ts';
 
 export const locationSchema = z.object({
@@ -40,7 +40,8 @@ export type CreateLocationBody = z.infer<typeof createLocationBody>;
 /** Only the fields present change; `null` clears one. Moving under a parent drops the type. */
 export const updateLocationBody = z
   .strictObject({ ...locationFields, version: versionField })
-  .partial({ name: true, parentId: true, locationTypeId: true, address: true, note: true });
+  .partial({ name: true, parentId: true, locationTypeId: true, address: true, note: true })
+  .refine(hasChange, { message: 'Nothing to change' });
 export type UpdateLocationBody = z.infer<typeof updateLocationBody>;
 
 /**

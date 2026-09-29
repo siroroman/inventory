@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { documentsUrl, isoDate, nullableText, pageOf, requiredText, searchQuery, timestamp, versionBody } from '../src/index.ts';
+import { documentsUrl, hasChange, isoDate, nullableText, pageOf, requiredText, searchQuery, timestamp, versionBody } from '../src/index.ts';
 
 describe('text fields', () => {
   it('trims and rejects whitespace-only or too long input', () => {
@@ -16,6 +16,12 @@ describe('text fields', () => {
   it('limits a search query to 100 characters', () => {
     expect(searchQuery.safeParse('a'.repeat(100)).success).toBe(true);
     expect(searchQuery.safeParse('a'.repeat(101)).success).toBe(false);
+  });
+
+  it('treats blank input as no search and trims the rest', () => {
+    expect(searchQuery.parse('   ')).toBeUndefined();
+    expect(searchQuery.parse('')).toBeUndefined();
+    expect(searchQuery.parse('  kuchyně ')).toBe('kuchyně');
   });
 });
 
@@ -69,5 +75,13 @@ describe('versionBody', () => {
     expect(versionBody.safeParse({ version: 3 }).success).toBe(true);
     expect(versionBody.safeParse({ version: 0 }).success).toBe(false);
     expect(versionBody.safeParse({ version: 1, extra: true }).success).toBe(false);
+  });
+});
+
+describe('hasChange', () => {
+  it('needs at least one field besides the version', () => {
+    expect(hasChange({ version: 1 })).toBe(false);
+    expect(hasChange({ version: 1, name: undefined })).toBe(false);
+    expect(hasChange({ version: 1, note: null })).toBe(true);
   });
 });

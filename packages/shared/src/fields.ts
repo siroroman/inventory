@@ -20,12 +20,20 @@ export const documentsUrl = z
   .url({ protocol: /^https$/, hostname: /^(drive|docs)\.google\.com$/ })
   .max(2048);
 
-/** `?q=`: what the user typed in a search box. */
-export const searchQuery = z.string().trim().min(1).max(100);
+/** `?q=`: what the user typed in a search box. Blank input means no search, not an error. */
+export const searchQuery = z
+  .string()
+  .trim()
+  .max(100)
+  .transform((q) => q || undefined);
 
 /** A reference to a record by id, code and name, e.g. a location on a path or a location type. */
 export const codeRef = z.object({ id: z.uuid(), code: z.string(), name: z.string() });
 export type CodeRef = z.infer<typeof codeRef>;
+
+/** A PATCH body must change something: `version` alone would only bump the version and the audit log. */
+export const hasChange = <T extends { version: number }>(body: T) =>
+  Object.values(body).filter((value) => value !== undefined).length > 1;
 
 /** A list response: one page plus the total for the list heading. */
 export const pageOf = <T extends z.ZodType>(item: T) =>

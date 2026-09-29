@@ -74,6 +74,15 @@ describe('GET /locations', () => {
     expect(second.nextCursor).toBeNull();
   });
 
+  it('treats a blank search as no search', async () => {
+    const { read } = await setup();
+    await insertLocation(db().app, { name: 'Praha' });
+    for (const q of ['', '%20%20']) {
+      const body = await expectJson(await read.get(`/locations?q=${q}`), 200, locationListSchema);
+      expect(body.items.map((l) => l.name), q).toEqual(['Praha']);
+    }
+  });
+
   it('rejects a bad parentId, limit and cursor with 400', async () => {
     const { read } = await setup();
     await expectProblem(await read.get('/locations?parentId=nope'), 400, 'validation_error');
@@ -259,6 +268,13 @@ describe('PATCH /locations/{id}', () => {
     await expectProblem(await write.patch(`/locations/${brno.id}`, { version: 1, name: '' }), 400, 'validation_error');
     await expectProblem(await write.patch(`/locations/${brno.id}`, { version: 0, name: 'X' }), 400, 'validation_error');
   });
+
+  it('refuses an update that changes nothing, so the version and the audit log stay put', async () => {
+    const { write, read } = await setup();
+    const brno = await insertLocation(db().app, { name: 'Brno' });
+    await expectProblem(await write.patch(`/locations/${brno.id}`, { version: 1 }), 400, 'validation_error');
+    expect(await expectJson(await read.get(`/locations/${brno.id}`), 200, locationSchema)).toMatchObject({ version: 1 });
+  });
 });
 
 describe('POST /locations/{id}/archive and /restore', () => {
@@ -359,5 +375,12 @@ describe('location types', () => {
     await expectProblem(await admin.post('/location-types', { code: 'KIOSK' }), 400, 'validation_error');
     await expectProblem(await admin.post('/location-types', { code: 'KIOSK', name: 'X', sortOrder: -1 }), 400, 'validation_error');
     await expectProblem(await admin.patch(`/location-types/${MISSING}`, { name: 'X' }), 400, 'validation_error');
+    await expectProblem(await admin.patch(`/location-types/${MISSING}`, { version: 1 }), 400, 'validation_error');
+  });
+
+  it('keeps the code fixed once a type exists', async () => {
+    const { admin } = await setup();
+    const kiosk = await expectJson(await admin.post('/location-types', { code: 'KIOSK', name: 'Kiosek' }), 201, locationTypeSchema);
+    await expectProblem(await admin.patch(`/location-types/${kiosk.id}`, { version: 1, code: 'STAN' }), 400, 'validation_error');
   });
 });
