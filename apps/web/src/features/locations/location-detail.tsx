@@ -24,7 +24,7 @@ const sectionHeading = 'mx-4 pb-2 text-xs font-bold tracking-wide text-muted-for
 function Breadcrumb({ path }: { path: LocationDto['path'] }) {
   const { t } = useTranslation();
   return (
-    <nav aria-label={t('locationDetail.breadcrumb')}>
+    <nav aria-label={t('locationDetail.breadcrumb')} className="mb-1">
       <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
         <li>
           <Link to="/" className={crumbLink}>
