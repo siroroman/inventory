@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppItemsIdRouteImport } from './routes/_app/items.$id'
+import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -33,16 +34,23 @@ const AppItemsIdRoute = AppItemsIdRouteImport.update({
   path: '/items/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
+  id: '/locations/$id',
+  path: '/locations/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/items/$id': typeof AppItemsIdRoute
+  '/locations/$id': typeof AppLocationsIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
   '/items/$id': typeof AppItemsIdRoute
+  '/locations/$id': typeof AppLocationsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,13 +58,20 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
   '/_app/items/$id': typeof AppItemsIdRoute
+  '/_app/locations/$id': typeof AppLocationsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/items/$id'
+  fullPaths: '/' | '/login' | '/items/$id' | '/locations/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/items/$id'
-  id: '__root__' | '/_app' | '/login' | '/_app/' | '/_app/items/$id'
+  to: '/login' | '/' | '/items/$id' | '/locations/$id'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/'
+    | '/_app/items/$id'
+    | '/_app/locations/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,17 +109,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppItemsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/locations/$id': {
+      id: '/_app/locations/$id'
+      path: '/locations/$id'
+      fullPath: '/locations/$id'
+      preLoaderRoute: typeof AppLocationsIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppItemsIdRoute: typeof AppItemsIdRoute
+  AppLocationsIdRoute: typeof AppLocationsIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppItemsIdRoute: AppItemsIdRoute,
+  AppLocationsIdRoute: AppLocationsIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

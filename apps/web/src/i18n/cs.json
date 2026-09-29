@@ -12,6 +12,7 @@
     "itemCount_many": "{{count}} položky",
     "itemCount_other": "{{count}} položek",
     "loadMore": "Načíst další",
+    "empty": "—",
     "locationCount_one": "{{count}} lokalita",
     "locationCount_few": "{{count}} lokality",
     "locationCount_many": "{{count}} lokality",
@@ -81,6 +82,21 @@
         "soon": "Servis do 30 dní"
       }
     }
+  },
+  "locationDetail": {
+    "breadcrumb": "Umístění",
+    "archived": "Archivováno",
+    "fields": {
+      "code": "ID",
+      "parent": "Nadřazená lokalita",
+      "type": "Typ",
+      "address": "Adresa",
+      "note": "Poznámka"
+    },
+    "subLocations": "Podlokality ({{count}})",
+    "items": "Položky ({{count}})",
+    "itemsEmptyTitle": "Žádné položky",
+    "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky."
   },
   "item": {
     "back": "Položky",

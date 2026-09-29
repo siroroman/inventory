@@ -12,11 +12,9 @@ const pathOf = (item: ItemListEntryDto) => item.path.map((segment) => segment.na
 const brandAndModel = (item: ItemListEntryDto) =>
   [item.manufacturer?.name, item.model].filter(Boolean).join(' ');
 
-/** Items tab: every active item by name, or the matches of a search. */
-export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string) => void }) {
+/** Table columns and card of an item list. */
+export function useItemRows() {
   const { t } = useTranslation();
-  const query = useInfiniteQuery(itemListQueryOptions(q));
-  const total = pagedTotal(query.data);
 
   // "Service overdue" / "Service due within 30 days", or nothing.
   const serviceBadge = (item: ItemListEntryDto) => (
@@ -45,6 +43,30 @@ export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string
     { header: t('home.items.columns.service'), className: 'w-44', cell: serviceBadge },
   ];
 
+  const card = (item: ItemListEntryDto) => {
+    const badge = item.nextServiceOn && serviceStatus(item.nextServiceOn);
+    return (
+      <Link to="/items/$id" params={{ id: item.id }} className="block">
+        <p className="text-[15px] font-semibold">{item.name}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {item.code} · {pathOf(item)}
+        </p>
+        {brandAndModel(item) && <p className="text-sm text-muted-foreground">{brandAndModel(item)}</p>}
+        {badge && <p className="mt-1.5">{serviceBadge(item)}</p>}
+      </Link>
+    );
+  };
+
+  return { columns, card };
+}
+
+/** Items tab: every active item by name, or the matches of a search. */
+export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string) => void }) {
+  const { t } = useTranslation();
+  const query = useInfiniteQuery(itemListQueryOptions(q));
+  const total = pagedTotal(query.data);
+  const { columns, card } = useItemRows();
+
   return (
     <>
       <ListToolbar
@@ -62,21 +84,7 @@ export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string
         searching={q !== ''}
         empty={{ title: t('home.items.emptyTitle'), hint: t('home.items.emptyHint') }}
         columns={columns}
-        card={(item) => {
-          const badge = item.nextServiceOn && serviceStatus(item.nextServiceOn);
-          return (
-            <Link to="/items/$id" params={{ id: item.id }} className="block">
-              <p className="text-[15px] font-semibold">{item.name}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {item.code} · {pathOf(item)}
-              </p>
-              {brandAndModel(item) && (
-                <p className="text-sm text-muted-foreground">{brandAndModel(item)}</p>
-              )}
-              {badge && <p className="mt-1.5">{serviceBadge(item)}</p>}
-            </Link>
-          );
-        }}
+        card={card}
       />
     </>
   );
