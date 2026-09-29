@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { errorCodes } from './errors.ts';
+import { searchQuery } from './fields.ts';
 
 /** RFC 9457 problem details plus the machine-readable `code` the SPA translates. */
 export const problemSchema = z.object({
@@ -25,3 +26,6 @@ export const pageQuery = z.object({
 
 /** Optimistic locking: updates send the version they were based on; a stale one returns 409. */
 export const versionField = z.number().int().min(1);
+
+/** A list that can be searched: `?q=` plus paging. */
+export const searchPageQuery = pageQuery.extend({ q: searchQuery.optional() });

@@ -13,14 +13,12 @@ import {
   updateLocationTypeBody,
   versionBody,
 } from '@inventory/shared';
-import { defineRoute } from '../../http/route.ts';
+import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
 import { toItemListEntryDto } from '../items/dto.ts';
 import type { ItemService } from '../items/service.ts';
 import { toLocationDto, toLocationTypeDto } from './dto.ts';
 import type { LocationService, LocationTypeService } from './service.ts';
-
-const json = <T extends object>(schema: T) => ({ 'application/json': { schema } });
 
 const list = defineRoute({
   method: 'get',
@@ -29,7 +27,7 @@ const list = defineRoute({
   tags: ['locations'],
   summary: 'List locations: top level, the children of one location, or a search across all levels',
   request: { query: locationListQuery },
-  responses: { 200: { description: 'One page of active locations', content: json(locationListSchema) } },
+  responses: { 200: { description: 'One page of active locations', content: jsonContent(locationListSchema) } },
 });
 
 const get = defineRoute({
@@ -40,7 +38,7 @@ const get = defineRoute({
   summary: 'A location with its path and counts; archived ones too',
   request: { params: idParam },
   errors: [404],
-  responses: { 200: { description: 'The location', content: json(locationSchema) } },
+  responses: { 200: { description: 'The location', content: jsonContent(locationSchema) } },
 });
 
 const listItems = defineRoute({
@@ -51,7 +49,7 @@ const listItems = defineRoute({
   summary: 'Items in a location and all its sub-locations',
   request: { params: idParam, query: itemListQuery },
   errors: [404],
-  responses: { 200: { description: 'One page of active items', content: json(itemListSchema) } },
+  responses: { 200: { description: 'One page of active items', content: jsonContent(itemListSchema) } },
 });
 
 const create = defineRoute({
@@ -60,9 +58,9 @@ const create = defineRoute({
   minRole: 'write',
   tags: ['locations'],
   summary: 'Create a location or sub-location',
-  request: { body: { required: true, content: json(createLocationBody) } },
+  request: { body: { required: true, content: jsonContent(createLocationBody) } },
   errors: [422],
-  responses: { 201: { description: 'The new location', content: json(locationSchema) } },
+  responses: { 201: { description: 'The new location', content: jsonContent(locationSchema) } },
 });
 
 const update = defineRoute({
@@ -71,9 +69,9 @@ const update = defineRoute({
   minRole: 'write',
   tags: ['locations'],
   summary: 'Edit a location, including moving it under another parent',
-  request: { params: idParam, body: { required: true, content: json(updateLocationBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(updateLocationBody) } },
   errors: [404, 409, 422],
-  responses: { 200: { description: 'The updated location', content: json(locationSchema) } },
+  responses: { 200: { description: 'The updated location', content: jsonContent(locationSchema) } },
 });
 
 const archive = defineRoute({
@@ -82,9 +80,9 @@ const archive = defineRoute({
   minRole: 'write',
   tags: ['locations'],
   summary: 'Archive a location',
-  request: { params: idParam, body: { required: true, content: json(versionBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The archived location', content: json(locationSchema) } },
+  responses: { 200: { description: 'The archived location', content: jsonContent(locationSchema) } },
 });
 
 const restore = defineRoute({
@@ -93,9 +91,9 @@ const restore = defineRoute({
   minRole: 'write',
   tags: ['locations'],
   summary: 'Restore an archived location',
-  request: { params: idParam, body: { required: true, content: json(versionBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The restored location', content: json(locationSchema) } },
+  responses: { 200: { description: 'The restored location', content: jsonContent(locationSchema) } },
 });
 
 type LocationServices = { locations: LocationService; items: ItemService };
@@ -143,7 +141,7 @@ const listTypes = defineRoute({
   minRole: 'read',
   tags: ['location-types'],
   summary: 'List location types in display order',
-  responses: { 200: { description: 'Active location types', content: json(locationTypeListSchema) } },
+  responses: { 200: { description: 'Active location types', content: jsonContent(locationTypeListSchema) } },
 });
 
 const createType = defineRoute({
@@ -152,9 +150,9 @@ const createType = defineRoute({
   minRole: 'admin',
   tags: ['location-types'],
   summary: 'Create a location type',
-  request: { body: { required: true, content: json(createLocationTypeBody) } },
+  request: { body: { required: true, content: jsonContent(createLocationTypeBody) } },
   errors: [409],
-  responses: { 201: { description: 'The new type', content: json(locationTypeSchema) } },
+  responses: { 201: { description: 'The new type', content: jsonContent(locationTypeSchema) } },
 });
 
 const updateType = defineRoute({
@@ -163,9 +161,9 @@ const updateType = defineRoute({
   minRole: 'admin',
   tags: ['location-types'],
   summary: 'Edit a location type',
-  request: { params: idParam, body: { required: true, content: json(updateLocationTypeBody) } },
+  request: { params: idParam, body: { required: true, content: jsonContent(updateLocationTypeBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The updated type', content: json(locationTypeSchema) } },
+  responses: { 200: { description: 'The updated type', content: jsonContent(locationTypeSchema) } },
 });
 
 /** Location types: read by everyone, managed by admins. Mounted under /api/v1. */

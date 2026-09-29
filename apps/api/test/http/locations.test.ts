@@ -6,10 +6,10 @@ import {
   locationTypeSchema,
 } from '@inventory/shared';
 import { describe, expect, it } from 'vitest';
-import { createTestApp, loginAs } from '../helpers/app.ts';
+import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertItem, insertLocation, insertManufacturer, locationTypeId } from '../helpers/factories.ts';
-import { api, expectJson, expectProblem } from '../helpers/http.ts';
+import { expectJson, expectProblem, roleClients } from '../helpers/http.ts';
 
 const db = useTestDb();
 
@@ -17,8 +17,7 @@ const MISSING = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
 
 async function setup() {
   const { app } = createTestApp(db().app);
-  const as = async (role: 'read' | 'write' | 'admin') => api(app, (await loginAs(app, db().app, role)).headers);
-  return { app, read: await as('read'), write: await as('write'), admin: await as('admin'), hq: await locationTypeId(db().app) };
+  return { app, ...(await roleClients(app, db().app)), hq: await locationTypeId(db().app) };
 }
 
 describe('GET /locations', () => {

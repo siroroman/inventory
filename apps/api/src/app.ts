@@ -11,6 +11,7 @@ import { noStore } from './http/middleware/no-store.ts';
 import { requestLog } from './http/middleware/request-log.ts';
 import { securityHeaders } from './http/middleware/security-headers.ts';
 import { createLocationRoutes, createLocationTypeRoutes } from './modules/locations/routes.ts';
+import { createManufacturerRoutes } from './modules/manufacturers/routes.ts';
 import { createSystemRoutes } from './routes/system.ts';
 import type { Services } from './services.ts';
 
@@ -59,7 +60,8 @@ export function createApp({ auth, baseUrl, isProduction, log, services }: AppDep
   const routes = app
     .route('/api/v1', createSystemRoutes())
     .route('/api/v1', createLocationRoutes(services))
-    .route('/api/v1', createLocationTypeRoutes(services.locationTypes));
+    .route('/api/v1', createLocationTypeRoutes(services.locationTypes))
+    .route('/api/v1', createManufacturerRoutes(services.manufacturers));
 
   routes.openAPIRegistry.registerComponent('securitySchemes', 'cookieAuth', {
     type: 'apiKey',

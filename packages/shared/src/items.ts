@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { codeRef, isoDate, pageOf, recordFields, searchQuery } from './fields.ts';
-import { pageQuery } from './http.ts';
+import { codeRef, isoDate, pageOf, recordFields } from './fields.ts';
+import { searchPageQuery } from './http.ts';
 
 /** One row of an item list. The detail schema extends it when the item routes arrive. */
 export const itemListEntrySchema = z.object({
@@ -21,4 +21,4 @@ export type ItemListEntryDto = z.infer<typeof itemListEntrySchema>;
 
 export const itemListSchema = pageOf(itemListEntrySchema);
 
-export const itemListQuery = pageQuery.extend({ q: searchQuery.optional() });
+export const itemListQuery = searchPageQuery;
