@@ -67,7 +67,7 @@ function SubLocations({ location }: { location: LocationDto }) {
   // A location without sub-locations (most of them) has no section rather than an empty one.
   if (location.childCount === 0) return null;
   return (
-    <section aria-labelledby="sub-locations" className="pt-6">
+    <section aria-labelledby="sub-locations" className="pt-8">
       <h2 id="sub-locations" className={sectionHeading}>
         {t('locationDetail.subLocations', { count: location.childCount })}
       </h2>
@@ -87,7 +87,7 @@ function Items({ location }: { location: LocationDto }) {
   const query = useInfiniteQuery(locationItemsQueryOptions(location.id));
   const { columns, card } = useItemRows();
   return (
-    <section aria-labelledby="location-items" className="pt-6">
+    <section aria-labelledby="location-items" className="pt-8">
       <h2 id="location-items" className={sectionHeading}>
         {t('locationDetail.items', { count: location.itemCount })}
       </h2>
