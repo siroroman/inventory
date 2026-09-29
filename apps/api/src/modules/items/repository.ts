@@ -1,4 +1,4 @@
-import { and, asc, count, eq, getTableColumns, inArray, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, inArray, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
@@ -34,6 +34,8 @@ type ItemFields = Pick<
 export type NewItem = ItemFields & { code?: string; createdBy: string };
 export type ItemPatch = Partial<ItemFields> & { updatedBy: string };
 export type ExternalIdInput = { source: string; value: string };
+/** An external ID another item already has, as stored, and the code of that item. */
+export type ExternalIdClash = ExternalIdInput & { itemCode: string };
 
 /** `locationId` includes items anywhere below that location. */
 export type ItemFilter = { q?: string; locationId?: string; manufacturerId?: string };
@@ -151,6 +153,27 @@ export function createItemRepository(db: DbExecutor) {
         .select()
         .from(itemExternalIds)
         .where(eq(itemExternalIds.itemId, itemId))
+        .orderBy(sql`lower(${itemExternalIds.source})`, sql`lower(${itemExternalIds.value})`);
+    },
+
+    /**
+     * The given external IDs that an item other than `exceptItemId` already has, archived items
+     * included, matched ignoring case like the unique index. The service asks first so it can name
+     * the clash; the index stays as the guard against two requests racing.
+     */
+    async findExternalIdClashes(ids: ExternalIdInput[], exceptItemId?: string): Promise<ExternalIdClash[]> {
+      if (ids.length === 0) return [];
+      const samePair = or(
+        ...ids.map(
+          ({ source, value }) =>
+            sql`(lower(${itemExternalIds.source}) = lower(${source}) AND lower(${itemExternalIds.value}) = lower(${value}))`,
+        ),
+      );
+      return db
+        .select({ source: itemExternalIds.source, value: itemExternalIds.value, itemCode: items.code })
+        .from(itemExternalIds)
+        .innerJoin(items, eq(items.id, itemExternalIds.itemId))
+        .where(and(samePair, exceptItemId ? ne(itemExternalIds.itemId, exceptItemId) : undefined))
         .orderBy(sql`lower(${itemExternalIds.source})`, sql`lower(${itemExternalIds.value})`);
     },
 

@@ -85,6 +85,12 @@ function assertDistinct(ids: ExternalIdInput[]): void {
   if (new Set(keys).size !== keys.length) throw new DomainError('duplicate_external_id');
 }
 
+/** Names the clashing pairs and the items that own them; the unique index only catches a race. */
+async function assertExternalIdsFree(r: ItemRepos, ids: ExternalIdInput[], exceptItemId?: string): Promise<void> {
+  const conflicts = await r.items.findExternalIdClashes(ids, exceptItemId);
+  if (conflicts.length > 0) throw new DomainError('duplicate_external_id', { conflicts });
+}
+
 async function checkLocation(r: ItemRepos, locationId: string): Promise<void> {
   const location = await r.locations.findById(locationId);
   if (!location) throw new DomainError('location_not_found');
@@ -181,6 +187,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
       return transact(async (r) => {
         await checkLocation(r, input.locationId);
         if (input.manufacturerId) await checkManufacturer(r, input.manufacturerId);
+        await assertExternalIdsFree(r, externalIds);
         const row = await r.items.insert({
           name: input.name,
           locationId: input.locationId,
@@ -223,6 +230,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
         if (input.manufacturerId && input.manufacturerId !== current.manufacturerId) {
           await checkManufacturer(r, input.manufacturerId);
         }
+        if (input.externalIds) await assertExternalIdsFree(r, input.externalIds, id);
 
         // The row is always updated, so the version moves even when only external IDs change.
         const patch = Object.fromEntries(EDITABLE.filter((f) => input[f] !== undefined).map((f) => [f, input[f]]));

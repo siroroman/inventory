@@ -4,7 +4,6 @@ import { transactor } from '../../../src/db/transaction.ts';
 import { createItemService, itemRepos } from '../../../src/modules/items/service.ts';
 import { useTestDb } from '../../helpers/db.ts';
 import { insertLocation, insertManufacturer, insertUser } from '../../helpers/factories.ts';
-import { expectPgError, PG } from '../../helpers/pg-error.ts';
 
 // The rules are unit-tested with fakes; this checks the wiring against a real database.
 describe('item service with the database', () => {
@@ -52,14 +51,16 @@ describe('item service with the database', () => {
     });
     await service.archive(actor, first.id, 1);
 
-    await expectPgError(
+    await expect(
       service.create(actor, {
         name: 'Sporák',
         locationId: kuchyne.id,
         externalIds: [{ source: 'ELEKTRIKÁŘ', value: 'el-4821' }],
       }),
-      { code: PG.uniqueViolation, constraint: 'item_external_ids_source_value_key' },
-    );
+    ).rejects.toMatchObject({
+      code: 'duplicate_external_id',
+      details: { conflicts: [{ source: 'Elektrikář', value: 'EL-4821', itemCode: first.code }] },
+    });
     expect(await repos.items.count({})).toBe(0);
 
     await expect(

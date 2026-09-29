@@ -316,7 +316,8 @@ describe('POST /items', () => {
       itemSchema,
     );
     const clash = { name: 'Druhý', locationId: loc.id, externalIds: [{ source: 'elektrikář', value: 'el-1' }] };
-    await expectProblem(await write.post('/items', clash), 409, 'duplicate_external_id');
+    const problem = await expectProblem(await write.post('/items', clash), 409, 'duplicate_external_id');
+    expect(problem.details).toEqual({ conflicts: [{ source: 'Elektrikář', value: 'EL-1', itemCode: first.code }] });
 
     await write.post(`/items/${first.id}/archive`, { version: 1 });
     await expectProblem(await write.post('/items', clash), 409, 'duplicate_external_id');
@@ -437,11 +438,12 @@ describe('PATCH /items/{id}', () => {
     const two = await item({ name: 'Druhý' });
     await write.patch(`/items/${one.id}`, { version: 1, externalIds: [{ source: 'A', value: '1' }] });
 
-    await expectProblem(
+    const problem = await expectProblem(
       await write.patch(`/items/${two.id}`, { version: 1, name: 'Přejmenovaný', externalIds: [{ source: 'a', value: '1' }] }),
       409,
       'duplicate_external_id',
     );
+    expect(problem.details).toEqual({ conflicts: [{ source: 'A', value: '1', itemCode: one.code }] });
     expect(await expectJson(await read.get(`/items/${two.id}`), 200, itemSchema)).toMatchObject({
       name: 'Druhý',
       version: 1,

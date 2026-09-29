@@ -133,6 +133,31 @@ describe('item repository', () => {
     expect(await repo().listExternalIds(item.id)).toEqual([]);
   });
 
+  it('finds external IDs another item has, ignoring case, archived items included', async () => {
+    const { user, kuchyne, add } = await setup();
+    const first = await add('První', kuchyne.id);
+    const second = await add('Druhý', kuchyne.id);
+    await repo().replaceExternalIds(first.id, [{ source: 'Elektrikář', value: 'EL-1' }, { source: 'Servis', value: 'A-1' }], user.id);
+    await repo().replaceExternalIds(second.id, [{ source: 'Revize', value: 'R-9' }], user.id);
+    await repo().setArchived(second.id, 1, true, user.id);
+
+    const ids = [
+      { source: 'ELEKTRIKÁŘ', value: 'el-1' },
+      { source: 'Servis', value: 'B-2' },
+      { source: 'Revize', value: 'r-9' },
+    ];
+    expect(await repo().findExternalIdClashes(ids)).toEqual([
+      { source: 'Elektrikář', value: 'EL-1', itemCode: first.code },
+      { source: 'Revize', value: 'R-9', itemCode: second.code },
+    ]);
+    // An item does not clash with itself, so saving it again is fine.
+    expect(await repo().findExternalIdClashes(ids, first.id)).toEqual([
+      { source: 'Revize', value: 'R-9', itemCode: second.code },
+    ]);
+    expect(await repo().findExternalIdClashes([])).toEqual([]);
+    expect(await repo().findExternalIdClashes([{ source: 'Servis', value: 'jiné' }])).toEqual([]);
+  });
+
   it('rejects an external ID another item already has', async () => {
     const { user, kuchyne, add } = await setup();
     const first = await add('První', kuchyne.id);
