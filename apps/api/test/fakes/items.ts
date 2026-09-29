@@ -100,6 +100,12 @@ export function createFakeItemStore() {
     async listExternalIds(itemId) {
       return idsOf(itemId).map((e) => ({ ...e }));
     },
+    async findExternalIdClashes(ids, exceptItemId) {
+      const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+      return state.externalIds
+        .filter((e) => e.itemId !== exceptItemId && ids.some((id) => same(id.source, e.source) && same(id.value, e.value)))
+        .map((e) => ({ source: e.source, value: e.value, itemCode: byId(e.itemId)!.code }));
+    },
     async replaceExternalIds(itemId, ids, by) {
       state.externalIds.splice(0, state.externalIds.length, ...state.externalIds.filter((e) => e.itemId !== itemId));
       const rows = ids.map(

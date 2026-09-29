@@ -15,10 +15,17 @@ export const isoDate = z.iso.date();
 /** A moment in time as the API returns it, `2026-09-27T08:15:00.000Z`. */
 export const timestamp = z.iso.datetime();
 
-/** Links to documents are limited to Google Drive and Docs, over https. */
+/**
+ * Links to documents are limited to Google Drive and Docs, over https. The pattern is the one the
+ * `items_documents_url_google` CHECK uses, so nothing passes here that the database then refuses
+ * (no slash after the host, a port, user info, upper case).
+ */
 export const documentsUrl = z
-  .url({ protocol: /^https$/, hostname: /^(drive|docs)\.google\.com$/ })
-  .max(2048);
+  .string()
+  .trim()
+  .max(2048)
+  .regex(/^https:\/\/(drive|docs)\.google\.com\//)
+  .pipe(z.url({ protocol: /^https$/ }));
 
 /** `?q=`: what the user typed in a search box. Blank input means no search, not an error. */
 export const searchQuery = z

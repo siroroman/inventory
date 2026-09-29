@@ -39,6 +39,10 @@ describe('dates', () => {
 });
 
 describe('documentsUrl', () => {
+  it('trims the link, so the stored value passes the database check', () => {
+    expect(documentsUrl.parse('  https://drive.google.com/drive/folders/abc ')).toBe('https://drive.google.com/drive/folders/abc');
+  });
+
   it.each([
     'https://drive.google.com/drive/folders/abc',
     'https://docs.google.com/document/d/abc/edit',
@@ -53,6 +57,12 @@ describe('documentsUrl', () => {
     'https://google.com/x',
     'javascript:alert(1)',
     'drive.google.com/x',
+    'https://drive.google.com',
+    'https://drive.google.com:8443/x',
+    'https://user@drive.google.com/x',
+    'HTTPS://drive.google.com/x',
+    'https://Drive.Google.com/x',
+    '',
   ])('rejects %s', (url) => {
     expect(documentsUrl.safeParse(url).success).toBe(false);
   });

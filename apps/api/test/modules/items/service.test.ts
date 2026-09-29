@@ -105,26 +105,36 @@ describe('item service', () => {
 
     it('rejects the same external ID twice in one item, ignoring case', async () => {
       const { store, create } = await setup();
-      await expectCode(
+      await expect(
         create('X', {
           externalIds: [
             { source: 'Elektrikář', value: 'EL-1' },
             { source: 'elektrikář', value: 'el-1' },
           ],
         }),
-        'duplicate_external_id',
-      );
+      ).rejects.toMatchObject({
+        code: 'duplicate_external_id',
+        details: { conflicts: [{ source: 'elektrikář', value: 'el-1', itemCode: null }] },
+      });
       expect(store.state.items).toEqual([]);
     });
 
-    it('rolls back the item and its audit entry when an external ID is already used', async () => {
+    it('names the external ID another item has, and that item, before writing anything', async () => {
       const { store, create } = await setup();
-      await create('Konvektomat', { externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }] });
+      const first = await create('Konvektomat', { externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }] });
       const itemsBefore = store.state.items.length;
       const auditBefore = store.state.audit.length;
 
-      await expect(create('Sporák', { externalIds: [{ source: 'ELEKTRIKÁŘ', value: 'el-4821' }] })).rejects.toMatchObject({
-        constraint: 'item_external_ids_source_value_key',
+      await expect(
+        create('Sporák', {
+          externalIds: [
+            { source: 'Servis', value: 'A-1' },
+            { source: 'ELEKTRIKÁŘ', value: 'el-4821' },
+          ],
+        }),
+      ).rejects.toMatchObject({
+        code: 'duplicate_external_id',
+        details: { conflicts: [{ source: 'Elektrikář', value: 'EL-4821', itemCode: first.code }] },
       });
 
       expect(store.state.items).toHaveLength(itemsBefore);
@@ -156,6 +166,27 @@ describe('item service', () => {
           { id: kuchyne.id, name: 'Kuchyně' },
         ],
       });
+    });
+
+    it('answers every write with the full item, as get does', async () => {
+      const { service, praha, kuchyne, rational, sklad, create } = await setup();
+      const path = [
+        { id: praha.id, name: 'Centrála Praha' },
+        { id: kuchyne.id, name: 'Kuchyně' },
+      ];
+      const created = await create('Konvektomat', {
+        manufacturerId: rational.id,
+        externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }],
+      });
+      expect(created).toMatchObject({ version: 1, manufacturer: { name: 'Rational' }, path });
+      expect(created.externalIds).toEqual([expect.objectContaining({ source: 'Elektrikář', value: 'EL-4821' })]);
+
+      const moved = await service.update(writer, created.id, { version: 1, locationId: sklad.id, externalIds: [] });
+      expect(moved).toMatchObject({ version: 2, externalIds: [], path: [{ id: sklad.id, name: 'Sklad Brno' }] });
+
+      const archived = await service.archive(writer, created.id, 2);
+      expect(archived).toMatchObject({ version: 3, archivedAt: expect.any(Date), manufacturer: { name: 'Rational' } });
+      expect(await service.restore(writer, created.id, 3)).toMatchObject({ version: 4, archivedAt: null });
     });
 
     it('reports an unknown item as not found and still returns an archived one', async () => {
@@ -295,15 +326,18 @@ describe('item service', () => {
       ).resolves.toBeDefined();
     });
 
-    it('rolls back the whole update when an external ID belongs to another item', async () => {
+    it('writes nothing when an external ID belongs to another item, and names it', async () => {
       const { store, service, create } = await setup();
-      await create('Sporák', { externalIds: [{ source: 'Elektrikář', value: 'EL-1' }] });
+      const other = await create('Sporák', { externalIds: [{ source: 'Elektrikář', value: 'EL-1' }] });
       const item = await create('Konvektomat');
       const auditBefore = store.state.audit.length;
 
       await expect(
         service.update(writer, item.id, { version: 1, name: 'Nový název', externalIds: [{ source: 'Elektrikář', value: 'EL-1' }] }),
-      ).rejects.toMatchObject({ constraint: 'item_external_ids_source_value_key' });
+      ).rejects.toMatchObject({
+        code: 'duplicate_external_id',
+        details: { conflicts: [{ source: 'Elektrikář', value: 'EL-1', itemCode: other.code }] },
+      });
 
       expect(store.state.items.find((i) => i.id === item.id)).toMatchObject({ name: 'Konvektomat', version: 1 });
       expect(store.state.externalIds).toHaveLength(1);
@@ -344,9 +378,7 @@ describe('item service', () => {
       const { store, service, create } = await setup();
       const item = await create('Konvektomat', { externalIds: [{ source: 'Elektrikář', value: 'EL-1' }] });
       await service.archive(writer, item.id, 1);
-      await expect(create('Sporák', { externalIds: [{ source: 'Elektrikář', value: 'EL-1' }] })).rejects.toMatchObject({
-        constraint: 'item_external_ids_source_value_key',
-      });
+      await expectCode(create('Sporák', { externalIds: [{ source: 'Elektrikář', value: 'EL-1' }] }), 'duplicate_external_id');
       expect(store.state.externalIds).toHaveLength(1);
     });
 
