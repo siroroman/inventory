@@ -4,11 +4,14 @@ import type { DomainErrorCode } from '@inventory/shared';
 export type ErrorCode = DomainErrorCode;
 
 export class DomainError extends Error {
-  constructor(
-    readonly code: ErrorCode,
-    readonly details?: Record<string, unknown>,
-  ) {
+  readonly code: ErrorCode;
+  readonly details?: Record<string, unknown>;
+
+  // No parameter properties: Node runs the TypeScript sources directly and only strips types.
+  constructor(code: ErrorCode, details?: Record<string, unknown>) {
     super(code);
     this.name = 'DomainError';
+    this.code = code;
+    this.details = details;
   }
 }
