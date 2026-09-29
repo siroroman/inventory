@@ -5,7 +5,15 @@ import { useTestDb } from '../helpers/db.ts';
 
 const db = useTestDb();
 
-type Operation = { security?: unknown[]; 'x-min-role'?: string; responses?: Record<string, unknown> };
+type Operation = {
+  security?: unknown[];
+  'x-min-role'?: string;
+  responses?: Record<string, unknown>;
+  tags?: string[];
+  summary?: string;
+  parameters?: unknown[];
+  requestBody?: unknown;
+};
 type Doc = {
   paths: Record<string, Record<string, Operation>>;
   components: { securitySchemes: Record<string, unknown> };
@@ -32,6 +40,26 @@ describe('OpenAPI document', () => {
     expect(me?.['x-min-role']).toBe('read');
     expect(me?.security).toEqual([{ cookieAuth: [] }]);
     expect(Object.keys(me?.responses ?? {})).toEqual(expect.arrayContaining(['200', '401', '403']));
+  });
+});
+
+// Every operation must be findable and documented in the same way, so the OpenAPI document stays
+// a usable reference for the SPA and for a generated native client later.
+describe('operation documentation', () => {
+  it('has tags and a summary, and documents 400 wherever input is validated', async () => {
+    const { doc } = await loadDoc();
+    for (const [path, item] of Object.entries(doc.paths)) {
+      for (const method of METHODS) {
+        const op = item[method];
+        if (!op) continue;
+        const label = `${method.toUpperCase()} ${path}`;
+        expect(op.tags?.length, `${label} has no tags`).toBeGreaterThan(0);
+        expect(op.summary, `${label} has no summary`).toBeTruthy();
+        if ((op.parameters?.length ?? 0) > 0 || op.requestBody) {
+          expect(Object.keys(op.responses ?? {}), `${label} does not document 400`).toContain('400');
+        }
+      }
+    }
   });
 });
 

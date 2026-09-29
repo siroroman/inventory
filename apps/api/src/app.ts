@@ -7,6 +7,7 @@ import type { AppEnv } from './http/env.ts';
 import { applyErrorHandling, problemResponse, validationHook } from './http/errors.ts';
 import type { Logger } from './http/logger.ts';
 import { authenticate } from './http/middleware/authenticate.ts';
+import { noStore } from './http/middleware/no-store.ts';
 import { requestLog } from './http/middleware/request-log.ts';
 import { securityHeaders } from './http/middleware/security-headers.ts';
 import { createSystemRoutes } from './routes/system.ts';
@@ -47,6 +48,7 @@ export function createApp({ auth, baseUrl, isProduction, log }: AppDeps) {
   // Better Auth: sign-in, sign-out, Google callback, password reset. Public by nature.
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
+  app.use('/api/v1/*', noStore);
   app.use('/api/v1/*', csrf({ origin: baseUrl }));
   app.use('/api/v1/*', authenticate(auth, { publicPaths }));
 

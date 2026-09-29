@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useTestDb } from '../helpers/db.ts';
-import { createTestApp } from '../helpers/app.ts';
+import { createTestApp, loginAs } from '../helpers/app.ts';
 
 const db = useTestDb();
 const setup = (options?: { isProduction?: boolean }) => createTestApp(db().app, options);
@@ -57,6 +57,22 @@ describe('security headers', () => {
     expect(dev.headers.get('strict-transport-security')).toBeNull();
     const prod = await setup({ isProduction: true }).app.request('/api/v1/health');
     expect(prod.headers.get('strict-transport-security')).toMatch(/max-age=31536000/);
+  });
+});
+
+describe('caching', () => {
+  it('forbids caching of every /api/v1 response, errors included', async () => {
+    const { app } = setup();
+    const { headers } = await loginAs(app, db().app, 'read');
+    for (const [path, init] of [
+      ['/api/v1/health', {}],
+      ['/api/v1/me', { headers }],
+      ['/api/v1/me', {}],
+      ['/api/v1/nothing-here', { headers }],
+    ] as const) {
+      const res = await app.request(path, init);
+      expect(res.headers.get('cache-control'), `${path} ${res.status}`).toBe('no-store');
+    }
   });
 });
 
