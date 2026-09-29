@@ -1,5 +1,5 @@
-import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import type { AppEnv } from '../http/env.ts';
+import { createRoute, z } from '@hono/zod-openapi';
+import { createRouter } from '../http/router.ts';
 
 const health = createRoute({
   method: 'get',
@@ -16,5 +16,5 @@ const health = createRoute({
 
 /** Routes that belong to no domain module. Mounted under /api/v1. */
 export function createSystemRoutes() {
-  return new OpenAPIHono<AppEnv>().openapi(health, (c) => c.json({ status: 'ok' as const }, 200));
+  return createRouter().openapi(health, (c) => c.json({ status: 'ok' as const }, 200));
 }

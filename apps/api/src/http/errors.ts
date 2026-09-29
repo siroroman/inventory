@@ -1,0 +1,166 @@
+import type { Hook } from '@hono/zod-openapi';
+import type { ErrorCode, Problem } from '@inventory/shared';
+import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
+import { HTTPException } from 'hono/http-exception';
+import { InvalidCursorError } from '../db/pagination.ts';
+import { findPgError, PG } from '../db/pg-error.ts';
+import { DomainError } from '../errors.ts';
+import type { AppEnv } from './env.ts';
+import type { Logger } from './logger.ts';
+
+type ProblemStatus = 400 | 401 | 403 | 404 | 409 | 413 | 422 | 429 | 500;
+
+/** Reason phrases: RFC 9457 wants `title` to match the status when `type` is about:blank. */
+const titles: Record<ProblemStatus, string> = {
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+  409: 'Conflict',
+  413: 'Content Too Large',
+  422: 'Unprocessable Content',
+  429: 'Too Many Requests',
+  500: 'Internal Server Error',
+};
+
+/**
+ * HTTP status of every error code. Exhaustive on purpose: adding a code to `@inventory/shared`
+ * fails the typecheck here until it is given a status.
+ *
+ * 409 means the request clashes with the current state (stale version, duplicate, archived, would
+ * create a cycle); 422 means it refers to something that does not exist or is not allowed.
+ */
+export const statusByCode: Record<ErrorCode, ProblemStatus> = {
+  unauthenticated: 401,
+  forbidden: 403,
+  cannot_modify_self: 403,
+  not_found: 404,
+  conflict: 409,
+  archived: 409,
+  not_archived: 409,
+  location_cycle: 409,
+  duplicate_provider: 409,
+  duplicate_manufacturer: 409,
+  duplicate_external_id: 409,
+  email_taken: 409,
+  last_admin: 409,
+  parent_not_found: 422,
+  parent_archived: 422,
+  location_type_required: 422,
+  location_type_not_allowed: 422,
+  location_type_not_found: 422,
+  provider_not_found: 422,
+  provider_archived: 422,
+  manufacturer_not_found: 422,
+  manufacturer_archived: 422,
+  location_not_found: 422,
+  location_archived: 422,
+  invalid_photo_key: 422,
+  photo_not_uploaded: 422,
+  photo_too_large: 422,
+  photo_type_not_allowed: 422,
+  invalid_photo_order: 422,
+  validation_error: 400,
+  invalid_cursor: 400,
+  payload_too_large: 413,
+  rate_limited: 429,
+  internal_error: 500,
+};
+
+/**
+ * Unique constraint (or unique index) name to the error it means. The names are the contract
+ * with the migrations; each module's routes add theirs. Services check for duplicates first, so
+ * these only fire when two requests race.
+ */
+export const constraintErrors: Record<string, ErrorCode> = {
+  item_external_ids_source_value_key: 'duplicate_external_id',
+  manufacturers_name_lower_key: 'duplicate_manufacturer',
+  item_photos_storage_key_key: 'conflict',
+  user_email_lower_key: 'email_taken',
+};
+
+type ProblemExtras = { detail?: string; details?: Record<string, unknown> };
+
+/** The response for `code`, as `application/problem+json`. */
+export function problemResponse(c: Context<AppEnv>, code: ErrorCode, extras: ProblemExtras = {}): Response {
+  const status = statusByCode[code];
+  const body: Problem = {
+    type: 'about:blank',
+    title: titles[status],
+    status,
+    code,
+    instance: c.req.path,
+    requestId: c.get('requestId'),
+    ...extras,
+  };
+  return c.body(JSON.stringify(body), status, { 'Content-Type': 'application/problem+json' });
+}
+
+/** Turns a failed request validation into 400 with the offending fields. */
+export const validationHook: Hook<unknown, AppEnv, string, unknown> = (result, c) => {
+  if (result.success) return;
+  return problemResponse(c, 'validation_error', {
+    details: {
+      target: result.target,
+      issues: result.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
+    },
+  });
+};
+
+/** Status codes that Hono's own middleware (body limit, CSRF) raises as HTTPException. */
+const codeByHttpStatus: Partial<Record<number, ErrorCode>> = {
+  400: 'validation_error',
+  401: 'unauthenticated',
+  403: 'forbidden',
+  404: 'not_found',
+  413: 'payload_too_large',
+  429: 'rate_limited',
+};
+
+/**
+ * What an unhandled error is allowed to reveal in the log. Driver errors carry the query and its
+ * parameters in the message (password hashes, session tokens), so for those only the SQLSTATE,
+ * constraint and table are kept, plus the stack frames without the message line.
+ */
+function describeError(error: unknown): Record<string, unknown> {
+  const err = error instanceof Error ? error : new Error(String(error));
+  const pg = findPgError(err);
+  const isDriverError = pg !== undefined || err.name === 'DrizzleQueryError';
+  return {
+    errorName: err.name,
+    ...(isDriverError ? { pgCode: pg?.code, constraint: pg?.constraint, table: pg?.table } : { errorMessage: err.message }),
+    frames: (err.stack ?? '').split('\n').filter((line) => line.trimStart().startsWith('at ')),
+  };
+}
+
+function createErrorHandler(log: Logger): ErrorHandler<AppEnv> {
+  return (error, c) => {
+    if (error instanceof DomainError) {
+      return problemResponse(c, error.code, error.details ? { details: error.details } : {});
+    }
+    if (error instanceof InvalidCursorError) return problemResponse(c, 'invalid_cursor');
+    if (error instanceof HTTPException) {
+      const code = codeByHttpStatus[error.status];
+      if (code) return problemResponse(c, code);
+    }
+    const pg = findPgError(error);
+    if (pg?.code === PG.uniqueViolation && pg.constraint && pg.constraint in constraintErrors) {
+      return problemResponse(c, constraintErrors[pg.constraint]!);
+    }
+    log({ severity: 'ERROR', message: 'unhandled error', requestId: c.get('requestId'), ...describeError(error) });
+    return problemResponse(c, 'internal_error');
+  };
+}
+
+const notFound: NotFoundHandler<AppEnv> = (c) => problemResponse(c, 'not_found');
+
+type ErrorHandlingTarget = {
+  onError: (handler: ErrorHandler<AppEnv>) => unknown;
+  notFound: (handler: NotFoundHandler<AppEnv>) => unknown;
+};
+
+/** Installs the problem+json error and 404 handlers on the root app. */
+export function applyErrorHandling(app: ErrorHandlingTarget, { log }: { log: Logger }): void {
+  app.onError(createErrorHandler(log));
+  app.notFound(notFound);
+}

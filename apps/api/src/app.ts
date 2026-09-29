@@ -1,10 +1,15 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { bodyLimit } from 'hono/body-limit';
 import { requestId } from 'hono/request-id';
 import type { AppEnv } from './http/env.ts';
+import { applyErrorHandling, problemResponse, validationHook } from './http/errors.ts';
 import type { Logger } from './http/logger.ts';
 import { requestLog } from './http/middleware/request-log.ts';
 import { securityHeaders } from './http/middleware/security-headers.ts';
 import { createSystemRoutes } from './routes/system.ts';
+
+/** Requests are small JSON documents; photos go straight to storage through signed URLs. */
+const MAX_BODY_BYTES = 1024 * 1024;
 
 export type AppDeps = {
   isProduction: boolean;
@@ -16,11 +21,16 @@ export type AppDeps = {
  * throwaway database and read the log.
  */
 export function createApp({ isProduction, log }: AppDeps) {
-  const app = new OpenAPIHono<AppEnv>();
+  const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
 
   app.use(requestId());
   app.use(requestLog(log));
   app.use(securityHeaders({ isProduction }));
+  app.use(
+    '/api/*',
+    bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => problemResponse(c, 'payload_too_large') }),
+  );
+  applyErrorHandling(app, { log });
 
   const routes = app.route('/api/v1', createSystemRoutes());
 

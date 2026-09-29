@@ -66,3 +66,26 @@ describe('GET /api/v1/openapi.json', () => {
     expect(Object.keys(doc.paths)).toContain('/api/v1/health');
   });
 });
+
+describe('request size limit', () => {
+  it('rejects a body over 1 MB with a 413 problem', async () => {
+    const { app } = createTestApp();
+    const res = await app.request('/api/v1/health', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'content-length': String(2 * 1024 * 1024) },
+      body: '{}',
+    });
+    expect(res.status).toBe(413);
+    expect(res.headers.get('content-type')).toMatch(/^application\/problem\+json/);
+    expect(await res.json()).toMatchObject({ code: 'payload_too_large', status: 413 });
+  });
+});
+
+describe('unknown routes', () => {
+  it('return a 404 problem', async () => {
+    const { app } = createTestApp();
+    const res = await app.request('/api/v1/nope');
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ code: 'not_found' });
+  });
+});
