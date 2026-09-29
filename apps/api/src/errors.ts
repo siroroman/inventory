@@ -27,7 +27,10 @@ export type ErrorCode =
   | 'photo_not_uploaded'
   | 'photo_too_large'
   | 'photo_type_not_allowed'
-  | 'invalid_photo_order';
+  | 'invalid_photo_order'
+  | 'email_taken'
+  | 'cannot_modify_self'
+  | 'last_admin';
 
 export class DomainError extends Error {
   constructor(
