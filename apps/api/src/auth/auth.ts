@@ -1,19 +1,47 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { eq } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
+import { user } from '../db/schema/index.ts';
 
 export type AuthDeps = {
   db: Db;
+  /** Public origin of the app. The only origin allowed to call the auth endpoints. */
+  baseUrl: string;
+  /** At least 32 characters; signs the session cookie. */
+  secret: string;
+  isProduction: boolean;
   google?: { clientId: string; clientSecret: string };
 };
 
 // After changing anything that affects the schema, run `pnpm auth:generate` and `pnpm db:generate`.
-export function createAuth({ db, google }: AuthDeps) {
+export function createAuth({ db, baseUrl, secret, isProduction, google }: AuthDeps) {
   return betterAuth({
+    baseURL: baseUrl,
+    secret,
+    trustedOrigins: [baseUrl],
     database: drizzleAdapter(db, { provider: 'pg' }),
+    // Invite-only: nobody can create their own account, by password or through Google. An
+    // uninvited Google account is rejected instead of getting a new user.
     emailAndPassword: { enabled: true, disableSignUp: true },
-    socialProviders: google ? { google } : {},
-    advanced: { database: { generateId: 'uuid' } },
+    socialProviders: google ? { google: { ...google, disableSignUp: true } } : {},
+    advanced: {
+      database: { generateId: 'uuid' },
+      // The session cookie is HTTP-only and SameSite=Lax always, and Secure in production.
+      useSecureCookies: isProduction,
+      defaultCookieAttributes: { httpOnly: true, sameSite: 'lax' },
+    },
+    databaseHooks: {
+      session: {
+        create: {
+          // A deactivated user cannot start a new session, by password or through Google.
+          before: async (newSession) => {
+            const [row] = await db.select({ isActive: user.isActive }).from(user).where(eq(user.id, newSession.userId));
+            if (!row?.isActive) return false;
+          },
+        },
+      },
+    },
     user: {
       additionalFields: {
         role: { type: 'string', defaultValue: 'read', input: false },
@@ -22,3 +50,5 @@ export function createAuth({ db, google }: AuthDeps) {
     },
   });
 }
+
+export type Auth = ReturnType<typeof createAuth>;

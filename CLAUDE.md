@@ -8,7 +8,7 @@ Priorities, in order: simplicity, reliability, security, user friendliness.
 
 ## Status
 
-Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. Services (all modules): `locations` (with location types), `items`, `manufacturers`, `service-providers`, `photos`, `users` and `audit` (read). Services take `{ repos, transact }` (`src/db/transaction.ts`), throw `DomainError` codes (`src/errors.ts`), and are unit-tested with in-memory fakes from `test/fakes/` plus a short `service.db.test.ts` per service against real PostgreSQL. Things outside the database sit behind ports injected into the service: `PhotoStorage` (`modules/photos/storage.ts`, Cloud Storage adapter not written) and `UserInvites` (`modules/users/service.ts`, Better Auth + email adapter not written); tests use fakes. Database errors such as unique-constraint violations are not translated in services; routes map constraint names (e.g. `item_external_ids_source_value_key`, `manufacturers_name_lower_key`, `item_photos_storage_key_key`). No API routes, `packages/shared` or SPA yet; no Dockerfile or deploy pipeline yet. CI runs on every PR (see CI below). Keep this section and Commands current.
+Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. Services (all modules): `locations` (with location types), `items`, `manufacturers`, `service-providers`, `photos`, `users` and `audit` (read). Services take `{ repos, transact }` (`src/db/transaction.ts`), throw `DomainError` codes (`src/errors.ts`), and are unit-tested with in-memory fakes from `test/fakes/` plus a short `service.db.test.ts` per service against real PostgreSQL. Things outside the database sit behind ports injected into the service: `PhotoStorage` (`modules/photos/storage.ts`, Cloud Storage adapter not written) and `UserInvites` (`modules/users/service.ts`, Better Auth + email adapter not written); tests use fakes. Database errors such as unique-constraint violations are not translated in services; the HTTP layer maps constraint names (registry in `src/http/errors.ts`, e.g. `item_external_ids_source_value_key`, `manufacturers_name_lower_key`, `item_photos_storage_key_key`). `packages/shared` (`@inventory/shared`, plain TS source, no build) holds roles, the error code list and the Zod schemas both apps use; so far only the foundation (problem details, id/paging/version, `/me`). The HTTP layer is in place (see HTTP layer below) with two routes, `GET /api/v1/health` and `GET /api/v1/me`; no domain routes, SPA, Dockerfile or deploy pipeline yet. CI runs on every PR (see CI below). Keep this section and Commands current.
 
 ## References
 
@@ -109,6 +109,16 @@ Rules:
 - Component tests for forms and search; Playwright E2E for the main flows (login, search by external ID, new sub-location, new item with photo, reorder service providers).
 - Prefer fakes over mocks. No feature is done without tests for its rules.
 
+## HTTP layer
+
+- `src/app.ts` `createApp({ auth, baseUrl, isProduction, log })` builds the API; `src/server.ts` is the entry point (config from env via `src/config.ts`, graceful shutdown). Middleware order: request id, JSON access log, security headers, body limit (1 MB), error handling, Better Auth at `/api/auth/*`, CSRF, authentication.
+- Every `/api/v1` path is authenticated by default. Only paths in `publicPaths` (`app.ts`) skip it; adding one is a deliberate security decision.
+- Build routes on `createRouter()` (`src/http/router.ts`, installs the validation hook) and define them with `defineRoute({ minRole, ... })` (`src/http/route.ts`), never bare `createRoute`; it attaches `requireRole`, records `x-min-role` in OpenAPI and adds the 401/403 responses. `test/http/openapi.test.ts` fails on any operation without a role or that answers an anonymous caller.
+- Errors are `problem+json` (`src/http/errors.ts`). `statusByCode` covers every code in `@inventory/shared` (typecheck fails on a new code without a status): 409 = clashes with current state, 422 = refers to something missing or not allowed. Unique-constraint names map through `constraintErrors`; add a module's names there. Unexpected errors return a generic 500 and are logged without driver error messages (they contain query parameters).
+- Tests build the app with `createTestApp(db)` and sign in with `loginAs(app, db, role)` (`test/helpers/app.ts`): real Better Auth, real cookie, `app.request()`.
+- The session cookie is refreshed by the authentication middleware (sliding 7-day session). Deactivated users cannot start a session (Better Auth database hook) and are refused even if one survives.
+- Dependency versions must pass the workspace release-age policy. If pnpm offers to add `minimumReleaseAgeExclude`, pick an older release instead.
+
 ## Database conventions
 
 - `apps/api/src/db/schema/*.ts` holds what Drizzle can model. Custom SQL migrations (`pnpm --filter api db:generate --custom --name=<rule>`) hold the rest: extensions, `cs_cz` collation, functions, triggers, trigram indexes, the deferrable priority constraint, sequence ownership, grants and seed data. One migration per rule (e.g. `drizzle/0005_location_cycle_guard.sql`), committed together with its tests.
@@ -133,6 +143,8 @@ pnpm lint                           # Biome static analysis (warnings fail too)
 pnpm build                          # build every package that has a build script
 pnpm test                           # all tests (DB tests start a Postgres container)
 pnpm --filter api test:watch        # API tests in watch mode
+pnpm --filter api dev               # run the API with reload (needs apps/api/.env, see .env.example, and pnpm db:up + db:migrate)
+pnpm --filter api start             # run the API once (Node 24 runs the TypeScript directly)
 pnpm db:up                          # start local Postgres 17 (docker compose)
 pnpm db:migrate                     # apply migrations (needs MIGRATION_DATABASE_URL, see .env.example)
 pnpm db:seed                        # fill an empty local DB with sample data and admin@/write@/read@example.test users (needs SEED_USER_PASSWORD)

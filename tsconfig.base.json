@@ -9,6 +9,7 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": false,
     "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
