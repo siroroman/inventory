@@ -51,7 +51,9 @@ describe('item detail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Elektrikář: EL-4821')).toBeInTheDocument();
-    expect(screen.getByText('Centrála Praha › Přízemí › Teplá kuchyně')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', expect.stringMatching(/^\/locations\//));
+    expect(screen.getByRole('link', { name: 'Přízemí' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Teplá kuchyně' })).toBeInTheDocument();
     for (const text of ['Rational', 'SCC 101', 'SN-7781', '2018', '1. 5. 2019', '1. 5. 2020', '4. 3. 2026', 'Pravidelně odvápňovat.']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }

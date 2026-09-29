@@ -1,5 +1,6 @@
 import type { ItemDetailDto, PhotoDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { ExternalLink } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -123,6 +124,26 @@ function Gallery({ name, photos }: { name: string; photos: PhotoDto[] }) {
   );
 }
 
+/** The way down to the item's location; every level links to its detail. */
+function LocationPath({ path }: { path: ItemDetailDto['path'] }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-1">
+      {path.map((segment, index) => (
+        <span key={segment.id} className="inline-flex items-center gap-x-1">
+          {index > 0 && <span aria-hidden>›</span>}
+          <Link
+            to="/locations/$id"
+            params={{ id: segment.id }}
+            className="inline-flex min-h-11 items-center rounded-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {segment.name}
+          </Link>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function ItemBody({ item }: { item: ItemDetailDto }) {
   const { t } = useTranslation();
   const date = (value: string | null) => (value ? formatDate(value) : null);
@@ -158,7 +179,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
             },
             {
               label: t('item.fields.location'),
-              value: item.path.map((segment) => segment.name).join(' › '),
+              value: <LocationPath path={item.path} />,
             },
             { label: t('item.fields.manufacturer'), value: item.manufacturer?.name },
             { label: t('item.fields.model'), value: item.model },
