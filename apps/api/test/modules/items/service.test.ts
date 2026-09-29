@@ -105,15 +105,17 @@ describe('item service', () => {
 
     it('rejects the same external ID twice in one item, ignoring case', async () => {
       const { store, create } = await setup();
-      await expectCode(
+      await expect(
         create('X', {
           externalIds: [
             { source: 'Elektrikář', value: 'EL-1' },
             { source: 'elektrikář', value: 'el-1' },
           ],
         }),
-        'duplicate_external_id',
-      );
+      ).rejects.toMatchObject({
+        code: 'duplicate_external_id',
+        details: { conflicts: [{ source: 'elektrikář', value: 'el-1', itemCode: null }] },
+      });
       expect(store.state.items).toEqual([]);
     });
 

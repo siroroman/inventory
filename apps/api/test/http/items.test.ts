@@ -293,7 +293,7 @@ describe('POST /items', () => {
   it('answers 409 for an external ID that repeats in the item, ignoring case', async () => {
     const { write } = await setup();
     const loc = await insertLocation(db().app, { name: 'Sklad' });
-    await expectProblem(
+    const problem = await expectProblem(
       await write.post('/items', {
         name: 'X',
         locationId: loc.id,
@@ -305,6 +305,7 @@ describe('POST /items', () => {
       409,
       'duplicate_external_id',
     );
+    expect(problem.details).toEqual({ conflicts: [{ source: 'ELEKTRIKÁŘ', value: 'el-1', itemCode: null }] });
   });
 
   it('answers 409 for an external ID of another item, archived ones included, creating nothing', async () => {

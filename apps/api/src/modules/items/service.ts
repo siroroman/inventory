@@ -80,9 +80,22 @@ const EDITABLE = AUDITED.filter((field) => field !== 'code');
 const label = (id: ExternalIdInput) => `${id.source}: ${id.value}`;
 const labels = (ids: ExternalIdInput[]) => ids.map(label).sort();
 
+/**
+ * A pair repeated within the request clashes like one another item has, so the error has the same
+ * `details.conflicts` shape; `itemCode` is null because no other item is involved.
+ */
 function assertDistinct(ids: ExternalIdInput[]): void {
-  const keys = ids.map((id) => `${id.source.toLowerCase()}\n${id.value.toLowerCase()}`);
-  if (new Set(keys).size !== keys.length) throw new DomainError('duplicate_external_id');
+  const seen = new Set<string>();
+  const repeated = ids.filter((id) => {
+    const key = `${id.source.toLowerCase()}\n${id.value.toLowerCase()}`;
+    if (seen.has(key)) return true;
+    seen.add(key);
+    return false;
+  });
+  if (repeated.length > 0) {
+    const conflicts = repeated.map(({ source, value }) => ({ source, value, itemCode: null }));
+    throw new DomainError('duplicate_external_id', { conflicts });
+  }
 }
 
 /** Names the clashing pairs and the items that own them; the unique index only catches a race. */
