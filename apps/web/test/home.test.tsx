@@ -1,49 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { item, location, page, ref } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
-
-const ref = (code: string, name: string) => ({ id: crypto.randomUUID(), code, name });
-const record = { version: 1, archivedAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' };
-
-function location(over: Record<string, unknown> = {}) {
-  return {
-    ...record,
-    id: crypto.randomUUID(),
-    code: 'LOC-001',
-    name: 'Centrála Praha',
-    parentId: null,
-    type: ref('HQ', 'Centrála'),
-    address: 'Vinohradská 12, Praha',
-    note: null,
-    path: [ref('LOC-001', 'Centrála Praha')],
-    itemCount: 38,
-    childCount: 4,
-    ...over,
-  };
-}
-
-function item(over: Record<string, unknown> = {}) {
-  const place = ref('LOC-019', 'Teplá kuchyně');
-  return {
-    ...record,
-    id: crypto.randomUUID(),
-    code: 'INV-00042',
-    name: 'Konvektomat',
-    model: 'SCC 101',
-    serialNumber: null,
-    manufacturer: { id: crypto.randomUUID(), name: 'Rational' },
-    location: place,
-    path: [ref('LOC-001', 'Centrála Praha'), ref('LOC-004', 'Přízemí'), place],
-    warrantyUntil: null,
-    lastServiceOn: null,
-    nextServiceOn: null,
-    ...over,
-  };
-}
-
-const page = (items: unknown[], extra: { nextCursor?: string | null; total?: number } = {}) =>
-  jsonResponse({ items, nextCursor: extra.nextCursor ?? null, total: extra.total ?? items.length });
 
 /** Signed in, with the given answers for the two lists. */
 function api(lists: { locations?: (request: Request) => Response; items?: (request: Request) => Response }) {
