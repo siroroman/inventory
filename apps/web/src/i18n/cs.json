@@ -99,6 +99,7 @@
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky."
   },
   "item": {
+    "breadcrumb": "Umístění",
     "empty": "—",
     "archived": "Archivováno",
     "notFoundTitle": "Položka nenalezena",
