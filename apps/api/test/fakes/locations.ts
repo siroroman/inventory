@@ -23,9 +23,9 @@ export function createFakeLocationStore() {
 
   const now = () => new Date();
   const base = { createdAt: now(), updatedAt: now(), createdBy: null, updatedBy: null, archivedAt: null, version: 1 };
-  ['HQ', 'STORE', 'SITE', 'WAREHOUSE'].forEach((code, i) =>
-    state.types.push({ ...base, id: randomUUID(), code, name: code, sortOrder: i + 1 }),
-  );
+  for (const [i, code] of ['HQ', 'STORE', 'SITE', 'WAREHOUSE'].entries()) {
+    state.types.push({ ...base, id: randomUUID(), code, name: code, sortOrder: i + 1 });
+  }
 
   const byId = (id: string) => state.locations.find((l) => l.id === id);
   const withType = (l: Location) => {
