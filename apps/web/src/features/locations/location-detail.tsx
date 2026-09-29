@@ -18,7 +18,7 @@ import { useLocationRows } from './location-list';
 /** A link in the detail's header or fields: at least 44 px tall to tap. */
 const crumbLink =
   'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
-const sectionHeading = 'px-4 pb-1 text-xs font-bold tracking-wide text-muted-foreground uppercase';
+const sectionHeading = 'mx-4 pb-2 text-xs font-bold tracking-wide text-muted-foreground uppercase';
 
 /** The way up: every ancestor links to its own detail, the location itself is the current page. */
 function Breadcrumb({ path }: { path: LocationDto['path'] }) {
@@ -64,14 +64,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** A titled list on the detail page. */
+/** A titled list on the detail page, in the same box as the fields. */
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="pt-8">
       <h2 id={id} className={sectionHeading}>
         {title}
       </h2>
-      {children}
+      <div className="mx-4 overflow-hidden rounded-lg border bg-card">{children}</div>
     </section>
   );
 }

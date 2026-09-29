@@ -25,7 +25,7 @@ function LocationLink({ location, card, children }: { location: LocationDto; car
       params={{ id: location.id }}
       className={cn(
         'block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        card ? '-mx-4 -my-3 px-4 py-3' : 'hover:underline',
+        card ? '-mx-4 -my-3 px-4 py-3 focus-visible:ring-inset' : 'hover:underline',
       )}
     >
       {children}
