@@ -10,6 +10,9 @@ declare module '@tanstack/react-query' {
   }
 }
 
+/** How many rows a list asks for at a time; "Načíst další" fetches the next page. */
+export const listPageSize = 20;
+
 /** Client errors (4xx) will not change on a retry; network and server errors might. */
 export function retryQuery(failureCount: number, error: Error): boolean {
   if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
