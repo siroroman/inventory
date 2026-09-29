@@ -1,0 +1,111 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design tokens from the UI design (SPEC.md §11). The design defines the light theme only; the
+ * dark values below are derived from it and keep WCAG AA contrast (text 4.5:1, borders and focus
+ * rings 3:1). `--input` (form control borders) deliberately differs from the design's gray-300,
+ * which is only 1.65:1 on white. Colours are semantic variables switched by the `.dark` class, which src/lib/theme.ts
+ * sets from the system preference. shadcn's `accent` means "hover surface"; the design's accent
+ * colour is `primary`.
+ */
+:root {
+  --background: #f7f7f8;
+  --foreground: #141417;
+  --card: #ffffff;
+  --card-foreground: #141417;
+  --popover: #ffffff;
+  --popover-foreground: #141417;
+  --primary: #2454c7;
+  --primary-foreground: #ffffff;
+  --secondary: #f0f0f1;
+  --secondary-foreground: #242429;
+  --muted: #f0f0f1;
+  --muted-foreground: #71717c;
+  --accent: #f0f0f1;
+  --accent-foreground: #242429;
+  --destructive: #b3261e;
+  --destructive-foreground: #b3261e;
+  --border: #e1e1e4;
+  --input: #8a8a95;
+  --ring: #2454c7;
+
+  --danger-soft: #fbeae9;
+  --warning: #9a5b00;
+  --warning-soft: #fdf0dc;
+  --neutral-tag: #53535e;
+  --neutral-tag-soft: #f0f0f1;
+}
+
+.dark {
+  --background: #141417;
+  --foreground: #f7f7f8;
+  --card: #1c1c21;
+  --card-foreground: #f7f7f8;
+  --popover: #1c1c21;
+  --popover-foreground: #f7f7f8;
+  --primary: #8ca9f0;
+  --primary-foreground: #0e1b40;
+  --secondary: #242429;
+  --secondary-foreground: #f0f0f1;
+  --muted: #242429;
+  --muted-foreground: #9b9ba6;
+  --accent: #242429;
+  --accent-foreground: #f0f0f1;
+  --destructive: #f2a29d;
+  --destructive-foreground: #f2a29d;
+  --border: #3b3b44;
+  --input: #6a6a75;
+  --ring: #8ca9f0;
+
+  --danger-soft: #3a1614;
+  --warning: #f0b95b;
+  --warning-soft: #3a2a0c;
+  --neutral-tag: #c9c9cf;
+  --neutral-tag-soft: #2c2c33;
+}
+
+@theme inline {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-neutral-tag: var(--neutral-tag);
+  --color-neutral-tag-soft: var(--neutral-tag-soft);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
