@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
@@ -51,12 +51,7 @@ describe('item detail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Elektrikář: EL-4821')).toBeInTheDocument();
-    // The Location field links every level, like the breadcrumb does.
-    const field = screen.getByText('Lokalita').closest('div')!;
-    expect(within(field).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(
-      expect.arrayContaining([expect.stringMatching(/^\/locations\//)]),
-    );
-    expect(within(field).getAllByRole('link')).toHaveLength(3);
+    expect(screen.queryByText('Lokalita')).not.toBeInTheDocument();
     for (const text of ['Rational', 'SCC 101', 'SN-7781', '2018', '1. 5. 2019', '1. 5. 2020', '4. 3. 2026', 'Pravidelně odvápňovat.']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
@@ -79,6 +74,14 @@ describe('item detail', () => {
       'Teplá kuchyně',
     ]);
     expect(within(nav).getByText('Konvektomat')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('takes the app name in the top bar back to the home page', async () => {
+    signedIn(() => jsonResponse(detail()));
+    const { router } = renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Konvektomat' });
+    await userEvent.click(screen.getByRole('link', { name: 'Evidence majetku' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });
 
   it('shows a dash for empty fields and omits the documents and note sections', async () => {

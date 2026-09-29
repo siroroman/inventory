@@ -124,27 +124,7 @@ function Gallery({ name, photos }: { name: string; photos: PhotoDto[] }) {
   );
 }
 
-/** The way down to the item's location; every level links to its detail. */
-function LocationPath({ path }: { path: ItemDetailDto['path'] }) {
-  return (
-    <span className="flex flex-wrap items-center gap-x-1">
-      {path.map((segment, index) => (
-        <span key={segment.id} className="inline-flex items-center gap-x-1">
-          {index > 0 && <span aria-hidden>›</span>}
-          <Link
-            to="/locations/$id"
-            params={{ id: segment.id }}
-            className={cn(crumbLink, '-my-3 underline underline-offset-2')}
-          >
-            {segment.name}
-          </Link>
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/** A link in the breadcrumb or the location field: at least 44 px tall to tap. */
+/** A link in the breadcrumb: at least 44 px tall to tap. */
 const crumbLink =
   'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -190,7 +170,6 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
           <h1 className="text-xl font-semibold">{item.name}</h1>
           {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
         </div>
-        <p className="text-sm text-muted-foreground">{item.code}</p>
       </div>
 
       <Gallery key={item.id} name={item.name} photos={item.photos} />
@@ -211,10 +190,6 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
                     ))}
                   </ul>
                 ) : null,
-            },
-            {
-              label: t('item.fields.location'),
-              value: <LocationPath path={item.path} />,
             },
             { label: t('item.fields.manufacturer'), value: item.manufacturer?.name },
             { label: t('item.fields.model'), value: item.model },

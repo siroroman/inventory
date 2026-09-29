@@ -1,4 +1,4 @@
-import { Outlet } from '@tanstack/react-router';
+import { Link, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { UserMenu } from '@/features/auth/user-menu';
 
@@ -14,7 +14,12 @@ export function AppShell() {
         {t('common.skipToContent')}
       </a>
       <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-3">
-        <span className="flex-1 truncate text-[17px] font-semibold">{t('app.name')}</span>
+        <Link
+          to="/"
+          className="-my-2 flex min-h-11 flex-1 items-center truncate rounded-sm text-[17px] font-semibold focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('app.name')}
+        </Link>
         <UserMenu />
       </header>
       <main id="content" tabIndex={-1} className="flex-1 outline-none">

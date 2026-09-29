@@ -117,7 +117,6 @@
     "fields": {
       "code": "ID",
       "externalIds": "Externí ID",
-      "location": "Lokalita",
       "manufacturer": "Výrobce",
       "model": "Model",
       "serialNumber": "Sériové číslo",
