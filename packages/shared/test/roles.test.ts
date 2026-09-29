@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { roleAtLeast, roles } from '../src/index.ts';
+import { isRole, roleAtLeast, roles } from '../src/index.ts';
 
 describe('roleAtLeast', () => {
   it.each([
@@ -20,5 +20,12 @@ describe('roleAtLeast', () => {
     for (const [i, role] of roles.entries()) {
       for (const [j, minimum] of roles.entries()) expect(roleAtLeast(role, minimum)).toBe(i >= j);
     }
+  });
+});
+
+describe('isRole', () => {
+  it('accepts exactly the known roles', () => {
+    for (const role of roles) expect(isRole(role)).toBe(true);
+    for (const value of ['Admin', 'owner', '', null, undefined, 1]) expect(isRole(value)).toBe(false);
   });
 });

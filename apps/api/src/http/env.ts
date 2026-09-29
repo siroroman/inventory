@@ -6,5 +6,7 @@ export type AppEnv = {
     requestId: string;
     /** Set by the session middleware on every authenticated route. */
     actor: Actor;
+    /** Who the actor is, for `GET /me`; never used for permissions. */
+    profile: { email: string; name: string };
   };
 };

@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { useTestDb } from '../helpers/db.ts';
 import { createTestApp } from '../helpers/app.ts';
+
+const db = useTestDb();
+const setup = (options?: { isProduction?: boolean }) => createTestApp(db().app, options);
 
 describe('GET /api/v1/health', () => {
   it('answers without authentication', async () => {
-    const { app } = createTestApp();
+    const { app } = setup();
     const res = await app.request('/api/v1/health');
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: 'ok' });
@@ -12,7 +16,7 @@ describe('GET /api/v1/health', () => {
 
 describe('request id and access log', () => {
   it('returns a request id and logs one line per request', async () => {
-    const { app, logs } = createTestApp();
+    const { app, logs } = setup();
     const res = await app.request('/api/v1/health');
     const id = res.headers.get('x-request-id');
     expect(id).toBeTruthy();
@@ -30,7 +34,7 @@ describe('request id and access log', () => {
   });
 
   it('keeps the query string and headers out of the log', async () => {
-    const { app, logs } = createTestApp();
+    const { app, logs } = setup();
     await app.request('/api/v1/health?q=secret-search', { headers: { cookie: 'session=abc', authorization: 'Bearer t' } });
     expect(JSON.stringify(logs)).not.toMatch(/secret-search|session=abc|Bearer/);
   });
@@ -38,7 +42,7 @@ describe('request id and access log', () => {
 
 describe('security headers', () => {
   it('sets CSP, nosniff and Referrer-Policy', async () => {
-    const { app } = createTestApp();
+    const { app } = setup();
     const res = await app.request('/api/v1/health');
     const csp = res.headers.get('content-security-policy') ?? '';
     expect(csp).toContain("default-src 'self'");
@@ -49,16 +53,16 @@ describe('security headers', () => {
   });
 
   it('sends HSTS in production only', async () => {
-    const dev = await createTestApp().app.request('/api/v1/health');
+    const dev = await setup().app.request('/api/v1/health');
     expect(dev.headers.get('strict-transport-security')).toBeNull();
-    const prod = await createTestApp({ isProduction: true }).app.request('/api/v1/health');
+    const prod = await setup({ isProduction: true }).app.request('/api/v1/health');
     expect(prod.headers.get('strict-transport-security')).toMatch(/max-age=31536000/);
   });
 });
 
 describe('GET /api/v1/openapi.json', () => {
   it('describes the API as OpenAPI 3.1', async () => {
-    const { app } = createTestApp();
+    const { app } = setup();
     const res = await app.request('/api/v1/openapi.json');
     expect(res.status).toBe(200);
     const doc = (await res.json()) as { openapi: string; paths: Record<string, unknown> };
@@ -69,7 +73,7 @@ describe('GET /api/v1/openapi.json', () => {
 
 describe('request size limit', () => {
   it('rejects a body over 1 MB with a 413 problem', async () => {
-    const { app } = createTestApp();
+    const { app } = setup();
     const res = await app.request('/api/v1/health', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'content-length': String(2 * 1024 * 1024) },
@@ -82,9 +86,9 @@ describe('request size limit', () => {
 });
 
 describe('unknown routes', () => {
-  it('return a 404 problem', async () => {
-    const { app } = createTestApp();
-    const res = await app.request('/api/v1/nope');
+  it('outside /api/v1 return a 404 problem', async () => {
+    const { app } = setup();
+    const res = await app.request('/nope');
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ code: 'not_found' });
   });
