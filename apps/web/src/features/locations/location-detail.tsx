@@ -62,8 +62,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function SubLocations({ location }: { location: LocationDto }) {
   const { t } = useTranslation();
-  const query = useInfiniteQuery(locationChildrenQueryOptions(location.id));
+  const query = useInfiniteQuery({ ...locationChildrenQueryOptions(location.id), enabled: location.childCount > 0 });
   const { columns, card } = useLocationRows({ nested: true });
+  // A location without sub-locations (most of them) has no section rather than an empty one.
+  if (location.childCount === 0) return null;
   return (
     <section aria-labelledby="sub-locations" className="pt-6">
       <h2 id="sub-locations" className={sectionHeading}>
@@ -72,7 +74,7 @@ function SubLocations({ location }: { location: LocationDto }) {
       <PagedList
         query={query}
         searching={false}
-        empty={{ title: t('locationDetail.subLocationsEmptyTitle'), hint: t('locationDetail.subLocationsEmptyHint') }}
+        empty={{ title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }}
         columns={columns}
         card={card}
       />

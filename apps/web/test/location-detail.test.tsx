@@ -116,11 +116,14 @@ describe('location detail: sub-locations and items', () => {
     expect(callsTo(calls, `/api/v1/locations/${sub.id}/items`)).toEqual([new URLSearchParams({ limit: '20' })]);
   });
 
-  it('says so when there are no sub-locations or no items', async () => {
-    api(sub);
-    renderApp(`/locations/${sub.id}`);
-    expect(await screen.findByText('Žádné podlokality')).toBeInTheDocument();
-    expect(screen.getByText('Žádné položky')).toBeInTheDocument();
+  it('has no sub-locations section, and does not ask for them, when there are none', async () => {
+    const leaf = { ...sub, childCount: 0 };
+    const calls = api(leaf);
+    renderApp(`/locations/${leaf.id}`);
+    expect(await screen.findByText('Žádné položky')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /Podlokality/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Žádné podlokality')).not.toBeInTheDocument();
+    expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
   });
 
   it('loads more items with the cursor', async () => {

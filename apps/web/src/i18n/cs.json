@@ -94,8 +94,6 @@
       "note": "Poznámka"
     },
     "subLocations": "Podlokality ({{count}})",
-    "subLocationsEmptyTitle": "Žádné podlokality",
-    "subLocationsEmptyHint": "Tato lokalita zatím nemá žádné podlokality.",
     "items": "Položky ({{count}})",
     "itemsEmptyTitle": "Žádné položky",
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky."
