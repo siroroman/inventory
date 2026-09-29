@@ -166,6 +166,7 @@ pnpm --filter api start             # run the API once (Node 24 runs the TypeScr
 pnpm db:up                          # start local Postgres 17 (docker compose)
 pnpm db:migrate                     # apply migrations (needs MIGRATION_DATABASE_URL, see .env.example)
 pnpm db:seed                        # fill an empty local DB with sample data and admin@/write@/read@example.test users (needs SEED_USER_PASSWORD)
+pnpm --filter api db:seed:bulk       # add 100 locations and 2000 items to a seeded local DB (paging and search; refuses if it has >500 items)
 pnpm --filter api db:generate       # generate a migration from schema changes
 pnpm --filter api db:generate --custom --name=<name>   # empty migration for custom SQL
 pnpm --filter api db:check          # verify migration consistency
