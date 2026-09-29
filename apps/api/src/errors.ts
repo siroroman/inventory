@@ -16,7 +16,10 @@ export type ErrorCode =
   | 'location_type_not_found'
   | 'duplicate_provider'
   | 'provider_not_found'
-  | 'provider_archived';
+  | 'provider_archived'
+  | 'duplicate_manufacturer'
+  | 'manufacturer_not_found'
+  | 'manufacturer_archived';
 
 export class DomainError extends Error {
   constructor(
