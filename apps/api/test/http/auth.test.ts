@@ -20,14 +20,10 @@ import {
   signIn,
 } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
+import { expectProblem } from '../helpers/http.ts';
 
 const db = useTestDb();
 
-async function expectProblem(res: Response, status: number, code: string) {
-  expect(res.status).toBe(status);
-  expect(res.headers.get('content-type')).toMatch(/^application\/problem\+json/);
-  expect(problemSchema.parse(await res.json()).code).toBe(code);
-}
 
 describe('GET /api/v1/me', () => {
   it('is 401 without a session', async () => {
