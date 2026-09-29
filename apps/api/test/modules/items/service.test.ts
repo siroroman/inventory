@@ -158,6 +158,27 @@ describe('item service', () => {
       });
     });
 
+    it('answers every write with the full item, as get does', async () => {
+      const { service, praha, kuchyne, rational, sklad, create } = await setup();
+      const path = [
+        { id: praha.id, name: 'Centrála Praha' },
+        { id: kuchyne.id, name: 'Kuchyně' },
+      ];
+      const created = await create('Konvektomat', {
+        manufacturerId: rational.id,
+        externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }],
+      });
+      expect(created).toMatchObject({ version: 1, manufacturer: { name: 'Rational' }, path });
+      expect(created.externalIds).toEqual([expect.objectContaining({ source: 'Elektrikář', value: 'EL-4821' })]);
+
+      const moved = await service.update(writer, created.id, { version: 1, locationId: sklad.id, externalIds: [] });
+      expect(moved).toMatchObject({ version: 2, externalIds: [], path: [{ id: sklad.id, name: 'Sklad Brno' }] });
+
+      const archived = await service.archive(writer, created.id, 2);
+      expect(archived).toMatchObject({ version: 3, archivedAt: expect.any(Date), manufacturer: { name: 'Rational' } });
+      expect(await service.restore(writer, created.id, 3)).toMatchObject({ version: 4, archivedAt: null });
+    });
+
     it('reports an unknown item as not found and still returns an archived one', async () => {
       const { service, create } = await setup();
       await expectCode(service.get(reader, randomUUID()), 'not_found');

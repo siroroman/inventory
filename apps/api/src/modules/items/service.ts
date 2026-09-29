@@ -11,7 +11,6 @@ import {
   createItemRepository,
   type ExternalId,
   type ExternalIdInput,
-  type Item,
   type ItemFilter,
   type ItemListRow,
   type ItemRepository,
@@ -105,22 +104,34 @@ async function loadCurrent(r: ItemRepos, id: string, version: number): Promise<I
   return current;
 }
 
+async function detailOf(r: ItemRepos, row: ItemWithManufacturer): Promise<ItemDetail> {
+  const [externalIds, paths] = await Promise.all([
+    r.items.listExternalIds(row.id),
+    r.locations.findPaths([row.locationId]),
+  ]);
+  return { ...row, externalIds, path: paths.get(row.locationId) ?? [] };
+}
+
+/** Reads an item back with its external IDs and location path, for the response of a write. */
+async function reload(r: ItemRepos, id: string): Promise<ItemDetail> {
+  return detailOf(r, (await r.items.findById(id))!);
+}
+
 export function createItemService({ repos, transact }: ItemDeps) {
-  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<Item> {
+  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<ItemDetail> {
     assertRole(actor, 'write');
     return transact(async (r) => {
       const current = await loadCurrent(r, id, version);
       if (archive && current.archivedAt) throw new DomainError('archived');
       if (!archive && !current.archivedAt) throw new DomainError('not_archived');
-      const row = await r.items.setArchived(id, version, archive, actor.id);
-      if (!row) throw new DomainError('conflict');
+      if (!(await r.items.setArchived(id, version, archive, actor.id))) throw new DomainError('conflict');
       await r.audit.record({
         userId: actor.id,
         entityType: 'item',
         entityId: id,
         action: archive ? 'archive' : 'restore',
       });
-      return row;
+      return reload(r, id);
     });
   }
 
@@ -146,11 +157,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
       assertRole(actor, 'read');
       const row = await repos.items.findById(id);
       if (!row) throw new DomainError('not_found');
-      const [externalIds, paths] = await Promise.all([
-        repos.items.listExternalIds(id),
-        repos.locations.findPaths([row.locationId]),
-      ]);
-      return { ...row, externalIds, path: paths.get(row.locationId) ?? [] };
+      return detailOf(repos, row);
     },
 
     list,
@@ -167,7 +174,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
       return list(actor, { ...filter, locationId }, page);
     },
 
-    async create(actor: Actor, input: CreateItemInput): Promise<Item> {
+    async create(actor: Actor, input: CreateItemInput): Promise<ItemDetail> {
       assertRole(actor, 'write');
       const externalIds = input.externalIds ?? [];
       assertDistinct(externalIds);
@@ -200,11 +207,11 @@ export function createItemService({ repos, transact }: ItemDeps) {
             ...(saved.length > 0 && { externalIds: { from: null, to: labels(saved) } }),
           },
         });
-        return row;
+        return reload(r, row.id);
       });
     },
 
-    async update(actor: Actor, id: string, input: UpdateItemInput): Promise<Item> {
+    async update(actor: Actor, id: string, input: UpdateItemInput): Promise<ItemDetail> {
       assertRole(actor, 'write');
       if (input.externalIds) assertDistinct(input.externalIds);
       return transact(async (r) => {
@@ -229,7 +236,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
           if (before.join('\n') !== after.join('\n')) changes.externalIds = { from: before, to: after };
         }
         await r.audit.record({ userId: actor.id, entityType: 'item', entityId: id, action: 'update', changes });
-        return updated;
+        return reload(r, id);
       });
     },
 
