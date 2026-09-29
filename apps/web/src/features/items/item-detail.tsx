@@ -128,15 +128,15 @@ function Gallery({ name, photos }: { name: string; photos: PhotoDto[] }) {
 const crumbLink =
   'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
 
-/** The way up: the Items tab, every level of the location, then the item itself as the current page. */
+/** The way up: the Locations tab, every level of the location, then the item itself as the current page. */
 function Breadcrumb({ item }: { item: ItemDetailDto }) {
   const { t } = useTranslation();
   return (
     <nav aria-label={t('item.breadcrumb')}>
       <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
         <li>
-          <Link to="/" search={{ tab: 'items' }} className={crumbLink}>
-            {t('home.items.tab')}
+          <Link to="/" className={crumbLink}>
+            {t('home.locations.tab')}
           </Link>
         </li>
         {item.path.map((segment) => (

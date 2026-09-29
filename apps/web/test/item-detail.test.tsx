@@ -63,12 +63,12 @@ describe('item detail', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
 
-  it('has a breadcrumb through the Items tab and the location levels, ending at the item', async () => {
+  it('has a breadcrumb through the Locations tab and the location levels, ending at the item', async () => {
     signedIn(() => jsonResponse(detail()));
     renderApp(`/items/${id}`);
     const nav = await screen.findByRole('navigation', { name: 'Umístění' });
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Položky',
+      'Lokality',
       'Centrála Praha',
       'Přízemí',
       'Teplá kuchyně',
