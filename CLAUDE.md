@@ -173,7 +173,7 @@ pnpm --filter api db:check          # verify migration consistency
 pnpm --filter api auth:generate     # regenerate Better Auth tables after auth config changes
 ```
 
-For local runs, copy `.env.example` to `apps/api/.env`.
+For local runs, copy `.env.example` to `apps/api/.env`. `BETTER_AUTH_URL` there must be the Vite dev origin, `http://localhost:5173`; an older copy with `http://localhost:8080` makes sign-in, sign-out and every write from the SPA fail with "Invalid origin", so change it and restart the API.
 
 ## CI
 
