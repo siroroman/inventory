@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["**", "!**/drizzle/meta", "!apps/api/src/db/schema/auth.ts"]
+    "includes": ["**", "!**/drizzle/meta", "!apps/api/src/db/schema/auth.ts", "!apps/web/src/routeTree.gen.ts"]
   },
   "formatter": { "enabled": false },
   // Tailwind's @theme/@apply/@custom-variant are not plain CSS.
