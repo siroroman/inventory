@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { createRouter, type RouterHistory } from '@tanstack/react-router';
-import { RouteError, RouteNotFound } from '@/components/route-states';
+import { RouteError, RouteNotFound, RoutePending } from '@/components/route-states';
+import { redirectOnExpiredSession } from '@/features/auth/session-expiry';
 import { routeTree } from './routeTree.gen.ts';
 
 export function createAppRouter({
@@ -11,7 +12,7 @@ export function createAppRouter({
   /** Tests pass a memory history; the browser uses the default. */
   history?: RouterHistory;
 }) {
-  return createRouter({
+  const router = createRouter({
     routeTree,
     history,
     context: { queryClient },
@@ -19,7 +20,14 @@ export function createAppRouter({
     scrollRestoration: true,
     defaultErrorComponent: RouteError,
     defaultNotFoundComponent: RouteNotFound,
+    // Skeleton instead of a blank page while a route (or the session check) is slow; not shown for
+    // fast loads, and kept for a moment once shown so it does not flicker.
+    defaultPendingComponent: RoutePending,
+    defaultPendingMs: 300,
+    defaultPendingMinMs: 300,
   });
+  redirectOnExpiredSession(queryClient, router);
+  return router;
 }
 
 export type AppRouter = ReturnType<typeof createAppRouter>;

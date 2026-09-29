@@ -1,15 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { jsonResponse, renderApp, stubApi } from './helpers.tsx';
-
-const me = { id: '0c6f5a4e-8f3b-4a8e-9a55-2f2b1b8a9c11', email: 'anna@example.test', name: 'Anna Nováková', role: 'write' };
-
-const unauthenticated = () =>
-  jsonResponse(
-    { type: 'about:blank', title: 'Unauthorized', status: 401, code: 'unauthenticated' },
-    { status: 401, problem: true },
-  );
+import { jsonResponse, me, renderApp, stubApi, unauthenticated } from './helpers.tsx';
 
 describe('route guard', () => {
   it('sends an anonymous visitor to the login page and remembers where they wanted to go', async () => {
@@ -37,6 +29,23 @@ describe('route guard', () => {
     await user.click(screen.getByRole('button', { name: 'Přihlásit se' }));
     expect(await screen.findByRole('heading', { name: 'Přehled' })).toBeInTheDocument();
     expect(router.state.location.href).toBe('/?tab=items');
+  });
+
+  it('shows a skeleton, not a blank page, while the session check is slow', async () => {
+    let answer: (res: Response) => void = () => {};
+    stubApi({ 'GET /api/v1/me': () => new Promise<Response>((resolve) => (answer = resolve)) });
+    renderApp('/');
+    expect(await screen.findByRole('status', { name: 'Načítání' }, { timeout: 2000 })).toBeInTheDocument();
+    answer(jsonResponse(me));
+    expect(await screen.findByRole('heading', { name: 'Přehled' })).toBeInTheDocument();
+  });
+
+  it('asks the server once per check when anonymous, not once per redirect hop', async () => {
+    const calls = stubApi({ 'GET /api/v1/me': unauthenticated });
+    renderApp('/');
+    await screen.findByRole('button', { name: 'Přihlásit se' });
+    // The guard and then the login page each ask; no loop.
+    expect(calls.filter((call) => call.url.endsWith('/api/v1/me'))).toHaveLength(2);
   });
 
   it('shows the screen to a signed-in user', async () => {

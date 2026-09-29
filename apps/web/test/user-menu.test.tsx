@@ -1,15 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { jsonResponse, renderApp, stubApi } from './helpers.tsx';
-
-const me = { id: '0c6f5a4e-8f3b-4a8e-9a55-2f2b1b8a9c11', email: 'anna@example.test', name: 'Anna Nováková', role: 'write' };
-
-const unauthenticated = () =>
-  jsonResponse(
-    { type: 'about:blank', title: 'Unauthorized', status: 401, code: 'unauthenticated' },
-    { status: 401, problem: true },
-  );
+import { jsonResponse, me, renderApp, stubApi, unauthenticated } from './helpers.tsx';
 
 async function openMenu() {
   const user = userEvent.setup();

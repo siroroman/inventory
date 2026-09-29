@@ -41,3 +41,18 @@ export function stubApi(routes: Record<string, Handler>) {
   });
   return calls;
 }
+
+/** What `GET /me` answers for the signed-in user in the tests. */
+export const me = {
+  id: '0c6f5a4e-8f3b-4a8e-9a55-2f2b1b8a9c11',
+  email: 'anna@example.test',
+  name: 'Anna Nováková',
+  role: 'write',
+};
+
+/** What any `/api/v1` call answers without a valid session. */
+export const unauthenticated = () =>
+  jsonResponse(
+    { type: 'about:blank', title: 'Unauthorized', status: 401, code: 'unauthenticated' },
+    { status: 401, problem: true },
+  );

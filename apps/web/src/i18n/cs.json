@@ -13,6 +13,7 @@
     "itemCount_other": "{{count}} položek"
   },
   "states": {
+    "loading": "Načítání",
     "errorTitle": "Něco se nepovedlo",
     "notFoundTitle": "Stránka nenalezena",
     "notFoundHint": "Adresa neexistuje nebo byla přesunuta.",
