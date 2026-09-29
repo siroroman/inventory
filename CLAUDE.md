@@ -8,7 +8,7 @@ Priorities, in order: simplicity, reliability, security, user friendliness.
 
 ## Status
 
-Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. Services: `locations` (with location types); services take `{ repos, transact }` (`src/db/transaction.ts`), throw `DomainError` codes (`src/errors.ts`), and are unit-tested with in-memory fakes from `test/fakes/`. No other services yet; no API routes, `packages/shared` or SPA yet; no CI or Dockerfile yet. Keep this section and Commands current.
+Scaffolded: pnpm monorepo and the API's database layer (Drizzle schema, migrations, least-privilege role, DB test suite), a repository per module in `apps/api/src/modules/<module>/repository.ts` (shared helpers in `src/db/`: `search.ts`, `pagination.ts`, `versioned.ts`), and a dev seed. Services: `locations` (with location types); services take `{ repos, transact }` (`src/db/transaction.ts`), throw `DomainError` codes (`src/errors.ts`), and are unit-tested with in-memory fakes from `test/fakes/`. No other services yet; no API routes, `packages/shared` or SPA yet; no Dockerfile or deploy pipeline yet. CI runs on every PR (see CI below). Keep this section and Commands current.
 
 ## References
 
@@ -129,6 +129,8 @@ Prerequisites: Node 24 (`nvm use`), pnpm via corepack (`corepack enable pnpm`), 
 ```
 pnpm install                        # install deps, enable the commit-msg hook
 pnpm typecheck                      # tsc in every package
+pnpm lint                           # Biome static analysis (warnings fail too)
+pnpm build                          # build every package that has a build script
 pnpm test                           # all tests (DB tests start a Postgres container)
 pnpm --filter api test:watch        # API tests in watch mode
 pnpm db:up                          # start local Postgres 17 (docker compose)
@@ -141,6 +143,17 @@ pnpm --filter api auth:generate     # regenerate Better Auth tables after auth c
 ```
 
 For local runs, copy `.env.example` to `apps/api/.env`.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`. Four jobs, all must pass:
+
+- `Lint, typecheck, test`: `pnpm lint` (Biome, `biome.jsonc`; formatter off, generated `auth.ts` excluded), `pnpm typecheck`, `db:check`, `pnpm build`, `pnpm test` (DB tests use the runner's Docker via Testcontainers).
+- `Dependency audit`: `pnpm audit --audit-level high`.
+- `Secret scan`: gitleaks over the full git history.
+- `Semgrep`: free registry rules for TypeScript/JavaScript/Node.js (SAST); any finding fails.
+
+Actions are pinned to commit SHAs and scanner images to versions; update them deliberately. Making these jobs required status checks on `main` is a GitHub repository setting (branch protection), not part of the workflow file.
 
 ## Working agreement
 
@@ -160,5 +173,5 @@ For local runs, copy `.env.example` to `apps/api/.env`.
 - For anything non-trivial, add a body after a blank line explaining why (wrap at 72).
 - One small logical change per commit. Every commit is green (typecheck and tests pass), so `git bisect` works and any commit could ship. Tests land in the same commit as the code they cover.
 - No `Co-Authored-By` or other AI attribution trailers.
-- Commit directly to `main` for now; switch to feature branches and PRs once CI exists.
+- Work on a feature branch and open a PR into `main`; CI must be green to merge. Never commit directly to `main`.
 - `.githooks/commit-msg` enforces the format; `pnpm install` enables it (`git config core.hooksPath .githooks`). Never bypass it with `--no-verify`.
