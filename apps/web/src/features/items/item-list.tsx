@@ -1,11 +1,12 @@
 import type { ItemListEntryDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
-import { Badge } from '@/components/ui/badge';
 import { serviceStatus } from '@/lib/service-status';
 import { itemListQueryOptions } from './api';
+import { ServiceBadge } from './service-badge';
 
 const pathOf = (item: ItemListEntryDto) => item.path.map((segment) => segment.name).join(' › ');
 const brandAndModel = (item: ItemListEntryDto) =>
@@ -16,18 +17,23 @@ export function useItemRows() {
   const { t } = useTranslation();
 
   // "Service overdue" / "Service due within 30 days", or nothing.
-  const serviceBadge = (item: ItemListEntryDto) => {
-    const status = serviceStatus(item.nextServiceOn);
-    if (!status) return null;
-    return (
-      <Badge variant={status === 'overdue' ? 'danger' : 'warning'}>
-        {t(`home.items.service.${status}`)}
-      </Badge>
-    );
-  };
+  const serviceBadge = (item: ItemListEntryDto) => (
+    <ServiceBadge
+      nextServiceOn={item.nextServiceOn}
+      labels={{ overdue: t('home.items.service.overdue'), soon: t('home.items.service.soon') }}
+    />
+  );
 
   const columns: Column<ItemListEntryDto>[] = [
-    { header: t('home.items.columns.name'), primary: true, cell: (item) => item.name },
+    {
+      header: t('home.items.columns.name'),
+      primary: true,
+      cell: (item) => (
+        <Link to="/items/$id" params={{ id: item.id }} className="hover:underline">
+          {item.name}
+        </Link>
+      ),
+    },
     { header: t('home.items.columns.code'), className: 'w-28', cell: (item) => item.code },
     {
       header: t('home.items.columns.location'),
@@ -38,16 +44,16 @@ export function useItemRows() {
   ];
 
   const card = (item: ItemListEntryDto) => {
-    const badge = serviceBadge(item);
+    const badge = item.nextServiceOn && serviceStatus(item.nextServiceOn);
     return (
-      <>
+      <Link to="/items/$id" params={{ id: item.id }} className="block">
         <p className="text-[15px] font-semibold">{item.name}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {item.code} · {pathOf(item)}
         </p>
         {brandAndModel(item) && <p className="text-sm text-muted-foreground">{brandAndModel(item)}</p>}
-        {badge && <p className="mt-1.5">{badge}</p>}
-      </>
+        {badge && <p className="mt-1.5">{serviceBadge(item)}</p>}
+      </Link>
     );
   };
 
