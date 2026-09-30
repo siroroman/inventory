@@ -85,10 +85,10 @@ export function ItemForm({ item, onReload }: Props) {
   const save = useMutation({
     mutationFn: async (values: ItemFormValues) => {
       if (!item) return createItem(formValuesToBody(values));
-      return updateItem(item.id, {
-        ...changedFields(defaults, values),
-        version: item.version,
-      });
+      const changes = changedFields(defaults, values);
+      // A change that trimming undoes (a trailing space) leaves nothing to send.
+      if (Object.keys(changes).length === 0) return item;
+      return updateItem(item.id, { ...changes, version: item.version });
     },
     // The form shows the failure itself, above the buttons.
     meta: { silentError: true },

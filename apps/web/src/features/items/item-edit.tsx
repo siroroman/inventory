@@ -24,7 +24,11 @@ export function ItemCreate() {
 export function ItemEdit({ id }: { id: string }) {
   const { t } = useTranslation();
   const canWrite = useCanWrite();
-  const query = useQuery({ ...itemDetailQueryOptions(id), staleTime: 0, refetchOnWindowFocus: false });
+  const query = useQuery({ ...itemDetailQueryOptions(id), staleTime: 0,
+    // A background refetch that brings a newer version would remount the form and drop what was typed.
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
   if (!canWrite) return <NoWriteAccess />;
   if (query.data) {

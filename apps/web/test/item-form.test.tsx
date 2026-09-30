@@ -188,6 +188,18 @@ describe('edit item', () => {
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
   });
 
+  it('sends nothing when the only change is a trailing space', async () => {
+    const calls = api({ [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()) });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+
+    await user.type(await screen.findByLabelText('Název'), ' ');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+
   it('can change the location and clear the manufacturer', async () => {
     const calls = api({
       [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
