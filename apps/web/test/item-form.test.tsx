@@ -62,6 +62,7 @@ describe('new item', () => {
 
     expect(await screen.findByRole('heading', { name: 'Nová položka', level: 1 })).toBeInTheDocument();
     await user.type(screen.getByLabelText('Název'), '  Myčka ');
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
     await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
     await user.type(screen.getByPlaceholderText(/Hledat nebo zadat/), 'Winterhalter');
     await user.click(await screen.findByRole('button', { name: 'Vytvořit výrobce „Winterhalter“' }));
@@ -90,6 +91,24 @@ describe('new item', () => {
     expect(await screen.findByText('Uloženo')).toBeInTheDocument();
   });
 
+  it('keeps the location and manufacturer lists collapsed until a field is used', async () => {
+    api();
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    await screen.findByPlaceholderText(/Hledat lokalitu/);
+    expect(screen.queryByRole('list', { name: /Výsledky/ })).not.toBeInTheDocument();
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
+    expect(await screen.findByRole('list', { name: 'Výsledky: Lokalita' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Výsledky: Výrobce' })).not.toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('list', { name: /Výsledky/ })).not.toBeInTheDocument();
+    await user.click(screen.getByPlaceholderText(/Hledat nebo zadat/));
+    expect(await screen.findByRole('list', { name: 'Výsledky: Výrobce' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Výsledky: Lokalita' })).not.toBeInTheDocument();
+  });
+
   it('reports what is missing or wrong and sends nothing', async () => {
     const calls = api();
     const user = userEvent.setup();
@@ -116,6 +135,7 @@ describe('new item', () => {
     renderApp('/items/new');
 
     await user.type(await screen.findByLabelText('Název'), 'Myčka');
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
     await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
 
@@ -263,6 +283,7 @@ describe('shared cache', () => {
     api({ 'GET /api/v1/location-types': () => jsonResponse({ items: [ref('HQ', 'Centrála')] }) });
     const user = userEvent.setup();
     const { router } = renderApp('/items/new');
+    await user.click(await screen.findByPlaceholderText(/Hledat lokalitu/));
     await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' });
 
     await router.navigate({ to: '/locations/new' });

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { type FocusEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,9 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
   const input = useRef<HTMLInputElement>(null);
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
+  const container = useRef<HTMLDivElement>(null);
+  // The results are collapsed until the field is used, so the form stays short.
+  const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string>();
 
@@ -46,7 +49,7 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
     return () => clearTimeout(timer);
   }, [text]);
 
-  const query = useQuery({ ...search(q), enabled: value === null, placeholderData: (previous) => previous });
+  const query = useQuery({ ...search(q), enabled: value === null && open, placeholderData: (previous) => previous });
   const typed = text.trim();
   const canCreate =
     create !== undefined &&
@@ -73,7 +76,7 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
             onChange(null);
             setText('');
             setQ('');
-            // The input is mounted by the next render.
+            // The input is mounted by the next render; focusing it opens the results.
             setTimeout(() => input.current?.focus());
           }}
           aria-label={t('picker.change', { label })}
@@ -85,13 +88,24 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
     );
   }
 
+  // The results close when focus leaves the field and its list, and on Escape.
+  const closing = {
+    onBlur: (event: FocusEvent<HTMLElement>) => {
+      if (!container.current?.contains(event.relatedTarget)) setOpen(false);
+    },
+    onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key === 'Escape') setOpen(false);
+    },
+  };
+
   const pick = (option: PickerOption) => {
     onChange(option);
+    setOpen(false);
     setCreateError(undefined);
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={container} className="flex flex-col gap-2">
       <Input
         ref={input}
         id={id}
@@ -103,9 +117,15 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
         spellCheck={false}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        onChange={(event) => setText(event.target.value)}
+        onChange={(event) => {
+          setText(event.target.value);
+          setOpen(true);
+        }}
+        onClick={() => setOpen(true)}
+        onFocus={() => setOpen(true)}
+        {...closing}
       />
-      {query.isError ? (
+      {!open ? null : query.isError ? (
         <p role="alert" className="text-sm text-destructive">
           {problemMessage(query.error)}{' '}
           <button type="button" className="underline" onClick={() => void query.refetch()}>
@@ -119,12 +139,15 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
           id={listId}
           aria-label={t('picker.results', { label })}
           className="max-h-64 divide-y overflow-y-auto rounded-md border bg-card"
+          // Clicking a result must not blur the field first (Safari does not focus buttons on click).
+          onMouseDown={(event) => event.preventDefault()}
         >
           {query.data.map((option) => (
             <li key={option.id}>
               <button
                 type="button"
                 onClick={() => pick(option)}
+                {...closing}
                 className="min-h-11 w-full px-3.5 py-2 text-left text-[15px] hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
               >
                 {option.label}
@@ -136,6 +159,7 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
               <button
                 type="button"
                 disabled={creating}
+                {...closing}
                 onClick={() => {
                   setCreating(true);
                   setCreateError(undefined);
