@@ -34,6 +34,16 @@ export const searchQuery = z
   .max(100)
   .transform((q) => q || undefined);
 
+/**
+ * A human ID (the content of a QR label) chosen by the user on creation. Upper-cased so `sklad-a`
+ * and `SKLAD-A` cannot both exist, and limited to characters that are safe in the `/q/<code>` URL.
+ */
+export const humanCode = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9][A-Z0-9._-]{0,29}$/);
+
 /** A reference to a record by id, code and name, e.g. a location on a path or a location type. */
 export const codeRef = z.object({ id: z.uuid(), code: z.string(), name: z.string() });
 export type CodeRef = z.infer<typeof codeRef>;

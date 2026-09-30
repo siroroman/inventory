@@ -16,6 +16,7 @@ export const domainErrorCodes = [
   'location_type_not_found',
   'duplicate_location_type',
   'duplicate_location_code',
+  'duplicate_item_code',
   'duplicate_provider',
   'provider_not_found',
   'provider_archived',

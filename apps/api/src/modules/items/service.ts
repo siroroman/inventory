@@ -41,6 +41,8 @@ export type ItemDetail = ItemWithManufacturer & { externalIds: ExternalId[]; pat
 export type ItemListEntry = ItemListRow & { path: PathSegment[] };
 
 export type CreateItemInput = {
+  /** Chosen by the user; the database assigns the next INV-nnnnn when missing. */
+  code?: string;
   name: string;
   locationId: string;
   manufacturerId?: string | null;
@@ -57,7 +59,7 @@ export type CreateItemInput = {
 };
 
 /** Only the fields present change; `null` clears one. Sending `externalIds` replaces the whole list. */
-export type UpdateItemInput = Partial<CreateItemInput> & { version: number };
+export type UpdateItemInput = Partial<Omit<CreateItemInput, 'code'>> & { version: number };
 
 const AUDITED = [
   'code',
@@ -202,6 +204,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
         if (input.manufacturerId) await checkManufacturer(r, input.manufacturerId);
         await assertExternalIdsFree(r, externalIds);
         const row = await r.items.insert({
+          ...(input.code !== undefined && { code: input.code }),
           name: input.name,
           locationId: input.locationId,
           manufacturerId: input.manufacturerId ?? null,

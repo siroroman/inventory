@@ -5,6 +5,13 @@ const ID = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
 const base = { name: 'Konvektomat', locationId: ID };
 
 describe('createItemBody', () => {
+  it('takes an optional ID, trimmed and upper-cased, and rejects unsafe ones', () => {
+    expect(createItemBody.parse({ ...base, code: ' vaha-1.a ' })).toEqual({ ...base, code: 'VAHA-1.A' });
+    for (const code of ['', 'has space', 'ČÁRKA', '-A', '/q', 'X'.repeat(31)]) {
+      expect(createItemBody.safeParse({ ...base, code }).success, code).toBe(false);
+    }
+  });
+
   it('needs a name and a location; the rest is optional', () => {
     expect(createItemBody.parse({ name: ' Konvektomat ', locationId: ID })).toEqual(base);
     expect(
@@ -52,7 +59,6 @@ describe('createItemBody', () => {
       { ...base, model: '' },
       { ...base, serialNumber: 's'.repeat(121) },
       { ...base, note: 'n'.repeat(2001) },
-      { ...base, code: 'INV-99999' },
       { ...base, archivedAt: null },
     ]) {
       expect(createItemBody.safeParse(body).success, JSON.stringify(body)).toBe(false);

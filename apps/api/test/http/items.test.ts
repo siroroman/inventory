@@ -250,6 +250,29 @@ describe('POST /items', () => {
     expect(body.code).toMatch(/^INV-\d{5}$/);
   });
 
+  it('takes the ID the user chose, upper-cased and trimmed, and leaves the generated ones alone', async () => {
+    const { write } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    const body = await expectJson(await write.post('/items', { name: 'Váha', locationId: loc.id, code: ' vaha-1.a ' }), 201, itemSchema);
+    expect(body.code).toBe('VAHA-1.A');
+    const next = await expectJson(await write.post('/items', { name: 'Další', locationId: loc.id }), 201, itemSchema);
+    expect(next.code).toMatch(/^INV-\d{5}$/);
+  });
+
+  it('answers 409 when the chosen ID is taken, whatever its case', async () => {
+    const { write } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    await write.post('/items', { name: 'A', locationId: loc.id, code: 'VAHA-1' });
+    await expectProblem(await write.post('/items', { name: 'B', locationId: loc.id, code: 'vaha-1' }), 409, 'duplicate_item_code');
+  });
+
+  it('refuses to change the ID of an existing item', async () => {
+    const { write } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    const made = await expectJson(await write.post('/items', { name: 'A', locationId: loc.id }), 201, itemSchema);
+    await expectProblem(await write.patch(`/items/${made.id}`, { version: 1, code: 'NEW-1' }), 400, 'validation_error');
+  });
+
   it('gives each item its own code', async () => {
     const { write } = await setup();
     const loc = await insertLocation(db().app, { name: 'Sklad' });
@@ -346,7 +369,7 @@ describe('POST /items', () => {
       { ...base, model: '' },
       { ...base, externalIds: [{ source: 'S' }] },
       { ...base, externalIds: Array.from({ length: 21 }, (_, i) => ({ source: 'S', value: `V${i}` })) },
-      { ...base, code: 'INV-99999' },
+      { ...base, code: 'bad code' },
     ]) {
       await expectProblem(await write.post('/items', body), 400, 'validation_error');
     }

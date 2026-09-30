@@ -53,6 +53,12 @@ describe('item service', () => {
   });
 
   describe('create', () => {
+    it('creates with the ID it is given and leaves the generated one otherwise', async () => {
+      const { create } = await setup();
+      await expect(create('A', { code: 'MY-1' })).resolves.toMatchObject({ code: 'MY-1' });
+      await expect(create('B')).resolves.toMatchObject({ code: expect.stringMatching(/^INV-/) });
+    });
+
     it('creates an item, saves its external IDs and audits every set field', async () => {
       const { store, kuchyne, rational, create } = await setup();
       const item = await create('Konvektomat', {

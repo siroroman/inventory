@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codeRef, documentsUrl, hasChange, isoDate, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
+import { codeRef, documentsUrl, humanCode, hasChange, isoDate, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
 import { searchPageQuery, versionField } from './http.ts';
 
 /** One row of an item list; `itemSchema` extends it with the rest of the item. */
@@ -77,7 +77,8 @@ const optionalItemFields = {
   externalIds: true,
 } as const;
 
-export const createItemBody = z.strictObject(itemFields).partial(optionalItemFields);
+/** `code` is optional: without it the database assigns the next INV-nnnnn. Fixed once the item exists. */
+export const createItemBody = z.strictObject({ ...itemFields, code: humanCode }).partial({ code: true, ...optionalItemFields });
 export type CreateItemBody = z.infer<typeof createItemBody>;
 
 /**
