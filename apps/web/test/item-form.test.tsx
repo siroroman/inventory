@@ -258,6 +258,19 @@ describe('edit item', () => {
   });
 });
 
+describe('shared cache', () => {
+  it('does not break the location form, which searches locations too, after the item form was open', async () => {
+    api({ 'GET /api/v1/location-types': () => jsonResponse({ items: [ref('HQ', 'Centrála')] }) });
+    const user = userEvent.setup();
+    const { router } = renderApp('/items/new');
+    await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' });
+
+    await router.navigate({ to: '/locations/new' });
+    await user.click(await screen.findByRole('button', { name: 'Změnit' }));
+    expect(await screen.findByRole('button', { name: /Teplá kuchyně/ })).toBeInTheDocument();
+  });
+});
+
 describe('entry points', () => {
   const withItem = { [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()) };
 

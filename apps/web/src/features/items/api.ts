@@ -16,7 +16,7 @@ export const itemDetailQueryOptions = (id: string) =>
 
 /** Locations at every level matching `q` (the top-level ones without it), labelled with their full path. */
 export const locationPickerOptions = (q: string) => ({
-  queryKey: ['locations', 'picker', q] as const,
+  queryKey: ['locations', 'item-picker', q] as const,
   queryFn: async () => {
     const page = await unwrap(api.api.v1.locations.$get({ query: { q: q || undefined, limit: '20' } }));
     return page.items.map((location) => ({ id: location.id, label: location.path.map((p) => p.name).join(' › ') }));
@@ -25,7 +25,7 @@ export const locationPickerOptions = (q: string) => ({
 
 /** Manufacturers matching `q`. */
 export const manufacturerPickerOptions = (q: string) => ({
-  queryKey: ['manufacturers', 'picker', q] as const,
+  queryKey: ['manufacturers', 'item-picker', q] as const,
   queryFn: async () => {
     const page = await unwrap(api.api.v1.manufacturers.$get({ query: { q: q || undefined, limit: '20' } }));
     return page.items.map((manufacturer) => ({ id: manufacturer.id, label: manufacturer.name }));
