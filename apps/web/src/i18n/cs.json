@@ -109,6 +109,7 @@
     "codeHint": "Nepovinné. Když pole necháte prázdné, ID se přidělí automaticky. Později ho nelze změnit.",
     "fieldInvalid": "Hodnota není platná.",
     "codeInvalid": "ID může mít nejvýše 30 znaků: písmena bez diakritiky, číslice, tečku, pomlčku nebo podtržítko.",
+    "codeAutoClash": "ID se nepodařilo přidělit automaticky, protože už existuje lokalita se stejným. Zkuste to prosím znovu.",
     "codeTaken": "Lokalita s tímto ID už existuje.",
     "parent": "Nadřazená lokalita",
     "parentNone": "Žádná (lokalita nejvyšší úrovně)",

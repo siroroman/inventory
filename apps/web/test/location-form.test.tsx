@@ -81,6 +81,18 @@ describe('location form: adding', () => {
     expect(await bodyOf(calls, 'POST')).toMatchObject({ code: 'sklad-a' });
   });
 
+  it('does not blame an empty ID field when the automatic number clashes', async () => {
+    api({ 'POST /api/v1/locations': () => problem('duplicate_location_code', 409) });
+    renderApp('/locations/new');
+    await userEvent.type(await screen.findByLabelText('Název'), 'Sklad');
+    await userEvent.selectOptions(await screen.findByLabelText('Typ'), 'Centrála');
+    await userEvent.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('ID se nepodařilo přidělit automaticky');
+    expect(screen.getByLabelText('ID')).toBeValid();
+    expect(screen.getByRole('button', { name: 'Uložit' })).toBeEnabled();
+  });
+
   it('rejects an ID the API would refuse', async () => {
     const calls = api();
     renderApp('/locations/new');

@@ -55,8 +55,10 @@ function refusedFields(error: unknown): (typeof formFieldByApiPath)[keyof typeof
   const issues = error.problem?.details?.issues;
   if (!Array.isArray(issues)) return [];
   return issues.flatMap((issue: { path?: string }) => {
-    const field = formFieldByApiPath[issue?.path as keyof typeof formFieldByApiPath];
-    return field ? [field] : [];
+    const path = issue?.path;
+    return typeof path === 'string' && Object.hasOwn(formFieldByApiPath, path)
+      ? [formFieldByApiPath[path as keyof typeof formFieldByApiPath]]
+      : [];
   });
 }
 
@@ -82,9 +84,11 @@ function valuesOf(location: LocationDto | undefined, parent: ParentChoice | null
   };
 }
 
-/** The request body: empty text becomes `null`, and a sub-location never sends a type. */
+/**
+ * The request body: empty text becomes `null`, and a sub-location never sends a type. The ID is not
+ * part of it: it is added on creation only, since it is fixed afterwards.
+ */
 function bodyOf(values: FormValues) {
-  // The ID is sent on creation only: it is fixed afterwards, and an empty one means "assign it".
   return {
     name: values.name,
     parentId: values.parent?.id ?? null,
@@ -149,7 +153,7 @@ export function LocationForm({ location, initialParent = null }: Props) {
       const body = bodyOf(values);
       return location
         ? updateLocation(location.id, { ...body, version })
-        : createLocation({ ...body, ...(values.code && { code: values.code }) });
+        : createLocation({ ...body, ...(values.code && { code: values.code }) }); // empty = assign one
     },
     // The form shows the failure itself, above the buttons.
     meta: { silentError: true },
@@ -171,7 +175,10 @@ export function LocationForm({ location, initialParent = null }: Props) {
 
   // The ID that was refused as taken is marked on its field until it is changed.
   const codeRefused = save.error instanceof ApiError && save.error.code === 'duplicate_location_code';
-  const codeTaken = codeRefused && save.variables?.code === watch('code').trim();
+  // An empty ID field means the database picked the ID: it ran into one chosen by hand earlier, so
+  // the field has nothing to blame, and trying again takes the next number.
+  const autoCodeClash = codeRefused && save.variables?.code === '';
+  const codeTaken = codeRefused && !autoCodeClash && save.variables?.code === watch('code').trim();
   const conflict = save.error instanceof ApiError && save.error.code === 'conflict';
   const reload = async () => {
     if (!location) return;
@@ -313,9 +320,9 @@ export function LocationForm({ location, initialParent = null }: Props) {
           </FieldError>
         </div>
 
-        {save.isError && !codeRefused && !marked && (
+        {save.isError && (!codeRefused || autoCodeClash) && !marked && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-md bg-danger-soft px-3 py-2.5 text-sm text-destructive">
-            <p>{problemMessage(save.error)}</p>
+            <p>{autoCodeClash ? t('locationForm.codeAutoClash') : problemMessage(save.error)}</p>
             {conflict && (
               <Button type="button" variant="outline" onClick={() => void reload()}>
                 {t('locationForm.reload')}
