@@ -172,7 +172,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
           <h1 className="text-xl font-semibold">{item.name}</h1>
           {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
           {canWrite && !item.archivedAt && (
-            <Button asChild variant="outline" size="sm" className="ml-auto">
+            <Button asChild size="sm" className="ml-auto">
               <Link to="/items/$id/edit" params={{ id: item.id }}>
                 <Pencil aria-hidden />
                 {t('item.edit')}

@@ -178,21 +178,21 @@ export function LocationDetail({ id }: { id: string }) {
     <div className="mx-auto w-full max-w-6xl pb-8">
       <header className="flex flex-col px-4 pt-2 pb-4">
         <Breadcrumb path={location.path} />
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-xl font-semibold">{location.name}</h1>
-          {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
-        </div>
-        {/* An archived location is read-only until it is restored. */}
-        {canAdd && (
-          <div className="flex flex-wrap gap-3 pt-3">
-            <Button asChild variant="outline">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-xl font-semibold">{location.name}</h1>
+            {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
+          </div>
+          {/* An archived location is read-only until it is restored. */}
+          {canAdd && (
+            <Button asChild size="sm">
               <Link to="/locations/$id/edit" params={{ id: location.id }}>
                 <Pencil aria-hidden />
                 {t('locationDetail.edit')}
               </Link>
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
       <dl className="mx-4 flex flex-col gap-3 rounded-lg border bg-card p-4">
         <Field label={t('locationDetail.fields.code')}>{location.code}</Field>
