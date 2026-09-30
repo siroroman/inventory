@@ -22,19 +22,34 @@ export type LocationDto = z.infer<typeof locationSchema>;
 
 export const locationListSchema = pageOf(locationSchema);
 
+/** Longest text each field takes; the location form checks the same limits before sending. */
+export const locationLimits = { name: 120, address: 200, note: 2000 } as const;
+
+/**
+ * A location's human ID, chosen on creation and fixed afterwards (it is the content of a QR label).
+ * Upper-cased so `sklad-a` and `SKLAD-A` cannot both exist, and limited to characters that are safe
+ * in the `/q/<code>` URL.
+ */
+export const locationCode = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9][A-Z0-9._-]{0,29}$/);
+
 const locationFields = {
-  name: requiredText(120),
+  name: requiredText(locationLimits.name),
   /** Empty for a top-level location. */
   parentId: z.uuid().nullable(),
   /** Required for a top-level location, not allowed for a sub-location. */
   locationTypeId: z.uuid().nullable(),
-  address: nullableText(200),
-  note: nullableText(2000),
+  address: nullableText(locationLimits.address),
+  note: nullableText(locationLimits.note),
 };
 
+/** `code` is optional: without it the database assigns the next LOC-nnn. */
 export const createLocationBody = z
-  .strictObject(locationFields)
-  .partial({ parentId: true, locationTypeId: true, address: true, note: true });
+  .strictObject({ ...locationFields, code: locationCode })
+  .partial({ code: true, parentId: true, locationTypeId: true, address: true, note: true });
 export type CreateLocationBody = z.infer<typeof createLocationBody>;
 
 /** Only the fields present change; `null` clears one. Moving under a parent drops the type. */

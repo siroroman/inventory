@@ -42,6 +42,12 @@ describe('location service', () => {
       expect(store.state.audit).toHaveLength(auditBefore);
     });
 
+    it('creates with the ID it is given and leaves the generated one otherwise', async () => {
+      const { service, hq } = setup();
+      await expect(service.create(writer, { name: 'A', locationTypeId: hq, code: 'MY-1' })).resolves.toMatchObject({ code: 'MY-1' });
+      await expect(service.create(writer, { name: 'B', locationTypeId: hq })).resolves.toMatchObject({ code: expect.stringMatching(/^LOC-/) });
+    });
+
     it('lets writers and admins change locations', async () => {
       const { service, hq } = setup();
       await expect(service.create(writer, { name: 'A', locationTypeId: hq })).resolves.toBeDefined();
