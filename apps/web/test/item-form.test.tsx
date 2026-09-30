@@ -66,7 +66,6 @@ describe('new item', () => {
     await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
     await user.type(screen.getByPlaceholderText(/Hledat nebo zadat/), 'Winterhalter');
     await user.click(await screen.findByRole('button', { name: 'Vytvořit výrobce „Winterhalter“' }));
-    await user.click(screen.getByRole('button', { name: 'Přidat externí ID' }));
     await user.type(screen.getByLabelText('Dodavatel externího ID 1'), 'Elektrikář');
     await user.type(screen.getByLabelText('Externí ID 1'), 'EL-1');
     await user.type(screen.getByLabelText('Rok výroby'), '2020');
@@ -109,6 +108,96 @@ describe('new item', () => {
     expect(screen.queryByRole('list', { name: 'Výsledky: Lokalita' })).not.toBeInTheDocument();
   });
 
+  it('shows an empty external ID row to type in, and sends none when it stays empty', async () => {
+    const created = detail({ id: crypto.randomUUID(), name: 'Myčka' });
+    const calls = api({
+      'POST /api/v1/items': () => jsonResponse(created, { status: 201 }),
+      [`GET /api/v1/items/${created.id}`]: () => jsonResponse(created),
+    });
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    expect(await screen.findByLabelText('Dodavatel externího ID 1')).toHaveValue('');
+    expect(screen.getByLabelText('Externí ID 1')).toHaveValue('');
+    await user.type(screen.getByLabelText('Název'), 'Myčka');
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
+    await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    await screen.findByRole('heading', { name: 'Myčka', level: 1 });
+    expect(await bodyOf(calls, 'POST', '/api/v1/items')).toMatchObject({ externalIds: [] });
+  });
+
+  it('has just one Poznámka: the field label, no section title above it', async () => {
+    api();
+    renderApp('/items/new');
+    await screen.findByLabelText('Poznámka');
+    expect(screen.getAllByText('Poznámka')).toHaveLength(1);
+  });
+
+  it('sends the ID the user chose, and none when the field is left empty', async () => {
+    const created = detail({ id: crypto.randomUUID(), name: 'Myčka' });
+    const calls = api({
+      'POST /api/v1/items': () => jsonResponse(created, { status: 201 }),
+      [`GET /api/v1/items/${created.id}`]: () => jsonResponse(created),
+    });
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    expect(await screen.findByText(/ID se přidělí automaticky/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('ID'), ' myc-1 ');
+    await user.type(screen.getByLabelText('Název'), 'Myčka');
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
+    await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    await screen.findByRole('heading', { name: 'Myčka', level: 1 });
+    expect(await bodyOf(calls, 'POST', '/api/v1/items')).toMatchObject({ code: 'myc-1' });
+  });
+
+  it('rejects an ID with characters a QR link cannot carry', async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    await user.type(await screen.findByLabelText('ID'), 'špatné id');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByText(/ID může mít nejvýše 30 znaků/)).toBeInTheDocument();
+    expect(screen.getByLabelText('ID')).toHaveAttribute('aria-invalid', 'true');
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  });
+
+  it('says under the field that a chosen ID is taken', async () => {
+    api({ 'POST /api/v1/items': () => problem(409, 'duplicate_item_code') });
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    await user.type(await screen.findByLabelText('ID'), 'MYC-1');
+    await user.type(screen.getByLabelText('Název'), 'Myčka');
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
+    await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByText('Položka s tímto ID už existuje.')).toBeInTheDocument();
+    expect(screen.getByLabelText('ID')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('explains a clash of the automatic ID above the buttons, not under the empty field', async () => {
+    api({ 'POST /api/v1/items': () => problem(409, 'duplicate_item_code') });
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    await user.type(await screen.findByLabelText('Název'), 'Myčka');
+    await user.click(screen.getByPlaceholderText(/Hledat lokalitu/));
+    await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('ID se nepodařilo přidělit automaticky');
+    expect(screen.getByLabelText('ID')).not.toHaveAttribute('aria-invalid');
+  });
+
   it('reports what is missing or wrong and sends nothing', async () => {
     const calls = api();
     const user = userEvent.setup();
@@ -116,7 +205,6 @@ describe('new item', () => {
 
     await user.type(await screen.findByLabelText('Rok výroby'), '1800');
     await user.type(screen.getByLabelText(/Složka dokumentů/), 'https://example.com/x');
-    await user.click(screen.getByRole('button', { name: 'Přidat externí ID' }));
     await user.type(screen.getByLabelText('Externí ID 1'), 'EL-1');
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
 
@@ -208,6 +296,22 @@ describe('edit item', () => {
       }),
     );
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
+  });
+
+  it('shows the ID read-only and never sends it', async () => {
+    const calls = api({
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
+      [`PATCH /api/v1/items/${id}`]: () => jsonResponse(detail({ version: 2 })),
+    });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+
+    const code = await screen.findByLabelText('ID');
+    expect(code).toHaveValue('INV-00042');
+    expect(code).toBeDisabled();
+    await user.type(screen.getByLabelText('Model'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    await waitFor(async () => expect(await bodyOf(calls, 'PATCH', `/api/v1/items/${id}`)).not.toHaveProperty('code'));
   });
 
   it('sends nothing when the only change is a trailing space', async () => {

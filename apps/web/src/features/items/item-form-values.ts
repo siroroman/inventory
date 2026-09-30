@@ -1,5 +1,5 @@
 import type { CreateItemBody, ItemDetailDto } from '@inventory/shared';
-import { documentsUrl } from '@inventory/shared';
+import { documentsUrl, humanCode } from '@inventory/shared';
 import { z } from 'zod';
 
 // Messages are i18n keys; the form turns them into Czech. The API validates again with the shared
@@ -9,6 +9,8 @@ const optionalDate = z.string().refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.
 const picked = z.object({ id: z.string(), label: z.string() });
 
 export const itemFormSchema = z.object({
+  // Only used on creation (empty = the database assigns INV-nnnnn); it never goes into an edit.
+  code: z.string().refine((v) => v.trim() === '' || humanCode.safeParse(v).success, 'itemForm.errors.code'),
   name: z.string().trim().min(1, 'itemForm.errors.required').max(200, 'itemForm.errors.tooLong'),
   location: picked.nullable().refine((v) => v !== null, 'itemForm.errors.locationRequired'),
   manufacturer: picked.nullable(),
@@ -53,7 +55,11 @@ export const itemFormSchema = z.object({
 /** What the form edits: every field is text (or a picked record), an empty one means "none". */
 export type ItemFormValues = z.input<typeof itemFormSchema>;
 
+// One empty external ID row is shown so the field is there to type in; empty rows are not sent.
+const emptyExternalId = { source: '', value: '' };
+
 export const emptyItemForm: ItemFormValues = {
+  code: '',
   name: '',
   location: null,
   manufacturer: null,
@@ -66,11 +72,12 @@ export const emptyItemForm: ItemFormValues = {
   nextServiceOn: '',
   documentsUrl: '',
   note: '',
-  externalIds: [],
+  externalIds: [emptyExternalId],
 };
 
 export function itemToFormValues(item: ItemDetailDto): ItemFormValues {
   return {
+    code: item.code,
     name: item.name,
     location: { id: item.location.id, label: item.path.map((p) => p.name).join(' › ') },
     manufacturer: item.manufacturer ? { id: item.manufacturer.id, label: item.manufacturer.name } : null,
@@ -83,7 +90,7 @@ export function itemToFormValues(item: ItemDetailDto): ItemFormValues {
     nextServiceOn: item.nextServiceOn ?? '',
     documentsUrl: item.documentsUrl ?? '',
     note: item.note ?? '',
-    externalIds: item.externalIds.map(({ source, value }) => ({ source, value })),
+    externalIds: item.externalIds.length > 0 ? item.externalIds.map(({ source, value }) => ({ source, value })) : [emptyExternalId],
   };
 }
 

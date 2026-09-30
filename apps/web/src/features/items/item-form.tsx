@@ -38,10 +38,12 @@ type Props = {
   onReload?: () => void;
 };
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, children }: { title?: string; children: ReactNode }) {
   return (
     <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-4">
-      <legend className="-mx-1 px-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">{title}</legend>
+      {title && (
+        <legend className="-mx-1 px-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">{title}</legend>
+      )}
       {children}
     </fieldset>
   );
@@ -82,7 +84,8 @@ export function ItemForm({ item, onReload }: Props) {
 
   const save = useMutation({
     mutationFn: async (values: ItemFormValues) => {
-      if (!item) return createItem(formValuesToBody(values));
+      // Empty = the database assigns the next INV-nnnnn.
+      if (!item) return createItem({ ...formValuesToBody(values), ...(values.code.trim() && { code: values.code.trim() }) });
       const changes = changedFields(defaults, values);
       // A change that trimming undoes (a trailing space) leaves nothing to send.
       if (Object.keys(changes).length === 0) return item;
@@ -109,6 +112,11 @@ export function ItemForm({ item, onReload }: Props) {
   });
 
   const conflict = save.error instanceof ApiError && save.error.code === 'conflict';
+  // A taken chosen ID belongs under its field; a clash of the automatic one (someone chose INV-nnnnn
+  // by hand and the counter reached it) has no field to blame, so it is explained above the buttons.
+  const codeRefused = save.error instanceof ApiError && save.error.code === 'duplicate_item_code';
+  const autoCodeClash = codeRefused && save.variables?.code.trim() === '';
+  const codeTaken = codeRefused && !autoCodeClash;
   const cancelTo = item ? ({ to: '/items/$id', params: { id: item.id } } as const) : ({ to: '/', search: { tab: 'items' } } as const);
 
   return (
@@ -121,6 +129,35 @@ export function ItemForm({ item, onReload }: Props) {
       <h1 className="text-xl font-semibold">{item ? t('itemForm.editTitle') : t('itemForm.newTitle')}</h1>
 
       <Section title={t('item.sections.basic')}>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="item-code">{t('item.fields.code')}</Label>
+          {item ? (
+            // Fixed once created; shown so it can be read and copied.
+            <Input id="item-code" value={item.code} readOnly disabled />
+          ) : (
+            <Input
+              id="item-code"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={30}
+              aria-invalid={errors.code || codeTaken ? true : undefined}
+              aria-describedby="item-code-hint item-code-error"
+              {...register('code')}
+            />
+          )}
+          {!item && (
+            <p id="item-code-hint" className="text-xs text-muted-foreground">
+              {t('itemForm.codeHint')}
+            </p>
+          )}
+          {(errors.code || codeTaken) && (
+            <p id="item-code-error" className="text-sm text-destructive">
+              {codeTaken ? t('itemForm.codeTaken') : fieldError(errors.code?.message)}
+            </p>
+          )}
+        </div>
+
         <Field id="item-name" label={t('item.fields.name')} error={fieldError(errors.name?.message)}>
           <Input {...props('name')} autoComplete="off" maxLength={200} />
         </Field>
@@ -216,7 +253,8 @@ export function ItemForm({ item, onReload }: Props) {
                     variant="outline"
                     size="icon"
                     aria-label={t('itemForm.removeExternalId', { n: index + 1 })}
-                    onClick={() => externalIds.remove(index)}
+                    // The last row stays as an empty one to type in.
+                    onClick={() => (externalIds.fields.length === 1 ? externalIds.replace([{ source: '', value: '' }]) : externalIds.remove(index))}
                   >
                     <Trash2 aria-hidden />
                   </Button>
@@ -259,15 +297,15 @@ export function ItemForm({ item, onReload }: Props) {
         </div>
       </Section>
 
-      <Section title={t('item.sections.note')}>
+      <Section>
         <Field id="item-note" label={t('item.sections.note')} error={fieldError(errors.note?.message)}>
           <Textarea {...props('note')} maxLength={2000} />
         </Field>
       </Section>
 
-      {save.isError && (
+      {save.isError && !codeTaken && (
         <div role="alert" className="flex flex-col items-start gap-2 rounded-md bg-danger-soft px-3 py-2.5 text-sm text-destructive">
-          <p>{problemMessage(save.error)}</p>
+          <p>{autoCodeClash ? t('itemForm.codeAutoClash') : problemMessage(save.error)}</p>
           {conflict && onReload && (
             <Button type="button" variant="outline" size="sm" onClick={onReload}>
               {t('itemForm.reload')}
