@@ -423,6 +423,38 @@ describe('edit item', () => {
     expect(calls.filter((c) => c.method === 'GET' && c.url.endsWith(`/items/${id}`)).length).toBeGreaterThan(1);
   });
 
+  it('does not open an archived item for editing', async () => {
+    api({ [`GET /api/v1/items/${id}`]: () => jsonResponse(detail({ archivedAt: '2026-05-01T00:00:00.000Z' })) });
+    renderApp(`/items/${id}/edit`);
+    expect(await screen.findByText('Záznam je archivovaný.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Název')).not.toBeInTheDocument();
+  });
+
+  it('starts a second search from the whole list, not from text typed before leaving', async () => {
+    api({ [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()) });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+
+    await user.click(await screen.findByLabelText('Lokalita'));
+    await user.type(screen.getByPlaceholderText('Centrála Praha › Přízemí › Teplá kuchyně'), 'kuch');
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByLabelText('Lokalita'));
+    expect(screen.getByPlaceholderText('Centrála Praha › Přízemí › Teplá kuchyně')).toHaveValue('');
+  });
+
+  it('saves an edit of an item whose old ID the rules would not accept today', async () => {
+    const calls = api({
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail({ code: 'stará položka č.1' })),
+      [`PATCH /api/v1/items/${id}`]: () => jsonResponse(detail({ version: 2, model: 'x' })),
+    });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+    expect(await screen.findByLabelText('ID')).toHaveValue('stará položka č.1');
+    await user.type(screen.getByLabelText('Model'), 'x');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    await waitFor(async () => expect(await bodyOf(calls, 'PATCH', `/api/v1/items/${id}`)).toMatchObject({ model: expect.stringContaining('x') }));
+  });
+
   it('shows the not-found page for an item that does not exist', async () => {
     api({ [`GET /api/v1/items/${id}`]: () => problem(404, 'not_found') });
     renderApp(`/items/${id}/edit`);

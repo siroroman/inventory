@@ -50,6 +50,8 @@ export function ItemEdit({ id }: { id: string }) {
   });
 
   if (!canWrite) return <NoWriteAccess />;
+  // The detail offers no Edit for an archived item; a typed-in URL gets the same answer up front.
+  if (query.data?.archivedAt) return <ErrorState title={t('errors.archived')} />;
   if (query.data) {
     // A new version (after "load current data") remounts the form with the fresh values.
     return <ItemForm key={query.data.version} item={query.data} onReload={() => void query.refetch()} />;

@@ -77,7 +77,9 @@ export const emptyItemForm: ItemFormValues = {
 
 export function itemToFormValues(item: ItemDetailDto): ItemFormValues {
   return {
-    code: item.code,
+    // Fixed after creation and shown from the item itself, so an old ID the rules would refuse
+    // cannot block saving an edit.
+    code: '',
     name: item.name,
     location: item.location ? { id: item.location.id, label: item.path.map((p) => p.name).join(' › ') } : null,
     manufacturer: item.manufacturer ? { id: item.manufacturer.id, label: item.manufacturer.name } : null,

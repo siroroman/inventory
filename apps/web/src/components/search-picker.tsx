@@ -66,17 +66,22 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
 
   const describedBy = error ? `${id}-error` : undefined;
 
+  // Closing drops what was typed, so the next search starts from the whole list again.
+  const close = () => {
+    setOpen(false);
+    setEditing(false);
+    setText('');
+    setQ('');
+  };
+
   // The results close when focus leaves the field and its list, and on Escape.
   const closing = {
     onBlur: (event: FocusEvent<HTMLElement>) => {
       if (container.current?.contains(event.relatedTarget)) return;
-      setOpen(false);
-      setEditing(false);
+      close();
     },
     onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      if (event.key !== 'Escape') return;
-      setOpen(false);
-      setEditing(false);
+      if (event.key === 'Escape') close();
     },
   };
 
