@@ -36,6 +36,8 @@ export type LocationDeps = { repos: LocationRepos; transact: Transact<LocationRe
 export type LocationSummary = LocationWithType & SubtreeCounts & { path: PathSegment[] };
 
 export type CreateLocationInput = {
+  /** Chosen by the user; the database assigns the next LOC-nnn when missing. */
+  code?: string;
   name: string;
   /** Empty for a top-level location. */
   parentId?: string | null;
@@ -168,6 +170,7 @@ export function createLocationService({ repos, transact }: LocationDeps) {
         const locationTypeId = input.locationTypeId ?? null;
         await checkPlacement(r, { parentId, locationTypeId, parentChanged: true, typeChanged: true });
         const row = await r.locations.insert({
+          ...(input.code !== undefined && { code: input.code }),
           name: input.name,
           parentId,
           locationTypeId,

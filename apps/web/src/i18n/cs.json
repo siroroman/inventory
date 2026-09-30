@@ -31,6 +31,12 @@
     "noResultsTitle": "Nic jsme nenašli",
     "noResultsHint": "Zkuste upravit hledaný text."
   },
+  "form": {
+    "discardTitle": "Zahodit neuložené změny?",
+    "discardHint": "Vyplněné údaje se neuloží.",
+    "stay": "Zůstat na stránce",
+    "leave": "Opustit stránku"
+  },
   "auth": {
     "tagline": "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě.",
     "email": "E-mail",
@@ -62,7 +68,8 @@
         "address": "Adresa",
         "items": "Položky",
         "subLocations": "Podlokality"
-      }
+      },
+      "add": "Přidat lokalitu"
     },
     "items": {
       "tab": "Položky",
@@ -96,7 +103,43 @@
     "subLocations": "Podlokality ({{count}})",
     "items": "Položky ({{count}})",
     "itemsEmptyTitle": "Žádné položky",
-    "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky."
+    "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky.",
+    "edit": "Upravit",
+    "addSubLocation": "Přidat podlokalitu"
+  },
+  "locationForm": {
+    "createTitle": "Nová lokalita",
+    "createSubTitle": "Nová podlokalita",
+    "editTitle": "Upravit lokalitu",
+    "code": "ID",
+    "codeHint": "Nepovinné. Když pole necháte prázdné, ID se přidělí automaticky. Později ho nelze změnit.",
+    "fieldInvalid": "Hodnota není platná.",
+    "codeInvalid": "ID může mít nejvýše 30 znaků: písmena bez diakritiky, číslice, tečku, pomlčku nebo podtržítko.",
+    "codeAutoClash": "ID se nepodařilo přidělit automaticky, protože už existuje lokalita se stejným. Zkuste to prosím znovu.",
+    "codeTaken": "Lokalita s tímto ID už existuje.",
+    "parent": "Nadřazená lokalita",
+    "parentNone": "Žádná (lokalita nejvyšší úrovně)",
+    "parentChange": "Změnit",
+    "parentDone": "Hotovo",
+    "parentSearchLabel": "Hledat nadřazenou lokalitu",
+    "parentSearchPlaceholder": "Hledat podle názvu…",
+    "parentHint": "Bez hledání se nabízejí lokality nejvyšší úrovně. Podlokalitu najdete podle názvu.",
+    "parentNoResults": "Nic jsme nenašli",
+    "parentTooMany": "Zobrazeno je prvních {{count}}, zpřesněte hledání.",
+    "name": "Název",
+    "type": "Typ",
+    "typePlaceholder": "Vyberte typ",
+    "address": "Adresa",
+    "note": "Poznámka",
+    "nameRequired": "Zadejte název.",
+    "nameTooLong": "Název může mít nejvýše {{max}} znaků.",
+    "typeRequired": "Vyberte typ lokality.",
+    "addressTooLong": "Adresa může mít nejvýše {{max}} znaků.",
+    "noteTooLong": "Poznámka může mít nejvýše {{max}} znaků.",
+    "save": "Uložit",
+    "saving": "Ukládám…",
+    "cancel": "Zrušit",
+    "reload": "Načíst aktuální údaje"
   },
   "item": {
     "breadcrumb": "Umístění",
@@ -142,6 +185,7 @@
     "archived": "Záznam je archivovaný.",
     "not_archived": "Záznam není archivovaný.",
     "location_cycle": "Lokalitu nelze přesunout pod sebe samu ani pod některou z jejích podlokalit.",
+    "duplicate_location_code": "Lokalita s tímto ID už existuje.",
     "duplicate_location_type": "Typ lokality s tímto názvem nebo kódem už existuje.",
     "duplicate_provider": "Takový servisní dodavatel už existuje.",
     "duplicate_manufacturer": "Výrobce s tímto názvem už existuje.",

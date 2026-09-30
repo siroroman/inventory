@@ -11,6 +11,10 @@ describe('createLocationBody', () => {
     });
   });
 
+  it('takes an optional ID, trimmed and upper-cased', () => {
+    expect(createLocationBody.parse({ name: 'x', code: ' sklad-a.1 ' })).toEqual({ name: 'x', code: 'SKLAD-A.1' });
+  });
+
   it('rejects a blank name, a bad id, empty text, too long text and unknown keys', () => {
     for (const body of [
       {},
@@ -20,7 +24,10 @@ describe('createLocationBody', () => {
       { name: 'x', address: '' },
       { name: 'x', address: 'a'.repeat(201) },
       { name: 'x', note: 'n'.repeat(2001) },
-      { name: 'x', code: 'LOC-999' },
+      { name: 'x', code: '' },
+      { name: 'x', code: 'has space' },
+      { name: 'x', code: 'X'.repeat(31) },
+      { name: 'x', unknown: 1 },
     ]) {
       expect(createLocationBody.safeParse(body).success, JSON.stringify(body)).toBe(false);
     }

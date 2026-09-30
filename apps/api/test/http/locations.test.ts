@@ -176,6 +176,21 @@ describe('POST /locations', () => {
     });
   });
 
+  it('takes the ID the user chose, upper-cased and trimmed', async () => {
+    const { write, hq } = await setup();
+    const body = await expectJson(await write.post('/locations', { name: 'Sklad', locationTypeId: hq, code: ' sklad-a.1 ' }), 201, locationSchema);
+    expect(body.code).toBe('SKLAD-A.1');
+    // The next generated ID is not disturbed.
+    const next = await expectJson(await write.post('/locations', { name: 'Jiný', locationTypeId: hq }), 201, locationSchema);
+    expect(next.code).toMatch(/^LOC-\d{3}$/);
+  });
+
+  it('answers 409 when the chosen ID is taken, whatever its case', async () => {
+    const { write, hq } = await setup();
+    await write.post('/locations', { name: 'Sklad', locationTypeId: hq, code: 'SKLAD-A' });
+    await expectProblem(await write.post('/locations', { name: 'Jiný', locationTypeId: hq, code: 'sklad-a' }), 409, 'duplicate_location_code');
+  });
+
   it('creates a sub-location without a type', async () => {
     const { write } = await setup();
     const praha = await insertLocation(db().app, { name: 'Praha' });
@@ -202,7 +217,9 @@ describe('POST /locations', () => {
     await expectProblem(await write.post('/locations', { locationTypeId: hq }), 400, 'validation_error');
     await expectProblem(await write.post('/locations', { name: '   ', locationTypeId: hq }), 400, 'validation_error');
     await expectProblem(await write.post('/locations', { name: 'X', locationTypeId: 'nope' }), 400, 'validation_error');
-    await expectProblem(await write.post('/locations', { name: 'X', locationTypeId: hq, code: 'LOC-999' }), 400, 'validation_error');
+    for (const code of ['', 'bad code', 'ČÁRKA', '-A', '/q', 'X'.repeat(31)]) {
+      await expectProblem(await write.post('/locations', { name: 'X', locationTypeId: hq, code }), 400, 'validation_error');
+    }
     await expectProblem(await write.post('/locations', { name: 'x'.repeat(121), locationTypeId: hq }), 400, 'validation_error');
   });
 });

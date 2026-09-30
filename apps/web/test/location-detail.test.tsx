@@ -84,13 +84,6 @@ describe('location detail: header and fields', () => {
     renderApp(`/locations/${archived.id}`);
     expect(await screen.findByText('Archivováno')).toBeInTheDocument();
   });
-
-  it('offers no way to change the location yet', async () => {
-    api(sub);
-    renderApp(`/locations/${sub.id}`);
-    await screen.findByRole('heading', { level: 1 });
-    expect(screen.queryByRole('button', { name: /upravit|archivovat|přidat/i })).not.toBeInTheDocument();
-  });
 });
 
 describe('location detail: sub-locations and items', () => {
