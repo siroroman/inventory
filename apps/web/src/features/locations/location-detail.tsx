@@ -70,8 +70,8 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function Section({ id, title, action, children }: { id: string; title: string; action?: ReactNode; children?: ReactNode }) {
   return (
     <section aria-labelledby={id} className="pt-8">
-      <div className="flex items-center justify-between gap-3 px-4">
-        <h2 id={id} className={sectionHeading}>
+      <div className="mx-4 flex items-center justify-between gap-3 pb-2">
+        <h2 id={id} className={cn(sectionHeading, 'mx-0 pb-0')}>
           {title}
         </h2>
         {action}
