@@ -436,6 +436,24 @@ describe('edit item', () => {
   });
 });
 
+describe('new item from a location', () => {
+  it('starts in that location and goes back to it on Zrušit', async () => {
+    api({ [`GET /api/v1/locations/${kitchen.id}`]: () => jsonResponse(kitchen) });
+    const user = userEvent.setup();
+    const { router } = renderApp(`/items/new?locationId=${kitchen.id}`);
+
+    expect(await screen.findByLabelText('Lokalita')).toHaveTextContent('Centrála Praha › Teplá kuchyně');
+    await user.click(screen.getByRole('link', { name: 'Zrušit' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/locations/${kitchen.id}`));
+  });
+
+  it('leaves the location empty when it cannot be read', async () => {
+    api({ [`GET /api/v1/locations/${kitchen.id}`]: () => problem(404, 'not_found') });
+    renderApp(`/items/new?locationId=${kitchen.id}`);
+    expect(await screen.findByPlaceholderText(/Hledat lokalitu/)).toBeInTheDocument();
+  });
+});
+
 describe('shared cache', () => {
   it('does not break the location form, which searches locations too, after the item form was open', async () => {
     api({ 'GET /api/v1/location-types': () => jsonResponse({ items: [ref('HQ', 'Centrála')] }) });

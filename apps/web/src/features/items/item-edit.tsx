@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
+import { locationQueryOptions } from '@/features/locations/api';
 import { itemDetailQueryOptions } from './api';
 import { ItemForm } from './item-form';
 
@@ -14,10 +15,28 @@ export function NoWriteAccess() {
   return <ErrorState title={t('errors.forbidden')} />;
 }
 
-/** New item screen. */
-export function ItemCreate() {
+/** New item screen; with `locationId` the item starts in that location. */
+export function ItemCreate({ locationId }: { locationId?: string }) {
+  const canWrite = useCanWrite();
+  const location = useQuery({ ...locationQueryOptions(locationId ?? ''), enabled: canWrite && locationId !== undefined });
   // The route guard has loaded the session, so the role is known by now.
-  return useCanWrite() ? <ItemForm /> : <NoWriteAccess />;
+  if (!canWrite) return <NoWriteAccess />;
+  if (locationId && location.isPending) return <FormSkeleton />;
+  // A location that cannot be read (deleted link, archived) just leaves the field empty.
+  const start = location.data && !location.data.archivedAt
+    ? { id: location.data.id, label: location.data.path.map((p) => p.name).join(' › ') }
+    : undefined;
+  return <ItemForm initialLocation={start} />;
+}
+
+function FormSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
+      <Skeleton className="h-6 w-56" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
 }
 
 /** Edit item screen: loads the item (fresh, so the version is current), then the form. */

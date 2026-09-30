@@ -29,9 +29,9 @@ type Answers = {
 };
 
 /** Signed in; answers the detail of `loc` and the two lists under it. */
-function api(loc: { id: string }, answers: Answers = {}) {
+function api(loc: { id: string }, answers: Answers = {}, role = 'write') {
   return stubApi({
-    'GET /api/v1/me': () => jsonResponse(me),
+    'GET /api/v1/me': () => jsonResponse({ ...me, role }),
     [`GET /api/v1/locations/${loc.id}`]: answers.detail ?? (() => jsonResponse(loc)),
     'GET /api/v1/locations': answers.children ?? (() => page([])),
     [`GET /api/v1/locations/${loc.id}/items`]: answers.items ?? (() => page([])),
@@ -109,14 +109,41 @@ describe('location detail: sub-locations and items', () => {
     expect(callsTo(calls, `/api/v1/locations/${sub.id}/items`)).toEqual([new URLSearchParams({ limit: '20' })]);
   });
 
-  it('has no sub-locations section, and does not ask for them, when there are none', async () => {
+  it('has no sub-locations section for a reader, and does not ask for them, when there are none', async () => {
     const leaf = { ...sub, childCount: 0 };
-    const calls = api(leaf);
+    const calls = api(leaf, {}, 'read');
     renderApp(`/locations/${leaf.id}`);
     expect(await screen.findByText('Žádné položky')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: /Podlokality/ })).not.toBeInTheDocument();
     expect(screen.queryByText('Žádné podlokality')).not.toBeInTheDocument();
     expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
+  });
+
+  it('keeps an empty sub-locations section for a writer, with the button to add the first one', async () => {
+    const leaf = { ...sub, childCount: 0 };
+    const calls = api(leaf);
+    renderApp(`/locations/${leaf.id}`);
+    const section = within((await screen.findByRole('heading', { level: 2, name: 'Podlokality (0)' })).closest('section')!);
+    expect(section.getByRole('link', { name: 'Přidat podlokalitu' })).toHaveAttribute('href', `/locations/new?parentId=${leaf.id}`);
+    expect(section.queryByText('Žádné podlokality')).not.toBeInTheDocument();
+    expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
+  });
+
+  it('puts the add buttons in their own sections, not in the header', async () => {
+    api(sub);
+    renderApp(`/locations/${sub.id}`);
+    const subs = within((await screen.findByRole('heading', { level: 2, name: 'Podlokality (2)' })).closest('section')!);
+    const items = within((await screen.findByRole('heading', { level: 2, name: 'Položky (12)' })).closest('section')!);
+    expect(subs.getByRole('link', { name: 'Přidat podlokalitu' })).toHaveAttribute('href', `/locations/new?parentId=${sub.id}`);
+    expect(items.getByRole('link', { name: 'Přidat položku' })).toHaveAttribute('href', `/items/new?locationId=${sub.id}`);
+    expect(screen.getAllByRole('link', { name: 'Přidat podlokalitu' })).toHaveLength(1);
+  });
+
+  it('shows no add buttons to a reader', async () => {
+    api(sub, {}, 'read');
+    renderApp(`/locations/${sub.id}`);
+    await screen.findByRole('heading', { level: 2, name: 'Položky (12)' });
+    expect(screen.queryByRole('link', { name: /Přidat/ })).not.toBeInTheDocument();
   });
 
   it('loads more items with the cursor', async () => {

@@ -34,6 +34,8 @@ import {
 type Props = {
   /** The item being edited; missing = a new item. */
   item?: ItemDetailDto;
+  /** A new item starts in this location (from "Add item" on a location's page). */
+  initialLocation?: { id: string; label: string };
   /** Called by "load current data" after a conflict; should refetch the item. */
   onReload?: () => void;
 };
@@ -64,11 +66,11 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
 }
 
 /** Add or edit an item. Photos are not part of it yet. */
-export function ItemForm({ item, onReload }: Props) {
+export function ItemForm({ item, initialLocation, onReload }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const defaults = item ? itemToFormValues(item) : emptyItemForm;
+  const defaults = item ? itemToFormValues(item) : { ...emptyItemForm, location: initialLocation ?? null };
   const saved = useRef(false);
 
   const {
@@ -117,7 +119,11 @@ export function ItemForm({ item, onReload }: Props) {
   const codeRefused = save.error instanceof ApiError && save.error.code === 'duplicate_item_code';
   const autoCodeClash = codeRefused && save.variables?.code.trim() === '';
   const codeTaken = codeRefused && !autoCodeClash;
-  const cancelTo = item ? ({ to: '/items/$id', params: { id: item.id } } as const) : ({ to: '/', search: { tab: 'items' } } as const);
+  const cancelTo = item
+    ? ({ to: '/items/$id', params: { id: item.id } } as const)
+    : initialLocation
+      ? ({ to: '/locations/$id', params: { id: initialLocation.id } } as const)
+      : ({ to: '/', search: { tab: 'items' } } as const);
 
   return (
     <form

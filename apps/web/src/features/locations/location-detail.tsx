@@ -67,25 +67,51 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** A titled list on the detail page, in the same box as the fields. */
-function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+function Section({ id, title, action, children }: { id: string; title: string; action?: ReactNode; children?: ReactNode }) {
   return (
     <section aria-labelledby={id} className="pt-8">
-      <h2 id={id} className={sectionHeading}>
-        {title}
-      </h2>
-      <div className="mx-4 overflow-hidden rounded-lg border bg-card">{children}</div>
+      <div className="flex items-center justify-between gap-3 px-4">
+        <h2 id={id} className={sectionHeading}>
+          {title}
+        </h2>
+        {action}
+      </div>
+      {children && <div className="mx-4 overflow-hidden rounded-lg border bg-card">{children}</div>}
     </section>
   );
 }
 
-function SubLocations({ location }: { location: LocationDto }) {
+/** A blue "add" button for a section; only writers see it, and not on an archived location. */
+function AddButton({ children }: { children: ReactNode }) {
+  return (
+    <Button asChild size="sm">
+      {children}
+    </Button>
+  );
+}
+
+function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boolean }) {
   const { t } = useTranslation();
   const query = useInfiniteQuery({ ...locationChildrenQueryOptions(location.id), enabled: location.childCount > 0 });
   const { columns, card } = useLocationRows({ nested: true });
-  // A location without sub-locations (most of them) has no section rather than an empty one.
-  if (location.childCount === 0) return null;
+  // A location without sub-locations (most of them) has no section, unless the user can add one.
+  if (location.childCount === 0 && !canAdd) return null;
   return (
-    <Section id="sub-locations" title={t('locationDetail.subLocations', { count: location.childCount })}>
+    <Section
+      id="sub-locations"
+      title={t('locationDetail.subLocations', { count: location.childCount })}
+      action={
+        canAdd && (
+          <AddButton>
+            <Link to="/locations/new" search={{ parentId: location.id }}>
+              <Plus aria-hidden />
+              {t('locationDetail.addSubLocation')}
+            </Link>
+          </AddButton>
+        )
+      }
+    >
+      {location.childCount > 0 && (
       <PagedList
         query={query}
         searching={false}
@@ -93,16 +119,30 @@ function SubLocations({ location }: { location: LocationDto }) {
         columns={columns}
         card={card}
       />
+      )}
     </Section>
   );
 }
 
-function Items({ location }: { location: LocationDto }) {
+function Items({ location, canAdd }: { location: LocationDto; canAdd: boolean }) {
   const { t } = useTranslation();
   const query = useInfiniteQuery(locationItemsQueryOptions(location.id));
   const { columns, card } = useItemRows();
   return (
-    <Section id="location-items" title={t('locationDetail.items', { count: location.itemCount })}>
+    <Section
+      id="location-items"
+      title={t('locationDetail.items', { count: location.itemCount })}
+      action={
+        canAdd && (
+          <AddButton>
+            <Link to="/items/new" search={{ locationId: location.id }}>
+              <Plus aria-hidden />
+              {t('home.items.add')}
+            </Link>
+          </AddButton>
+        )
+      }
+    >
       <PagedList
         query={query}
         searching={false}
@@ -131,6 +171,7 @@ export function LocationDetail({ id }: { id: string }) {
 
   const location = query.data;
   const parent = location.path.at(-2);
+  const canAdd = canWrite && !location.archivedAt;
   return (
     <div className="mx-auto w-full max-w-6xl pb-8">
       <header className="flex flex-col px-4 pt-2 pb-4">
@@ -140,18 +181,12 @@ export function LocationDetail({ id }: { id: string }) {
           {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
         </div>
         {/* An archived location is read-only until it is restored. */}
-        {canWrite && !location.archivedAt && (
+        {canAdd && (
           <div className="flex flex-wrap gap-3 pt-3">
             <Button asChild variant="outline">
               <Link to="/locations/$id/edit" params={{ id: location.id }}>
                 <Pencil aria-hidden />
                 {t('locationDetail.edit')}
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/locations/new" search={{ parentId: location.id }}>
-                <Plus aria-hidden />
-                {t('locationDetail.addSubLocation')}
               </Link>
             </Button>
           </div>
@@ -170,8 +205,8 @@ export function LocationDetail({ id }: { id: string }) {
         <Field label={t('locationDetail.fields.address')}>{location.address}</Field>
         <Field label={t('locationDetail.fields.note')}>{location.note}</Field>
       </dl>
-      <SubLocations location={location} />
-      <Items location={location} />
+      <SubLocations location={location} canAdd={canAdd} />
+      <Items location={location} canAdd={canAdd} />
     </div>
   );
 }
