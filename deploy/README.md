@@ -37,11 +37,7 @@ to it automatically.
 Choose a strong password: the sign-in page is public.
 
 ```
-deploy/db-proxy.sh start
-DATABASE_URL="$(gcloud secrets versions access latest --secret=database-url \
-  | sed -E 's#@/inventory\?host=.*#@127.0.0.1:5433/inventory#')" \
-SEED_USER_PASSWORD='<password>' pnpm db:seed
-deploy/db-proxy.sh stop
+deploy/seed.sh      # asks for the password; type it in a terminal
 ```
 
 ## Cost
