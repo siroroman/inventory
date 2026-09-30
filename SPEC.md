@@ -123,7 +123,7 @@ ID (e.g. SUP-001), Name, Contact person, Phone, Email, Web, Note, and the brands
 ### 3.7 Forms
 
 - **Location:** Parent location (optional; empty = top level), Name, Location type (top level only: Centrála/HQ, Prodejna/Store, Provozovna/Site, Sklad/Warehouse; extensible list), Address (single line), Note.
-- **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is chosen via search, including sub-locations shown with their full path. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
+- **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is optional (an item can be added before anyone knows where it is) and is chosen via search, including sub-locations shown with their full path; tapping the chosen location searches again. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
 - **To add beyond the current design:** a Documents field (Google Drive folder link) in the item form's Basic info section.
 - **Service provider:** Name, Contact person, Phone, Email, Web, Brands serviced (addable tags), Note. Per-brand priority is set from the manufacturer detail screen.
 - **Manufacturer:** no standalone form in the current design. Proposal: a new manufacturer is created by typing a new name in the Manufacturer or Brands field; its note is edited from its detail page.
@@ -149,7 +149,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 | --- | --- | --- |
 | `location_types` | code, name, sort_order | HQ, Store, Site, Warehouse; a new type is a new row |
 | `locations` | code, name, parent_id, location_type_id, address, note | tree via `parent_id`, unlimited depth; type required only for a location with no parent; address is a single text line |
-| `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, warranty_until, last_service_on, next_service_on, documents_url, note | N:1 location at any level, N:1 manufacturer (optional) |
+| `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, warranty_until, last_service_on, next_service_on, documents_url, note | N:1 location at any level (optional), N:1 manufacturer (optional) |
 | `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID; (source, value) is unique across all items, archived ones included, ignoring case |
 | `item_photos` | item_id, storage_key, content_type, width, height, sort_order | N:1 item; the file lives in Cloud Storage |
 | `manufacturers` | name (unique), note | M:N service providers |

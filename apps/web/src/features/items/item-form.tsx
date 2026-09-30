@@ -162,7 +162,7 @@ export function ItemForm({ item, onReload }: Props) {
           <Input {...props('name')} autoComplete="off" maxLength={200} />
         </Field>
 
-        <Field id="item-location" label={t('item.fields.location')} error={fieldError(errors.location?.message)}>
+        <Field id="item-location" label={t('item.fields.location')}>
           <Controller
             control={control}
             name="location"
@@ -175,7 +175,7 @@ export function ItemForm({ item, onReload }: Props) {
                 search={locationPickerOptions}
                 placeholder={t('itemForm.locationPlaceholder')}
                 emptyText={t('itemForm.noLocations')}
-                error={fieldError(errors.location?.message)}
+                clearable
               />
             )}
           />

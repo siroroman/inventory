@@ -12,7 +12,7 @@ export const itemFormSchema = z.object({
   // Only used on creation (empty = the database assigns INV-nnnnn); it never goes into an edit.
   code: z.string().refine((v) => v.trim() === '' || humanCode.safeParse(v).success, 'itemForm.errors.code'),
   name: z.string().trim().min(1, 'itemForm.errors.required').max(200, 'itemForm.errors.tooLong'),
-  location: picked.nullable().refine((v) => v !== null, 'itemForm.errors.locationRequired'),
+  location: picked.nullable(),
   manufacturer: picked.nullable(),
   model: optionalText(120),
   serialNumber: optionalText(120),
@@ -79,7 +79,7 @@ export function itemToFormValues(item: ItemDetailDto): ItemFormValues {
   return {
     code: item.code,
     name: item.name,
-    location: { id: item.location.id, label: item.path.map((p) => p.name).join(' › ') },
+    location: item.location ? { id: item.location.id, label: item.path.map((p) => p.name).join(' › ') } : null,
     manufacturer: item.manufacturer ? { id: item.manufacturer.id, label: item.manufacturer.name } : null,
     model: item.model ?? '',
     serialNumber: item.serialNumber ?? '',
@@ -97,10 +97,10 @@ export function itemToFormValues(item: ItemDetailDto): ItemFormValues {
 const orNull = (text: string) => text.trim() || null;
 
 /** The API body for validated form values; an empty field becomes `null` (clears it on an edit). */
-export function formValuesToBody(values: ItemFormValues): CreateItemBody & { name: string; locationId: string } {
+export function formValuesToBody(values: ItemFormValues): CreateItemBody & { name: string; locationId: string | null } {
   return {
     name: values.name.trim(),
-    locationId: values.location?.id ?? '',
+    locationId: values.location?.id ?? null,
     manufacturerId: values.manufacturer?.id ?? null,
     model: orNull(values.model),
     serialNumber: orNull(values.serialNumber),

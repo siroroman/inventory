@@ -40,7 +40,7 @@ export function useItemRows() {
     { header: t('home.items.columns.code'), className: 'w-28', cell: (item) => item.code },
     {
       header: t('home.items.columns.location'),
-      cell: (item) => <span title={pathOf(item)}>{pathOf(item)}</span>,
+      cell: (item) => <span title={pathOf(item)}>{pathOf(item) || t('common.empty')}</span>,
     },
     { header: t('home.items.columns.brand'), cell: brandAndModel },
     { header: t('home.items.columns.service'), className: 'w-44', cell: serviceBadge },
@@ -52,7 +52,7 @@ export function useItemRows() {
       <Link to="/items/$id" params={{ id: item.id }} className="block">
         <p className="text-[15px] font-semibold">{item.name}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {item.code} · {pathOf(item)}
+          {[item.code, pathOf(item)].filter(Boolean).join(' · ')}
         </p>
         {brandAndModel(item) && <p className="text-sm text-muted-foreground">{brandAndModel(item)}</p>}
         {badge && <p className="mt-1.5">{serviceBadge(item)}</p>}

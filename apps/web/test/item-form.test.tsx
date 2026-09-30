@@ -208,13 +208,28 @@ describe('new item', () => {
     await user.type(screen.getByLabelText('Externí ID 1'), 'EL-1');
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
 
-    expect(await screen.findByText('Vyberte lokalitu.')).toBeInTheDocument();
-    expect(screen.getByText('Zadejte rok od 1950 do letošního roku.')).toBeInTheDocument();
+    expect(await screen.findByText('Zadejte rok od 1950 do letošního roku.')).toBeInTheDocument();
     expect(screen.getByText(/Zadejte odkaz https/)).toBeInTheDocument();
     // The name, and the source of the external ID that has only its value.
     expect(screen.getAllByText('Vyplňte toto pole.')).toHaveLength(2);
     expect(screen.getByLabelText('Název')).toHaveAttribute('aria-invalid', 'true');
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  });
+
+  it('saves an item without a location', async () => {
+    const created = detail({ id: crypto.randomUUID(), name: 'Váha', location: null, path: [] });
+    const calls = api({
+      'POST /api/v1/items': () => jsonResponse(created, { status: 201 }),
+      [`GET /api/v1/items/${created.id}`]: () => jsonResponse(created),
+    });
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    await user.type(await screen.findByLabelText('Název'), 'Váha');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByRole('heading', { name: 'Váha', level: 1 })).toBeInTheDocument();
+    expect(await bodyOf(calls, 'POST', '/api/v1/items')).toMatchObject({ name: 'Váha', locationId: null });
   });
 
   it('shows the API error above the buttons, e.g. an external ID that is taken', async () => {
@@ -324,6 +339,29 @@ describe('edit item', () => {
 
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+
+  it('clears the location with its clear button', async () => {
+    const calls = api({
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
+      [`PATCH /api/v1/items/${id}`]: () => jsonResponse(detail({ version: 2, location: null, path: [] })),
+    });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+
+    await user.click(await screen.findByRole('button', { name: 'Vymazat: Lokalita' }));
+    expect(screen.getByPlaceholderText(/Hledat lokalitu/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    await waitFor(async () =>
+      expect(await bodyOf(calls, 'PATCH', `/api/v1/items/${id}`)).toEqual({ locationId: null, version: 1 }),
+    );
+  });
+
+  it('opens an item that has no location', async () => {
+    api({ [`GET /api/v1/items/${id}`]: () => jsonResponse(detail({ location: null, path: [] })) });
+    renderApp(`/items/${id}/edit`);
+    expect(await screen.findByPlaceholderText(/Hledat lokalitu/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Název')).toHaveValue('Konvektomat');
   });
 
   it('keeps the current location when the search is opened and left without choosing', async () => {
