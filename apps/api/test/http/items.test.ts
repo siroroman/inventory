@@ -273,6 +273,16 @@ describe('POST /items', () => {
     await expectProblem(await write.patch(`/items/${made.id}`, { version: 1, code: 'NEW-1' }), 400, 'validation_error');
   });
 
+  it('creates an item without a location', async () => {
+    const { write, read } = await setup();
+    const body = await expectJson(await write.post('/items', { name: 'Váha' }), 201, itemSchema);
+    expect(body).toMatchObject({ location: null, path: [] });
+    const detail = await expectJson(await read.get(`/items/${body.id}`), 200, itemDetailSchema);
+    expect(detail).toMatchObject({ location: null, path: [] });
+    const list = await expectJson(await read.get('/items?q=vaha'), 200, itemListSchema);
+    expect(list.items).toMatchObject([{ name: 'Váha', location: null, path: [] }]);
+  });
+
   it('gives each item its own code', async () => {
     const { write } = await setup();
     const loc = await insertLocation(db().app, { name: 'Sklad' });
@@ -355,7 +365,6 @@ describe('POST /items', () => {
     const base = { name: 'X', locationId: loc.id };
     for (const body of [
       {},
-      { name: 'X' },
       { locationId: loc.id },
       { ...base, name: '  ' },
       { ...base, locationId: 'nope' },
@@ -507,9 +516,18 @@ describe('PATCH /items/{id}', () => {
     await expectProblem(await write.patch(path, { name: 'X' }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, code: 'INV-99999' }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, name: null }), 400, 'validation_error');
-    await expectProblem(await write.patch(path, { version: 1, locationId: null }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, documentsUrl: 'https://drive.google.com' }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, manufactureYear: 1900 }), 400, 'validation_error');
+  });
+
+  it('gives an item a location and takes it away again with null', async () => {
+    const { write } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    const row = await item({ locationId: null });
+    const placed = await expectJson(await write.patch(`/items/${row.id}`, { version: 1, locationId: loc.id }), 200, itemSchema);
+    expect(placed).toMatchObject({ location: { id: loc.id }, path: [{ id: loc.id }] });
+    const cleared = await expectJson(await write.patch(`/items/${row.id}`, { version: 2, locationId: null }), 200, itemSchema);
+    expect(cleared).toMatchObject({ location: null, path: [] });
   });
 
   it('refuses an update that changes nothing, so the version stays put', async () => {

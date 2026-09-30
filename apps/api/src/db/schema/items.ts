@@ -26,9 +26,8 @@ export const items = pgTable(
       .notNull()
       .default(sql`format_code('INV', nextval('item_code_seq'), 5)`),
     name: text().notNull(),
-    locationId: uuid()
-      .notNull()
-      .references(() => locations.id, { onDelete: 'restrict' }),
+    // Optional: an item can exist before anyone knows where it is.
+    locationId: uuid().references(() => locations.id, { onDelete: 'restrict' }),
     manufacturerId: uuid().references(() => manufacturers.id, { onDelete: 'restrict' }),
     model: text(),
     serialNumber: text(),

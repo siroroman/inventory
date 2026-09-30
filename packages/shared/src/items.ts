@@ -10,8 +10,8 @@ export const itemListEntrySchema = z.object({
   model: z.string().nullable(),
   serialNumber: z.string().nullable(),
   manufacturer: z.object({ id: z.uuid(), name: z.string() }).nullable(),
-  /** The location the item is in, and its path from the top. */
-  location: codeRef,
+  /** The location the item is in, and its path from the top; null with an empty path while it has none. */
+  location: codeRef.nullable(),
   path: z.array(codeRef),
   warrantyUntil: isoDate.nullable(),
   lastServiceOn: isoDate.nullable(),
@@ -38,7 +38,7 @@ export type ExternalIdDto = z.infer<typeof externalIdSchema>;
 
 const itemFields = {
   name: requiredText(200),
-  locationId: z.uuid(),
+  locationId: z.uuid().nullable(),
   manufacturerId: z.uuid().nullable(),
   model: nullableText(120),
   serialNumber: nullableText(120),
@@ -78,11 +78,11 @@ const optionalItemFields = {
 } as const;
 
 /** `code` is optional: without it the database assigns the next INV-nnnnn. Fixed once the item exists. */
-export const createItemBody = z.strictObject({ ...itemFields, code: humanCode }).partial({ code: true, ...optionalItemFields });
+export const createItemBody = z.strictObject({ ...itemFields, code: humanCode }).partial({ code: true, locationId: true, ...optionalItemFields });
 export type CreateItemBody = z.infer<typeof createItemBody>;
 
 /**
- * Only the fields present change; `null` clears one (not the name or the location). Sending
+ * Only the fields present change; `null` clears one (not the name). Sending
  * `externalIds` replaces the whole list, `[]` clears it.
  */
 export const updateItemBody = z

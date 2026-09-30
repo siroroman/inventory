@@ -288,6 +288,18 @@ describe('item service', () => {
       expect(store.state.items[0]!.version).toBe(1);
     });
 
+    it('creates without a location, then places it and clears it again', async () => {
+      const { service, sklad } = await setup();
+      const item = await service.create(writer, { name: 'Váha' });
+      expect(item).toMatchObject({ locationId: null, path: [] });
+      const placed = await service.update(writer, item.id, { version: 1, locationId: sklad.id });
+      expect(placed.path.at(-1)?.id).toBe(sklad.id);
+      const cleared = await service.update(writer, item.id, { version: 2, locationId: null });
+      expect(cleared).toMatchObject({ locationId: null, path: [] });
+      const listed = await service.list(writer, {}, { limit: 50 });
+      expect(listed.items.find((i) => i.id === item.id)).toMatchObject({ location: null, path: [] });
+    });
+
     it('keeps working on an item whose location was archived later', async () => {
       const { store, service, kuchyne, create } = await setup();
       const item = await create('Konvektomat');

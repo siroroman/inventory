@@ -9,10 +9,9 @@ import { expectPgError, PG } from '../helpers/pg-error.ts';
 describe('items', () => {
   const t = useTestDb();
 
-  it('require a location', async () => {
-    await expectPgError(t().app.execute(sql`INSERT INTO items (name) VALUES ('Bez lokality')`), {
-      code: PG.notNullViolation,
-    });
+  it('can exist without a location', async () => {
+    const row = await insertItem(t().app, { locationId: null });
+    expect(row.locationId).toBeNull();
   });
 
   it('reject an unknown location', async () => {

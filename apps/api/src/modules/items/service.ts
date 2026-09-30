@@ -44,7 +44,8 @@ export type CreateItemInput = {
   /** Chosen by the user; the database assigns the next INV-nnnnn when missing. */
   code?: string;
   name: string;
-  locationId: string;
+  /** Missing or null = the item has no location yet. */
+  locationId?: string | null;
   manufacturerId?: string | null;
   model?: string | null;
   serialNumber?: string | null;
@@ -128,9 +129,9 @@ async function loadCurrent(r: ItemRepos, id: string, version: number): Promise<I
 async function detailOf(r: ItemRepos, row: ItemWithManufacturer): Promise<ItemDetail> {
   const [externalIds, paths] = await Promise.all([
     r.items.listExternalIds(row.id),
-    r.locations.findPaths([row.locationId]),
+    row.locationId ? r.locations.findPaths([row.locationId]) : new Map<string, PathSegment[]>(),
   ]);
-  return { ...row, externalIds, path: paths.get(row.locationId) ?? [] };
+  return { ...row, externalIds, path: (row.locationId && paths.get(row.locationId)) || [] };
 }
 
 /** Reads an item back with its external IDs and location path, for the response of a write. */
@@ -164,9 +165,11 @@ export function createItemService({ repos, transact }: ItemDeps) {
   ): Promise<Page<ItemListEntry> & { total: number }> {
     assertRole(actor, 'read');
     const [result, total] = await Promise.all([repos.items.list(filter, page), repos.items.count(filter)]);
-    const paths = await repos.locations.findPaths([...new Set(result.items.map((item) => item.location.id))]);
+    const paths = await repos.locations.findPaths([
+      ...new Set(result.items.flatMap((item) => (item.location ? [item.location.id] : []))),
+    ]);
     return {
-      items: result.items.map((item) => ({ ...item, path: paths.get(item.location.id) ?? [] })),
+      items: result.items.map((item) => ({ ...item, path: (item.location && paths.get(item.location.id)) || [] })),
       nextCursor: result.nextCursor,
       total,
     };
@@ -200,13 +203,13 @@ export function createItemService({ repos, transact }: ItemDeps) {
       const externalIds = input.externalIds ?? [];
       assertDistinct(externalIds);
       return transact(async (r) => {
-        await checkLocation(r, input.locationId);
+        if (input.locationId) await checkLocation(r, input.locationId);
         if (input.manufacturerId) await checkManufacturer(r, input.manufacturerId);
         await assertExternalIdsFree(r, externalIds);
         const row = await r.items.insert({
           ...(input.code !== undefined && { code: input.code }),
           name: input.name,
-          locationId: input.locationId,
+          locationId: input.locationId ?? null,
           manufacturerId: input.manufacturerId ?? null,
           model: input.model ?? null,
           serialNumber: input.serialNumber ?? null,
@@ -240,7 +243,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
       return transact(async (r) => {
         const current = await loadCurrent(r, id, input.version);
         if (current.archivedAt) throw new DomainError('archived');
-        if (input.locationId !== undefined && input.locationId !== current.locationId) {
+        if (input.locationId && input.locationId !== current.locationId) {
           await checkLocation(r, input.locationId);
         }
         if (input.manufacturerId && input.manufacturerId !== current.manufacturerId) {

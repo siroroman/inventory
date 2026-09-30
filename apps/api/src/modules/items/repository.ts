@@ -10,7 +10,8 @@ export type ExternalId = typeof itemExternalIds.$inferSelect;
 type ManufacturerRef = { id: string; name: string };
 export type ItemWithManufacturer = Item & { manufacturer: ManufacturerRef | null };
 export type ItemListRow = ItemWithManufacturer & {
-  location: { id: string; code: string; name: string };
+  /** Missing while the item has no location. */
+  location: { id: string; code: string; name: string } | null;
   /** Storage key of the first photo, for the list thumbnail. */
   thumbnailKey: string | null;
 };
@@ -119,7 +120,7 @@ export function createItemRepository(db: DbExecutor) {
       const rows = await db
         .select(listColumns)
         .from(items)
-        .innerJoin(locations, eq(locations.id, items.locationId))
+        .leftJoin(locations, eq(locations.id, items.locationId))
         .leftJoin(manufacturers, eq(manufacturers.id, items.manufacturerId))
         .where(and(...listWhere(db, filter), afterName(items.name, items.id, page.cursor)))
         .orderBy(asc(items.name), asc(items.id))

@@ -78,6 +78,13 @@
       "when": 1790631445247,
       "tag": "0010_external_id_unique_per_source",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790782808522,
+      "tag": "0011_item_location_optional",
+      "breakpoints": true
     }
   ]
 }
