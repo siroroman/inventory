@@ -22,6 +22,8 @@ type Props = {
   placeholder: string;
   emptyText: string;
   error?: string;
+  /** Adds a button that empties the choice; for optional fields. */
+  clearable?: boolean;
   /** Offers to make a new record from the typed text; resolves to the option to select. */
   create?: { label: (text: string) => string; run: (text: string) => Promise<PickerOption> };
 };
@@ -29,10 +31,11 @@ type Props = {
 const debounceMs = 300;
 
 /**
- * Pick one record by searching for it. Once chosen it shows as text with a button to change it;
- * until then a search field lists the matches (live, 300 ms after the last keystroke).
+ * Pick one record by searching for it. Once chosen it shows as a field; tapping it opens the
+ * search again (the choice stays until another one is picked), and `clearable` adds a button that
+ * empties it. The search lists the matches live, 300 ms after the last keystroke.
  */
-export function SearchPicker({ id, label, value, onChange, search, placeholder, emptyText, error, create }: Props) {
+export function SearchPicker({ id, label, value, onChange, search, placeholder, emptyText, error, clearable, create }: Props) {
   const { t } = useTranslation();
   const listId = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -41,6 +44,9 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
   const container = useRef<HTMLDivElement>(null);
   // The results are collapsed until the field is used, so the form stays short.
   const [open, setOpen] = useState(false);
+  // Searching for a replacement while a value is chosen; without a value the search is always shown.
+  const [editing, setEditing] = useState(false);
+  const showSearch = value === null || editing;
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string>();
 
@@ -49,7 +55,7 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
     return () => clearTimeout(timer);
   }, [text]);
 
-  const query = useQuery({ ...search(q), enabled: value === null && open, placeholderData: (previous) => previous });
+  const query = useQuery({ ...search(q), enabled: showSearch && open, placeholderData: (previous) => previous });
   const typed = text.trim();
   const canCreate =
     create !== undefined &&
@@ -60,72 +66,86 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
 
   const describedBy = error ? `${id}-error` : undefined;
 
-  if (value) {
-    return (
-      <div className="flex items-center gap-2">
-        <p
-          id={id}
-          className="flex min-h-11 min-w-0 flex-1 items-center rounded-md border border-input bg-card px-3.5 text-base break-words"
-        >
-          {value.label}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            onChange(null);
-            setText('');
-            setQ('');
-            // The input is mounted by the next render; focusing it opens the results.
-            setTimeout(() => input.current?.focus());
-          }}
-          aria-label={t('picker.change', { label })}
-        >
-          <X aria-hidden />
-          {t('picker.changeShort')}
-        </Button>
-      </div>
-    );
-  }
-
   // The results close when focus leaves the field and its list, and on Escape.
   const closing = {
     onBlur: (event: FocusEvent<HTMLElement>) => {
-      if (!container.current?.contains(event.relatedTarget)) setOpen(false);
+      if (container.current?.contains(event.relatedTarget)) return;
+      setOpen(false);
+      setEditing(false);
     },
     onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      setEditing(false);
     },
   };
 
   const pick = (option: PickerOption) => {
     onChange(option);
     setOpen(false);
+    setEditing(false);
+    setText('');
+    setQ('');
     setCreateError(undefined);
   };
 
+  const chosen = value !== null && !editing;
+
   return (
     <div ref={container} className="flex flex-col gap-2">
-      <Input
-        ref={input}
-        id={id}
-        type="search"
-        placeholder={placeholder}
-        value={text}
-        maxLength={120}
-        autoComplete="off"
-        spellCheck={false}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        onChange={(event) => {
-          setText(event.target.value);
-          setOpen(true);
-        }}
-        onClick={() => setOpen(true)}
-        onFocus={() => setOpen(true)}
-        {...closing}
-      />
-      {!open ? null : query.isError ? (
+      {chosen ? (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            id={id}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            onClick={() => {
+              setEditing(true);
+              // The search field is mounted by the next render; focusing it opens the results.
+              setTimeout(() => input.current?.focus());
+            }}
+            className="flex min-h-11 min-w-0 flex-1 items-center rounded-md border border-input bg-card px-3.5 text-left text-base break-words hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+          >
+            {value.label}
+          </button>
+          {clearable && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label={t('picker.clear', { label })}
+              onClick={() => {
+                onChange(null);
+                setEditing(false);
+              }}
+            >
+              <X aria-hidden />
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Input
+          ref={input}
+          id={id}
+          type="search"
+          placeholder={editing && value ? value.label : placeholder}
+          value={text}
+          maxLength={120}
+          autoComplete="off"
+          spellCheck={false}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          onChange={(event) => {
+            setText(event.target.value);
+            setOpen(true);
+          }}
+          onClick={() => setOpen(true)}
+          onFocus={() => setOpen(true)}
+          {...closing}
+        />
+      )}
+      {!open || !showSearch ? null : query.isError ? (
         <p role="alert" className="text-sm text-destructive">
           {problemMessage(query.error)}{' '}
           <button type="button" className="underline" onClick={() => void query.refetch()}>

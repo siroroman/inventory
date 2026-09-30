@@ -326,6 +326,18 @@ describe('edit item', () => {
     expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
   });
 
+  it('keeps the current location when the search is opened and left without choosing', async () => {
+    api({ [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()) });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+
+    await user.click(await screen.findByLabelText('Lokalita'));
+    expect(await screen.findByRole('list', { name: 'Výsledky: Lokalita' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.getByLabelText('Lokalita')).toHaveTextContent('Centrála Praha › Přízemí › Teplá kuchyně');
+    expect(screen.queryByRole('list', { name: 'Výsledky: Lokalita' })).not.toBeInTheDocument();
+  });
+
   it('can change the location and clear the manufacturer', async () => {
     const calls = api({
       [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
@@ -334,9 +346,13 @@ describe('edit item', () => {
     const user = userEvent.setup();
     renderApp(`/items/${id}/edit`);
 
-    await user.click(await screen.findByRole('button', { name: 'Změnit: Lokalita' }));
+    // Tapping the field itself opens the search; there is no separate change button.
+    expect(await screen.findByLabelText('Lokalita')).toHaveTextContent('Centrála Praha › Přízemí › Teplá kuchyně');
+    expect(screen.queryByRole('button', { name: /Změnit/ })).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText('Lokalita'));
     await user.click(await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' }));
-    await user.click(screen.getByRole('button', { name: 'Změnit: Výrobce' }));
+    expect(screen.getByLabelText('Lokalita')).toHaveTextContent('Centrála Praha › Teplá kuchyně');
+    await user.click(screen.getByRole('button', { name: 'Vymazat: Výrobce' }));
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
 
     await waitFor(async () =>

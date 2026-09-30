@@ -224,9 +224,8 @@
     "duplicate_item_code": "Položka s tímto ID už existuje."
   },
   "picker": {
-    "change": "Změnit: {{label}}",
-    "changeShort": "Změnit",
-    "results": "Výsledky: {{label}}"
+    "results": "Výsledky: {{label}}",
+    "clear": "Vymazat: {{label}}"
   },
   "itemForm": {
     "newTitle": "Nová položka",
