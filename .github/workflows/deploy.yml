@@ -1,0 +1,57 @@
+name: Deploy
+
+# Deploys main to Cloud Run once CI has passed on it: build the image, run the migrations as a
+# Cloud Run job, then deploy the service (deploy/release.sh). If the migrations fail, the running
+# revision stays. One-time setup: deploy/setup.sh, deploy/setup-github.sh (see deploy/README.md).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Redeploys the current main by hand. Main only: the Google side refuses other refs anyway.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # the OIDC token Workload Identity Federation exchanges for Google credentials
+
+# One deploy at a time, in order; a running one is never cancelled halfway through a migration.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build, migrate, deploy
+    # Only a green CI run of a push to main (not a PR from a branch called main in a fork).
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: test
+      url: https://inventory-${{ vars.GCP_PROJECT_NUMBER }}.europe-west3.run.app
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commit CI tested, not whatever main points to by now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - name: Build and push the image
+        run: |
+          source deploy/config.sh
+          image="${IMAGE_BASE}:$(git rev-parse --short=12 HEAD)"
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "$image" .
+          docker push "$image"
+          echo "IMAGE=$image" >>"$GITHUB_ENV"
+      - name: Migrate and deploy
+        run: deploy/release.sh "$IMAGE"

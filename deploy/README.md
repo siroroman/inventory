@@ -5,8 +5,7 @@ migrations, Cloud SQL for PostgreSQL 17 (smallest tier), Secret Manager, region 
 Settings are in `config.sh`; the project is the one from `gcloud config`.
 
 Not production-ready yet: Cloud SQL uses a public IP without authorized networks (reachable only
-through the IAM-checked connector) instead of private IP + Direct VPC egress, deploys are run by
-hand, and photos, invitations and password reset do not work (their adapters are not written).
+through the IAM-checked connector) instead of private IP + Direct VPC egress, and photos, invitations and password reset do not work (their adapters are not written).
 
 ## Prerequisites
 
@@ -22,7 +21,27 @@ deploy/setup.sh      # APIs, Artifact Registry, Cloud SQL, DB users, secrets, se
 Passwords are generated into Secret Manager and never printed. The API's database user
 `inventory_app` is created in SQL as a member of `app_runtime` only.
 
+Then let GitHub Actions deploy (needs `gh` signed in as a repository admin):
+
+```
+deploy/setup-github.sh   # Workload Identity Federation, deployer service account, repo variables
+deploy/deploy.sh         # the first deploy by hand: it also makes the service public
+```
+
 ## Every deploy
+
+A push to `main` deploys by itself once CI is green on it (`.github/workflows/deploy.yml`): the
+runner builds the image, pushes it to Artifact Registry, and `release.sh` runs the migrations job
+and then deploys the service. If the migrations fail the workflow stops and the old revision keeps
+running. Actions → Deploy → Run workflow redeploys the current `main`.
+
+GitHub holds no key: the workflow gets short-lived Google credentials through Workload Identity
+Federation, and Google accepts them only from this repository's `main`. The deployer
+`inventory-deploy` may push images, deploy Cloud Run and act as the two runtime service accounts;
+it cannot read secrets or change who may call the service. Deploys show under the GitHub
+environment `test`, where required reviewers can be added (repository settings) to approve each one.
+
+By hand, from any clean checkout:
 
 ```
 deploy/deploy.sh     # build (Cloud Build) -> migrate (job) -> deploy (service); commits only
