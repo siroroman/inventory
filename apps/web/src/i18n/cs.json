@@ -99,6 +99,7 @@
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky."
   },
   "item": {
+    "breadcrumb": "Umístění",
     "empty": "—",
     "archived": "Archivováno",
     "notFoundTitle": "Položka nenalezena",
@@ -116,7 +117,6 @@
     "fields": {
       "code": "ID",
       "externalIds": "Externí ID",
-      "location": "Lokalita",
       "manufacturer": "Výrobce",
       "model": "Model",
       "serialNumber": "Sériové číslo",

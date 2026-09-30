@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
@@ -51,9 +51,7 @@ describe('item detail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Elektrikář: EL-4821')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', expect.stringMatching(/^\/locations\//));
-    expect(screen.getByRole('link', { name: 'Přízemí' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Teplá kuchyně' })).toBeInTheDocument();
+    expect(screen.queryByText('Lokalita')).not.toBeInTheDocument();
     for (const text of ['Rational', 'SCC 101', 'SN-7781', '2018', '1. 5. 2019', '1. 5. 2020', '4. 3. 2026', 'Pravidelně odvápňovat.']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
@@ -63,6 +61,27 @@ describe('item detail', () => {
     expect(link).toHaveAttribute('href', 'https://drive.google.com/drive/folders/abc');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+
+  it('has a breadcrumb through the Locations tab and the location levels, ending at the item', async () => {
+    signedIn(() => jsonResponse(detail()));
+    renderApp(`/items/${id}`);
+    const nav = await screen.findByRole('navigation', { name: 'Umístění' });
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Lokality',
+      'Centrála Praha',
+      'Přízemí',
+      'Teplá kuchyně',
+    ]);
+    expect(within(nav).getByText('Konvektomat')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('takes the app name in the top bar back to the home page', async () => {
+    signedIn(() => jsonResponse(detail()));
+    const { router } = renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Konvektomat' });
+    await userEvent.click(screen.getByRole('link', { name: 'Evidence majetku' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });
 
   it('shows a dash for empty fields and omits the documents and note sections', async () => {

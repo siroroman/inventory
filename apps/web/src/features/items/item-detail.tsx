@@ -1,7 +1,7 @@
 import type { ItemDetailDto, PhotoDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ExternalLink } from 'lucide-react';
+import { ChevronRight, ExternalLink } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
@@ -124,23 +124,37 @@ function Gallery({ name, photos }: { name: string; photos: PhotoDto[] }) {
   );
 }
 
-/** The way down to the item's location; every level links to its detail. */
-function LocationPath({ path }: { path: ItemDetailDto['path'] }) {
+/** A link in the breadcrumb: at least 44 px tall to tap. */
+const crumbLink =
+  'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
+
+/** The way up: the Locations tab, every level of the location, then the item itself as the current page. */
+function Breadcrumb({ item }: { item: ItemDetailDto }) {
+  const { t } = useTranslation();
   return (
-    <span className="flex flex-wrap items-center gap-x-1">
-      {path.map((segment, index) => (
-        <span key={segment.id} className="inline-flex items-center gap-x-1">
-          {index > 0 && <span aria-hidden>›</span>}
-          <Link
-            to="/locations/$id"
-            params={{ id: segment.id }}
-            className="inline-flex min-h-11 items-center rounded-sm text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {segment.name}
+    <nav aria-label={t('item.breadcrumb')}>
+      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+        <li>
+          <Link to="/" className={crumbLink}>
+            {t('home.locations.tab')}
           </Link>
-        </span>
-      ))}
-    </span>
+        </li>
+        {item.path.map((segment) => (
+          <li key={segment.id} className="flex items-center gap-x-1">
+            <ChevronRight aria-hidden className="size-3.5" />
+            <Link to="/locations/$id" params={{ id: segment.id }} className={crumbLink}>
+              {segment.name}
+            </Link>
+          </li>
+        ))}
+        <li className="flex items-center gap-x-1">
+          <ChevronRight aria-hidden className="size-3.5" />
+          <span aria-current="page" className="text-foreground">
+            {item.name}
+          </span>
+        </li>
+      </ol>
+    </nav>
   );
 }
 
@@ -151,11 +165,11 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
   return (
     <>
       <div>
+        <Breadcrumb item={item} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{item.name}</h1>
           {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
         </div>
-        <p className="text-sm text-muted-foreground">{item.code}</p>
       </div>
 
       <Gallery key={item.id} name={item.name} photos={item.photos} />
@@ -176,10 +190,6 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
                     ))}
                   </ul>
                 ) : null,
-            },
-            {
-              label: t('item.fields.location'),
-              value: <LocationPath path={item.path} />,
             },
             { label: t('item.fields.manufacturer'), value: item.manufacturer?.name },
             { label: t('item.fields.model'), value: item.model },
