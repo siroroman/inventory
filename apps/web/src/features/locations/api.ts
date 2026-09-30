@@ -1,3 +1,4 @@
+import type { CreateLocationBody, UpdateLocationBody } from '@inventory/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
@@ -24,3 +25,21 @@ export const locationItemsQueryOptions = (id: string) =>
   pagedListQueryOptions(`location-items:${id}`, '', (query) =>
     unwrap(api.api.v1.locations[':id'].items.$get({ param: { id }, query })),
   );
+
+/** The location types for the form's select: a handful of rows, so no paging. */
+export const locationTypesQueryOptions = queryOptions({
+  queryKey: ['location-types'],
+  queryFn: () => unwrap(api.api.v1['location-types'].$get()),
+});
+
+/** The first page of candidates for a parent: top-level locations, or matches at every level with `q`. */
+export const locationPickerQueryOptions = (q: string) =>
+  queryOptions({
+    queryKey: ['locations', 'picker', q],
+    queryFn: () => unwrap(api.api.v1.locations.$get({ query: { q: q || undefined, limit: '20' } })),
+  });
+
+export const createLocation = (body: CreateLocationBody) => unwrap(api.api.v1.locations.$post({ json: body }));
+
+export const updateLocation = (id: string, body: UpdateLocationBody) =>
+  unwrap(api.api.v1.locations[':id'].$patch({ param: { id }, json: body }));

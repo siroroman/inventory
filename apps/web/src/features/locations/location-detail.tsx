@@ -1,13 +1,15 @@
 import type { LocationDto } from '@inventory/shared';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { PagedList } from '@/components/paged-list';
 import { RouteNotFound, RoutePending } from '@/components/route-states';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { useItemRows } from '@/features/items/item-list';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
@@ -116,6 +118,7 @@ function Items({ location }: { location: LocationDto }) {
 export function LocationDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useQuery(locationQueryOptions(id));
+  const canWrite = useCanWrite();
 
   if (query.isPending) return <RoutePending />;
   if (query.isError) {
@@ -136,6 +139,23 @@ export function LocationDetail({ id }: { id: string }) {
           <h1 className="text-xl font-semibold">{location.name}</h1>
           {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
         </div>
+        {/* An archived location is read-only until it is restored. */}
+        {canWrite && !location.archivedAt && (
+          <div className="flex flex-wrap gap-3 pt-3">
+            <Button asChild variant="outline">
+              <Link to="/locations/$id/edit" params={{ id: location.id }}>
+                <Pencil aria-hidden />
+                {t('locationDetail.edit')}
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/locations/new" search={{ parentId: location.id }}>
+                <Plus aria-hidden />
+                {t('locationDetail.addSubLocation')}
+              </Link>
+            </Button>
+          </div>
+        )}
       </header>
       <dl className="mx-4 flex flex-col gap-3 rounded-lg border bg-card p-4">
         <Field label={t('locationDetail.fields.code')}>{location.code}</Field>

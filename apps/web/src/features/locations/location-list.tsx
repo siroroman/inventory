@@ -1,20 +1,21 @@
 import type { LocationDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { cn } from '@/lib/utils';
 import { locationListQueryOptions } from './api';
+import { pathLabel } from './path';
 
 /** A search also finds sub-locations; their name alone would not say where they are. */
 function parentPath(location: LocationDto): string {
-  return location.path
-    .slice(0, -1)
-    .map((segment) => segment.name)
-    .join(' › ');
+  return pathLabel(location.path.slice(0, -1));
 }
 
 /** The name of a location as a link to its detail; on a card the link covers the whole row. */
@@ -103,6 +104,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
 export function LocationsPanel({ q, onSearch }: { q: string; onSearch: (text: string) => void }) {
   const { t } = useTranslation();
   const query = useInfiniteQuery(locationListQueryOptions(q));
+  const canWrite = useCanWrite();
   const total = pagedTotal(query.data);
   const { columns, card } = useLocationRows({ nested: false });
 
@@ -110,6 +112,16 @@ export function LocationsPanel({ q, onSearch }: { q: string; onSearch: (text: st
     <>
       <ListToolbar
         title={t('home.locations.tab')}
+        action={
+          canWrite && (
+            <Button asChild>
+              <Link to="/locations/new">
+                <Plus aria-hidden />
+                {t('home.locations.add')}
+              </Link>
+            </Button>
+          )
+        }
         count={total === undefined ? undefined : t('common.locationCount', { count: total })}
         search={{
           value: q,

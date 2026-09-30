@@ -14,6 +14,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppItemsIdRouteImport } from './routes/_app/items.$id'
 import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
+import { Route as AppLocationsNewRouteImport } from './routes/_app/locations/new'
+import { Route as AppLocationsIdEditRouteImport } from './routes/_app/locations/$id_.edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -39,18 +41,32 @@ const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
   path: '/locations/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLocationsNewRoute = AppLocationsNewRouteImport.update({
+  id: '/locations/new',
+  path: '/locations/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLocationsIdEditRoute = AppLocationsIdEditRouteImport.update({
+  id: '/locations/$id_/edit',
+  path: '/locations/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/items/$id': typeof AppItemsIdRoute
   '/locations/$id': typeof AppLocationsIdRoute
+  '/locations/new': typeof AppLocationsNewRoute
+  '/locations/$id/edit': typeof AppLocationsIdEditRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
   '/items/$id': typeof AppItemsIdRoute
   '/locations/$id': typeof AppLocationsIdRoute
+  '/locations/new': typeof AppLocationsNewRoute
+  '/locations/$id/edit': typeof AppLocationsIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -59,12 +75,26 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/items/$id': typeof AppItemsIdRoute
   '/_app/locations/$id': typeof AppLocationsIdRoute
+  '/_app/locations/new': typeof AppLocationsNewRoute
+  '/_app/locations/$id_/edit': typeof AppLocationsIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/items/$id' | '/locations/$id'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/items/$id'
+    | '/locations/$id'
+    | '/locations/new'
+    | '/locations/$id/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/items/$id' | '/locations/$id'
+  to:
+    | '/login'
+    | '/'
+    | '/items/$id'
+    | '/locations/$id'
+    | '/locations/new'
+    | '/locations/$id/edit'
   id:
     | '__root__'
     | '/_app'
@@ -72,6 +102,8 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/items/$id'
     | '/_app/locations/$id'
+    | '/_app/locations/new'
+    | '/_app/locations/$id_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -116,6 +148,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLocationsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/locations/new': {
+      id: '/_app/locations/new'
+      path: '/locations/new'
+      fullPath: '/locations/new'
+      preLoaderRoute: typeof AppLocationsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/locations/$id_/edit': {
+      id: '/_app/locations/$id_/edit'
+      path: '/locations/$id/edit'
+      fullPath: '/locations/$id/edit'
+      preLoaderRoute: typeof AppLocationsIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -123,12 +169,16 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppItemsIdRoute: typeof AppItemsIdRoute
   AppLocationsIdRoute: typeof AppLocationsIdRoute
+  AppLocationsNewRoute: typeof AppLocationsNewRoute
+  AppLocationsIdEditRoute: typeof AppLocationsIdEditRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppItemsIdRoute: AppItemsIdRoute,
   AppLocationsIdRoute: AppLocationsIdRoute,
+  AppLocationsNewRoute: AppLocationsNewRoute,
+  AppLocationsIdEditRoute: AppLocationsIdEditRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
