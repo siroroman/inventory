@@ -1,3 +1,4 @@
+import type { CreateItemBody, UpdateItemBody } from '@inventory/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
@@ -12,3 +13,31 @@ export const itemDetailQueryOptions = (id: string) =>
     queryKey: ['items', 'detail', id],
     queryFn: () => unwrap(api.api.v1.items[':id'].$get({ param: { id } })),
   });
+
+/** Locations at every level matching `q` (the top-level ones without it), labelled with their full path. */
+export const locationPickerOptions = (q: string) => ({
+  queryKey: ['locations', 'picker', q] as const,
+  queryFn: async () => {
+    const page = await unwrap(api.api.v1.locations.$get({ query: { q: q || undefined, limit: '20' } }));
+    return page.items.map((location) => ({ id: location.id, label: location.path.map((p) => p.name).join(' › ') }));
+  },
+});
+
+/** Manufacturers matching `q`. */
+export const manufacturerPickerOptions = (q: string) => ({
+  queryKey: ['manufacturers', 'picker', q] as const,
+  queryFn: async () => {
+    const page = await unwrap(api.api.v1.manufacturers.$get({ query: { q: q || undefined, limit: '20' } }));
+    return page.items.map((manufacturer) => ({ id: manufacturer.id, label: manufacturer.name }));
+  },
+});
+
+export async function createManufacturer(name: string) {
+  const created = await unwrap(api.api.v1.manufacturers.$post({ json: { name } }));
+  return { id: created.id, label: created.name };
+}
+
+export const createItem = (json: CreateItemBody) => unwrap(api.api.v1.items.$post({ json }));
+
+export const updateItem = (id: string, json: UpdateItemBody) =>
+  unwrap(api.api.v1.items[':id'].$patch({ param: { id }, json }));

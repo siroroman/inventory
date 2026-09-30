@@ -1,9 +1,12 @@
 import type { ItemListEntryDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { serviceStatus } from '@/lib/service-status';
 import { itemListQueryOptions } from './api';
 import { ServiceBadge } from './service-badge';
@@ -66,12 +69,23 @@ export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string
   const query = useInfiniteQuery(itemListQueryOptions(q));
   const total = pagedTotal(query.data);
   const { columns, card } = useItemRows();
+  const canWrite = useCanWrite();
 
   return (
     <>
       <ListToolbar
         title={t('home.items.tab')}
         count={total === undefined ? undefined : t('common.itemCount', { count: total })}
+        action={
+          canWrite && (
+            <Button asChild>
+              <Link to="/items/new">
+                <Plus aria-hidden />
+                {t('home.items.add')}
+              </Link>
+            </Button>
+          )
+        }
         search={{
           value: q,
           onSearch,

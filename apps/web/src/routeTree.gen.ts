@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppItemsIdRouteImport } from './routes/_app/items.$id'
+import { Route as AppItemsNewRouteImport } from './routes/_app/items/new'
 import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
+import { Route as AppItemsIdIndexRouteImport } from './routes/_app/items/$id/index'
+import { Route as AppItemsIdEditRouteImport } from './routes/_app/items/$id/edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -29,9 +31,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppItemsIdRoute = AppItemsIdRouteImport.update({
-  id: '/items/$id',
-  path: '/items/$id',
+const AppItemsNewRoute = AppItemsNewRouteImport.update({
+  id: '/items/new',
+  path: '/items/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
@@ -39,39 +41,69 @@ const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
   path: '/locations/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppItemsIdIndexRoute = AppItemsIdIndexRouteImport.update({
+  id: '/items/$id/',
+  path: '/items/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppItemsIdEditRoute = AppItemsIdEditRouteImport.update({
+  id: '/items/$id/edit',
+  path: '/items/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/items/$id': typeof AppItemsIdRoute
+  '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
+  '/items/$id/edit': typeof AppItemsIdEditRoute
+  '/items/$id/': typeof AppItemsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
-  '/items/$id': typeof AppItemsIdRoute
+  '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
+  '/items/$id/edit': typeof AppItemsIdEditRoute
+  '/items/$id': typeof AppItemsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
-  '/_app/items/$id': typeof AppItemsIdRoute
+  '/_app/items/new': typeof AppItemsNewRoute
   '/_app/locations/$id': typeof AppLocationsIdRoute
+  '/_app/items/$id/edit': typeof AppItemsIdEditRoute
+  '/_app/items/$id/': typeof AppItemsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/items/$id' | '/locations/$id'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/items/new'
+    | '/locations/$id'
+    | '/items/$id/edit'
+    | '/items/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/items/$id' | '/locations/$id'
+  to:
+    | '/login'
+    | '/'
+    | '/items/new'
+    | '/locations/$id'
+    | '/items/$id/edit'
+    | '/items/$id'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/'
-    | '/_app/items/$id'
+    | '/_app/items/new'
     | '/_app/locations/$id'
+    | '/_app/items/$id/edit'
+    | '/_app/items/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -102,11 +134,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/items/$id': {
-      id: '/_app/items/$id'
-      path: '/items/$id'
-      fullPath: '/items/$id'
-      preLoaderRoute: typeof AppItemsIdRouteImport
+    '/_app/items/new': {
+      id: '/_app/items/new'
+      path: '/items/new'
+      fullPath: '/items/new'
+      preLoaderRoute: typeof AppItemsNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/locations/$id': {
@@ -116,19 +148,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLocationsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/items/$id/': {
+      id: '/_app/items/$id/'
+      path: '/items/$id'
+      fullPath: '/items/$id/'
+      preLoaderRoute: typeof AppItemsIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/items/$id/edit': {
+      id: '/_app/items/$id/edit'
+      path: '/items/$id/edit'
+      fullPath: '/items/$id/edit'
+      preLoaderRoute: typeof AppItemsIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
-  AppItemsIdRoute: typeof AppItemsIdRoute
+  AppItemsNewRoute: typeof AppItemsNewRoute
   AppLocationsIdRoute: typeof AppLocationsIdRoute
+  AppItemsIdEditRoute: typeof AppItemsIdEditRoute
+  AppItemsIdIndexRoute: typeof AppItemsIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
-  AppItemsIdRoute: AppItemsIdRoute,
+  AppItemsNewRoute: AppItemsNewRoute,
   AppLocationsIdRoute: AppLocationsIdRoute,
+  AppItemsIdEditRoute: AppItemsIdEditRoute,
+  AppItemsIdIndexRoute: AppItemsIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
