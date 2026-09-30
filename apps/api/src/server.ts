@@ -35,6 +35,7 @@ const app = createApp({
   isProduction: config.isProduction,
   log,
   services: createServices({ db, storage, invites }),
+  staticRoot: config.staticDir,
 });
 
 const server = serve({ fetch: app.fetch, port: config.port }, (info) => {

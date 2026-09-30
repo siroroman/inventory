@@ -10,6 +10,7 @@ import { authenticate } from './http/middleware/authenticate.ts';
 import { noStore } from './http/middleware/no-store.ts';
 import { requestLog } from './http/middleware/request-log.ts';
 import { securityHeaders } from './http/middleware/security-headers.ts';
+import { serveSpa } from './http/spa.ts';
 import { createItemRoutes } from './modules/items/routes.ts';
 import { createLocationRoutes, createLocationTypeRoutes } from './modules/locations/routes.ts';
 import { createManufacturerRoutes } from './modules/manufacturers/routes.ts';
@@ -35,13 +36,15 @@ export type AppDeps = {
   isProduction: boolean;
   log: Logger;
   services: Services;
+  /** Built SPA (apps/web/dist) to serve outside /api; omitted in development, where Vite serves it. */
+  staticRoot?: string;
 };
 
 /**
  * Builds the API. Everything it needs comes in through `deps`, so tests can build it against a
  * throwaway database and read the log.
  */
-export function createApp({ auth, baseUrl, isProduction, log, services }: AppDeps) {
+export function createApp({ auth, baseUrl, isProduction, log, services, staticRoot }: AppDeps) {
   const app = new OpenAPIHono<AppEnv>({ defaultHook: validationHook });
 
   app.use(requestId());
@@ -81,6 +84,9 @@ export function createApp({ auth, baseUrl, isProduction, log, services }: AppDep
     openapi: '3.1.0',
     info: { title: 'Evidence majetku API', version: '1.0.0' },
   });
+
+  // Last, so every API route above answers first. Registered on `app`, outside `AppType`.
+  if (staticRoot) app.on(['GET', 'HEAD'], '*', serveSpa(staticRoot));
 
   return routes;
 }

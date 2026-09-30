@@ -12,6 +12,11 @@ describe('parseConfig', () => {
     const config = parseConfig(valid);
     expect(config).toMatchObject({ env: 'development', isProduction: false, port: 8080 });
     expect(config.auth.google).toBeUndefined();
+    expect(config.staticDir).toBeUndefined();
+  });
+
+  it('reads the directory of the built SPA', () => {
+    expect(parseConfig({ ...valid, STATIC_DIR: '/app/apps/web/dist' }).staticDir).toBe('/app/apps/web/dist');
   });
 
   it('reads production, the port and Google credentials', () => {
