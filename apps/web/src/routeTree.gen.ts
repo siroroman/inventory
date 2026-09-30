@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppItemsIdRouteImport } from './routes/_app/items.$id'
+import { Route as AppItemsNewRouteImport } from './routes/_app/items/new'
 import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
 import { Route as AppLocationsNewRouteImport } from './routes/_app/locations/new'
+import { Route as AppItemsIdIndexRouteImport } from './routes/_app/items/$id/index'
+import { Route as AppItemsIdEditRouteImport } from './routes/_app/items/$id/edit'
 import { Route as AppLocationsIdEditRouteImport } from './routes/_app/locations/$id_.edit'
 
 const AppRoute = AppRouteImport.update({
@@ -31,9 +33,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppItemsIdRoute = AppItemsIdRouteImport.update({
-  id: '/items/$id',
-  path: '/items/$id',
+const AppItemsNewRoute = AppItemsNewRouteImport.update({
+  id: '/items/new',
+  path: '/items/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
@@ -46,6 +48,16 @@ const AppLocationsNewRoute = AppLocationsNewRouteImport.update({
   path: '/locations/new',
   getParentRoute: () => AppRoute,
 } as any)
+const AppItemsIdIndexRoute = AppItemsIdIndexRouteImport.update({
+  id: '/items/$id/',
+  path: '/items/$id/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppItemsIdEditRoute = AppItemsIdEditRouteImport.update({
+  id: '/items/$id/edit',
+  path: '/items/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLocationsIdEditRoute = AppLocationsIdEditRouteImport.update({
   id: '/locations/$id_/edit',
   path: '/locations/$id/edit',
@@ -55,55 +67,67 @@ const AppLocationsIdEditRoute = AppLocationsIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
-  '/items/$id': typeof AppItemsIdRoute
+  '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
   '/locations/new': typeof AppLocationsNewRoute
+  '/items/$id/edit': typeof AppItemsIdEditRoute
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
+  '/items/$id/': typeof AppItemsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
-  '/items/$id': typeof AppItemsIdRoute
+  '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
   '/locations/new': typeof AppLocationsNewRoute
+  '/items/$id/edit': typeof AppItemsIdEditRoute
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
+  '/items/$id': typeof AppItemsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
-  '/_app/items/$id': typeof AppItemsIdRoute
+  '/_app/items/new': typeof AppItemsNewRoute
   '/_app/locations/$id': typeof AppLocationsIdRoute
   '/_app/locations/new': typeof AppLocationsNewRoute
+  '/_app/items/$id/edit': typeof AppItemsIdEditRoute
   '/_app/locations/$id_/edit': typeof AppLocationsIdEditRoute
+  '/_app/items/$id/': typeof AppItemsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
-    | '/items/$id'
+    | '/items/new'
     | '/locations/$id'
     | '/locations/new'
+    | '/items/$id/edit'
     | '/locations/$id/edit'
+    | '/items/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/'
-    | '/items/$id'
+    | '/items/new'
     | '/locations/$id'
     | '/locations/new'
+    | '/items/$id/edit'
     | '/locations/$id/edit'
+    | '/items/$id'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/'
-    | '/_app/items/$id'
+    | '/_app/items/new'
     | '/_app/locations/$id'
     | '/_app/locations/new'
+    | '/_app/items/$id/edit'
     | '/_app/locations/$id_/edit'
+    | '/_app/items/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -134,11 +158,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/items/$id': {
-      id: '/_app/items/$id'
-      path: '/items/$id'
-      fullPath: '/items/$id'
-      preLoaderRoute: typeof AppItemsIdRouteImport
+    '/_app/items/new': {
+      id: '/_app/items/new'
+      path: '/items/new'
+      fullPath: '/items/new'
+      preLoaderRoute: typeof AppItemsNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/locations/$id': {
@@ -155,6 +179,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLocationsNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/items/$id/': {
+      id: '/_app/items/$id/'
+      path: '/items/$id'
+      fullPath: '/items/$id/'
+      preLoaderRoute: typeof AppItemsIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/items/$id/edit': {
+      id: '/_app/items/$id/edit'
+      path: '/items/$id/edit'
+      fullPath: '/items/$id/edit'
+      preLoaderRoute: typeof AppItemsIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/locations/$id_/edit': {
       id: '/_app/locations/$id_/edit'
       path: '/locations/$id/edit'
@@ -167,18 +205,22 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
-  AppItemsIdRoute: typeof AppItemsIdRoute
+  AppItemsNewRoute: typeof AppItemsNewRoute
   AppLocationsIdRoute: typeof AppLocationsIdRoute
   AppLocationsNewRoute: typeof AppLocationsNewRoute
+  AppItemsIdEditRoute: typeof AppItemsIdEditRoute
   AppLocationsIdEditRoute: typeof AppLocationsIdEditRoute
+  AppItemsIdIndexRoute: typeof AppItemsIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
-  AppItemsIdRoute: AppItemsIdRoute,
+  AppItemsNewRoute: AppItemsNewRoute,
   AppLocationsIdRoute: AppLocationsIdRoute,
   AppLocationsNewRoute: AppLocationsNewRoute,
+  AppItemsIdEditRoute: AppItemsIdEditRoute,
   AppLocationsIdEditRoute: AppLocationsIdEditRoute,
+  AppItemsIdIndexRoute: AppItemsIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -1,9 +1,12 @@
 import type { ItemListEntryDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { serviceStatus } from '@/lib/service-status';
 import { itemListQueryOptions } from './api';
 import { ServiceBadge } from './service-badge';
@@ -37,7 +40,7 @@ export function useItemRows() {
     { header: t('home.items.columns.code'), className: 'w-28', cell: (item) => item.code },
     {
       header: t('home.items.columns.location'),
-      cell: (item) => <span title={pathOf(item)}>{pathOf(item)}</span>,
+      cell: (item) => <span title={pathOf(item)}>{pathOf(item) || t('common.empty')}</span>,
     },
     { header: t('home.items.columns.brand'), cell: brandAndModel },
     { header: t('home.items.columns.service'), className: 'w-44', cell: serviceBadge },
@@ -49,7 +52,7 @@ export function useItemRows() {
       <Link to="/items/$id" params={{ id: item.id }} className="block">
         <p className="text-[15px] font-semibold">{item.name}</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {item.code} · {pathOf(item)}
+          {[item.code, pathOf(item)].filter(Boolean).join(' · ')}
         </p>
         {brandAndModel(item) && <p className="text-sm text-muted-foreground">{brandAndModel(item)}</p>}
         {badge && <p className="mt-1.5">{serviceBadge(item)}</p>}
@@ -66,12 +69,23 @@ export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string
   const query = useInfiniteQuery(itemListQueryOptions(q));
   const total = pagedTotal(query.data);
   const { columns, card } = useItemRows();
+  const canWrite = useCanWrite();
 
   return (
     <>
       <ListToolbar
         title={t('home.items.tab')}
         count={total === undefined ? undefined : t('common.itemCount', { count: total })}
+        action={
+          canWrite && (
+            <Button asChild>
+              <Link to="/items/new">
+                <Plus aria-hidden />
+                {t('home.items.add')}
+              </Link>
+            </Button>
+          )
+        }
         search={{
           value: q,
           onSearch,

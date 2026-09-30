@@ -53,6 +53,12 @@ describe('item service', () => {
   });
 
   describe('create', () => {
+    it('creates with the ID it is given and leaves the generated one otherwise', async () => {
+      const { create } = await setup();
+      await expect(create('A', { code: 'MY-1' })).resolves.toMatchObject({ code: 'MY-1' });
+      await expect(create('B')).resolves.toMatchObject({ code: expect.stringMatching(/^INV-/) });
+    });
+
     it('creates an item, saves its external IDs and audits every set field', async () => {
       const { store, kuchyne, rational, create } = await setup();
       const item = await create('Konvektomat', {
@@ -280,6 +286,18 @@ describe('item service', () => {
       await expectCode(service.update(writer, item.id, { version: 1, locationId: sklad.id }), 'location_archived');
       await expectCode(service.update(writer, item.id, { version: 1, manufacturerId: randomUUID() }), 'manufacturer_not_found');
       expect(store.state.items[0]!.version).toBe(1);
+    });
+
+    it('creates without a location, then places it and clears it again', async () => {
+      const { service, sklad } = await setup();
+      const item = await service.create(writer, { name: 'Váha' });
+      expect(item).toMatchObject({ locationId: null, path: [] });
+      const placed = await service.update(writer, item.id, { version: 1, locationId: sklad.id });
+      expect(placed.path.at(-1)?.id).toBe(sklad.id);
+      const cleared = await service.update(writer, item.id, { version: 2, locationId: null });
+      expect(cleared).toMatchObject({ locationId: null, path: [] });
+      const listed = await service.list(writer, {}, { limit: 50 });
+      expect(listed.items.find((i) => i.id === item.id)).toMatchObject({ location: null, path: [] });
     });
 
     it('keeps working on an item whose location was archived later', async () => {

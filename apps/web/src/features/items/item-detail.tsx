@@ -1,13 +1,14 @@
 import type { ItemDetailDto, PhotoDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronRight, ExternalLink, Pencil } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
@@ -160,6 +161,7 @@ function Breadcrumb({ item }: { item: ItemDetailDto }) {
 
 function ItemBody({ item }: { item: ItemDetailDto }) {
   const { t } = useTranslation();
+  const canWrite = useCanWrite();
   const date = (value: string | null) => (value ? formatDate(value) : null);
 
   return (
@@ -169,6 +171,14 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{item.name}</h1>
           {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
+          {canWrite && !item.archivedAt && (
+            <Button asChild size="sm" className="ml-auto">
+              <Link to="/items/$id/edit" params={{ id: item.id }}>
+                <Pencil aria-hidden />
+                {t('item.edit')}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

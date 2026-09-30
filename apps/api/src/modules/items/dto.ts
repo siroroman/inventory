@@ -19,9 +19,9 @@ export function toItemListEntryDto(row: ItemListEntry): ItemListEntryDto {
 }
 
 export function toItemDto(row: ItemDetail): ItemDto {
-  // The path runs from the top down to the item's own location, so the location is its last segment.
-  const location = row.path.at(-1);
-  if (!location) throw new Error(`Item ${row.id} has no location path`);
+  // The path runs from the top down to the item's own location, so the location is its last segment;
+  // an item without a location has an empty path.
+  const location = row.path.at(-1) ?? null;
   return {
     ...recordDto(row),
     code: row.code,

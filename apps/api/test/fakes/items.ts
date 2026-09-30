@@ -31,7 +31,7 @@ export function createFakeItemStore() {
   const matching = (filter: Parameters<ItemRepository['list']>[0]) =>
     state.items.filter((item) => {
       if (item.archivedAt) return false;
-      if (filter.locationId && !subtree(filter.locationId).includes(item.locationId)) return false;
+      if (filter.locationId && !(item.locationId && subtree(filter.locationId).includes(item.locationId))) return false;
       if (filter.manufacturerId && item.manufacturerId !== filter.manufacturerId) return false;
       if (!filter.q) return true;
       const manufacturer = catalog.state.manufacturers.find((m) => m.id === item.manufacturerId);
@@ -49,11 +49,11 @@ export function createFakeItemStore() {
       const result = fakePageByName(matching(filter), page);
       const rows = await Promise.all(
         result.items.map(async (item) => {
-          const location = (await locations.findById(item.locationId))!;
+          const location = item.locationId ? (await locations.findById(item.locationId))! : null;
           return {
             ...item,
             manufacturer: await manufacturerRef(item.manufacturerId),
-            location: { id: location.id, code: location.code, name: location.name },
+            location: location && { id: location.id, code: location.code, name: location.name },
             thumbnailKey: null,
           };
         }),
@@ -68,7 +68,7 @@ export function createFakeItemStore() {
         id: randomUUID(),
         code: values.code ?? `INV-${String(state.items.length + 1).padStart(5, '0')}`,
         name: values.name,
-        locationId: values.locationId,
+        locationId: values.locationId ?? null,
         manufacturerId: values.manufacturerId ?? null,
         model: values.model ?? null,
         serialNumber: values.serialNumber ?? null,

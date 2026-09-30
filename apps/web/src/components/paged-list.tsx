@@ -158,7 +158,7 @@ export function PagedList<T extends { id: string }>({
 }
 
 /** Nothing to show is not an error, so this is not `ErrorState` (no alert role, no warning icon). */
-function EmptyState({ title, hint }: { title: string; hint: string }) {
+export function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="flex flex-col items-center gap-1.5 px-6 py-10 text-center">
       <p className="text-[15px] font-semibold">{title}</p>

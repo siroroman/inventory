@@ -44,7 +44,7 @@ describe('item repository', () => {
     ]);
     await add('Bez fotky', kuchyne.id);
     const { items } = await repo().list({}, { limit: 50 });
-    expect(items.map((i) => [i.name, i.thumbnailKey, i.location.name, i.manufacturer])).toEqual([
+    expect(items.map((i) => [i.name, i.thumbnailKey, i.location?.name, i.manufacturer])).toEqual([
       ['Bez fotky', null, 'Kuchyně', null],
       ['Konvektomat', 'a.jpg', 'Kuchyně', null],
     ]);

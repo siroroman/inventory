@@ -45,6 +45,14 @@ const signedIn = (item: () => Response) =>
   stubApi({ 'GET /api/v1/me': () => jsonResponse(me), [`GET /api/v1/items/${id}`]: item });
 
 describe('item detail', () => {
+  it('opens an item without a location, the breadcrumb going straight from Lokality to the item', async () => {
+    signedIn(() => jsonResponse(detail({ location: null, path: [] })));
+    renderApp(`/items/${id}`);
+    const nav = await screen.findByRole('navigation', { name: 'Umístění' });
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Lokality']);
+    expect(within(nav).getByText('Konvektomat')).toHaveAttribute('aria-current', 'page');
+  });
+
   it('shows every field, with badges for expired warranty and overdue service', async () => {
     signedIn(() => jsonResponse(detail()));
     renderApp(`/items/${id}`);

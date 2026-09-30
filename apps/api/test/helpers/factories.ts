@@ -65,7 +65,8 @@ export async function insertProvider(
 }
 
 export async function insertItem(db: Db, overrides: Partial<typeof items.$inferInsert> = {}) {
-  const locationId = overrides.locationId ?? (await insertLocation(db)).id;
+  // An explicit `locationId: null` makes an item without a location.
+  const locationId = 'locationId' in overrides ? overrides.locationId : (await insertLocation(db)).id;
   const [row] = await db
     .insert(items)
     .values({ name: 'Konvektomat', ...overrides, locationId })

@@ -16,6 +16,15 @@ function api(lists: { locations?: (request: Request) => Response; items?: (reque
 const listCalls = (calls: Request[], path: string) =>
   calls.filter((call) => new URL(call.url).pathname === path).map((call) => new URL(call.url).searchParams);
 
+describe('home: items tab without a location', () => {
+  it('shows the code alone on the card, without a dangling separator', async () => {
+    api({ items: () => page([item({ location: null, path: [], name: 'Váha' })]) });
+    renderApp('/?tab=items');
+    expect(await screen.findByText('INV-00042')).toBeInTheDocument();
+    expect(screen.getByRole('listitem')).not.toHaveTextContent('·');
+  });
+});
+
 describe('home: locations tab', () => {
   it('lists top-level locations with type, address and counts, under a heading with the total', async () => {
     api({ locations: () => page([location(), location({ name: 'Sklad Brno', type: ref('WAREHOUSE', 'Sklad'), address: null, itemCount: 1, childCount: 0 })], { total: 2 }) });

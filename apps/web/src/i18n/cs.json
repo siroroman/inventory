@@ -87,7 +87,8 @@
       "service": {
         "overdue": "Servis po termínu",
         "soon": "Servis do 30 dní"
-      }
+      },
+      "add": "Přidat položku"
     }
   },
   "locationDetail": {
@@ -105,7 +106,9 @@
     "itemsEmptyTitle": "Žádné položky",
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky.",
     "edit": "Upravit",
-    "addSubLocation": "Přidat podlokalitu"
+    "addSubLocation": "Přidat podlokalitu",
+    "subLocationsEmptyTitle": "Žádné podlokality",
+    "subLocationsEmptyHint": "Tato lokalita zatím nemá žádné podlokality."
   },
   "locationForm": {
     "createTitle": "Nová lokalita",
@@ -167,14 +170,17 @@
       "registeredOn": "Registrováno",
       "warrantyUntil": "Záruka do",
       "lastServiceOn": "Poslední servis",
-      "nextServiceOn": "Příští servis"
+      "nextServiceOn": "Příští servis",
+      "name": "Název",
+      "location": "Lokalita"
     },
     "warrantyExpired": "Záruka vypršela",
     "service": {
       "overdue": "Po termínu",
       "soon": "Do 30 dní"
     },
-    "openDocuments": "Otevřít složku na Google Drive"
+    "openDocuments": "Otevřít složku na Google Drive",
+    "edit": "Upravit"
   },
   "errors": {
     "unauthenticated": "Přihlášení vypršelo. Přihlaste se prosím znovu.",
@@ -216,6 +222,45 @@
     "invalid_credentials": "Nesprávný e-mail nebo heslo.",
     "no_access": "Tento účet nemá do aplikace přístup. Obraťte se na správce.",
     "network": "Server není dostupný. Zkontrolujte připojení k internetu a zkuste to znovu.",
-    "unexpected": "Něco se nepovedlo. Zkuste to prosím znovu."
+    "unexpected": "Něco se nepovedlo. Zkuste to prosím znovu.",
+    "duplicate_item_code": "Položka s tímto ID už existuje."
+  },
+  "picker": {
+    "results": "Výsledky: {{label}}",
+    "clear": "Vymazat: {{label}}"
+  },
+  "itemForm": {
+    "newTitle": "Nová položka",
+    "editTitle": "Upravit položku",
+    "sections": {
+      "registration": "Registrace, záruka a servis"
+    },
+    "locationPlaceholder": "Hledat lokalitu podle názvu…",
+    "noLocations": "Žádná lokalita nenalezena.",
+    "manufacturerPlaceholder": "Hledat nebo zadat nového výrobce…",
+    "noManufacturers": "Zatím žádný výrobce. Napište název a vytvořte ho.",
+    "createManufacturer": "Vytvořit výrobce „{{name}}“",
+    "externalSource": "Dodavatel externího ID {{n}}",
+    "externalSourcePlaceholder": "Dodavatel, např. Elektrikář",
+    "externalValue": "Externí ID {{n}}",
+    "externalValuePlaceholder": "Jeho ID, např. EL-4821",
+    "addExternalId": "Přidat externí ID",
+    "removeExternalId": "Odebrat externí ID {{n}}",
+    "documentsUrl": "Složka dokumentů (odkaz na Google Drive)",
+    "errors": {
+      "required": "Vyplňte toto pole.",
+      "tooLong": "Text je příliš dlouhý.",
+      "year": "Zadejte rok od 1950 do letošního roku.",
+      "date": "Zadejte platné datum.",
+      "documentsUrl": "Zadejte odkaz https na drive.google.com nebo docs.google.com.",
+      "code": "ID může mít nejvýše 30 znaků: písmena bez diakritiky, číslice, tečku, pomlčku nebo podtržítko."
+    },
+    "reload": "Načíst aktuální data",
+    "cancel": "Zrušit",
+    "save": "Uložit",
+    "saving": "Ukládám…",
+    "codeHint": "Nepovinné. Když pole necháte prázdné, ID se přidělí automaticky. Později ho nelze změnit.",
+    "codeTaken": "Položka s tímto ID už existuje.",
+    "codeAutoClash": "ID se nepodařilo přidělit automaticky, protože už existuje položka se stejným. Zkuste to prosím znovu."
   }
 }

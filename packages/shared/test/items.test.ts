@@ -5,6 +5,13 @@ const ID = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
 const base = { name: 'Konvektomat', locationId: ID };
 
 describe('createItemBody', () => {
+  it('takes an optional ID, trimmed and upper-cased, and rejects unsafe ones', () => {
+    expect(createItemBody.parse({ ...base, code: ' vaha-1.a ' })).toEqual({ ...base, code: 'VAHA-1.A' });
+    for (const code of ['', 'has space', 'ČÁRKA', '-A', '/q', 'X'.repeat(31)]) {
+      expect(createItemBody.safeParse({ ...base, code }).success, code).toBe(false);
+    }
+  });
+
   it('needs a name and a location; the rest is optional', () => {
     expect(createItemBody.parse({ name: ' Konvektomat ', locationId: ID })).toEqual(base);
     expect(
@@ -35,14 +42,17 @@ describe('createItemBody', () => {
     }
   });
 
+  it('does not need a location: missing or null means none yet', () => {
+    expect(createItemBody.parse({ name: 'Váha' })).toEqual({ name: 'Váha' });
+    expect(createItemBody.parse({ name: 'Váha', locationId: null })).toEqual({ name: 'Váha', locationId: null });
+  });
+
   it('rejects missing or bad required fields, bad dates, bad links and unknown keys', () => {
     for (const body of [
       {},
-      { name: 'x' },
       { locationId: ID },
       { ...base, name: '  ' },
       { ...base, name: 'x'.repeat(201) },
-      { ...base, locationId: null },
       { ...base, locationId: 'nope' },
       { ...base, manufacturerId: 'nope' },
       { ...base, registeredOn: '15. 1. 2020' },
@@ -52,7 +62,6 @@ describe('createItemBody', () => {
       { ...base, model: '' },
       { ...base, serialNumber: 's'.repeat(121) },
       { ...base, note: 'n'.repeat(2001) },
-      { ...base, code: 'INV-99999' },
       { ...base, archivedAt: null },
     ]) {
       expect(createItemBody.safeParse(body).success, JSON.stringify(body)).toBe(false);
@@ -79,6 +88,10 @@ describe('createItemBody', () => {
 });
 
 describe('updateItemBody', () => {
+  it('takes null to clear the location', () => {
+    expect(updateItemBody.parse({ version: 1, locationId: null })).toEqual({ version: 1, locationId: null });
+  });
+
   it('needs the version and at least one field; null clears an optional one', () => {
     expect(updateItemBody.parse({ version: 2, manufacturerId: null, warrantyUntil: null })).toEqual({
       version: 2,
@@ -91,11 +104,10 @@ describe('updateItemBody', () => {
     expect(updateItemBody.safeParse({ version: 0, name: 'x' }).success).toBe(false);
   });
 
-  it('cannot clear the name or the location, and applies the create checks', () => {
+  it('clears the location with null, not the name, and applies the create checks', () => {
     for (const body of [
       { version: 1, name: null },
       { version: 1, name: ' ' },
-      { version: 1, locationId: null },
       { version: 1, manufactureYear: new Date().getFullYear() + 1 },
       { version: 1, documentsUrl: 'http://drive.google.com/x' },
       { version: 1, externalIds: [{ source: 'S' }] },

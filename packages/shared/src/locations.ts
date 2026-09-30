@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codeRef, hasChange, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
+import { codeRef, humanCode, hasChange, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
 import { searchPageQuery, versionField } from './http.ts';
 
 export const locationSchema = z.object({
@@ -25,16 +25,8 @@ export const locationListSchema = pageOf(locationSchema);
 /** Longest text each field takes; the location form checks the same limits before sending. */
 export const locationLimits = { name: 120, address: 200, note: 2000 } as const;
 
-/**
- * A location's human ID, chosen on creation and fixed afterwards (it is the content of a QR label).
- * Upper-cased so `sklad-a` and `SKLAD-A` cannot both exist, and limited to characters that are safe
- * in the `/q/<code>` URL.
- */
-export const locationCode = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .regex(/^[A-Z0-9][A-Z0-9._-]{0,29}$/);
+/** A location's human ID, chosen on creation and fixed afterwards. */
+export const locationCode = humanCode;
 
 const locationFields = {
   name: requiredText(locationLimits.name),
