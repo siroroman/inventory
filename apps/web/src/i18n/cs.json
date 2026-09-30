@@ -106,7 +106,9 @@
     "itemsEmptyTitle": "Žádné položky",
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky.",
     "edit": "Upravit",
-    "addSubLocation": "Přidat podlokalitu"
+    "addSubLocation": "Přidat podlokalitu",
+    "subLocationsEmptyTitle": "Žádné podlokality",
+    "subLocationsEmptyHint": "Tato lokalita zatím nemá žádné podlokality."
   },
   "locationForm": {
     "createTitle": "Nová lokalita",

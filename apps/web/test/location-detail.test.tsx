@@ -119,13 +119,15 @@ describe('location detail: sub-locations and items', () => {
     expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
   });
 
-  it('keeps an empty sub-locations section for a writer, with the button to add the first one', async () => {
+  it('keeps an empty sub-locations section for a writer, with an empty box and the button to add the first one', async () => {
     const leaf = { ...sub, childCount: 0 };
     const calls = api(leaf);
     renderApp(`/locations/${leaf.id}`);
     const section = within((await screen.findByRole('heading', { level: 2, name: 'Podlokality (0)' })).closest('section')!);
     expect(section.getByRole('link', { name: 'Přidat podlokalitu' })).toHaveAttribute('href', `/locations/new?parentId=${leaf.id}`);
-    expect(section.queryByText('Žádné podlokality')).not.toBeInTheDocument();
+    // The same empty box as the items have, without asking the API for a list that is known to be empty.
+    expect(section.getByText('Žádné podlokality')).toBeInTheDocument();
+    expect(section.getByText('Tato lokalita zatím nemá žádné podlokality.')).toBeInTheDocument();
     expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
   });
 

@@ -5,7 +5,7 @@ import { ChevronRight, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
-import { PagedList } from '@/components/paged-list';
+import { EmptyState, PagedList } from '@/components/paged-list';
 import { RouteNotFound, RoutePending } from '@/components/route-states';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -111,14 +111,16 @@ function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boo
         )
       }
     >
-      {location.childCount > 0 && (
-      <PagedList
-        query={query}
-        searching={false}
-        empty={{ title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }}
-        columns={columns}
-        card={card}
-      />
+      {location.childCount > 0 ? (
+        <PagedList
+          query={query}
+          searching={false}
+          empty={{ title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }}
+          columns={columns}
+          card={card}
+        />
+      ) : (
+        <EmptyState title={t('locationDetail.subLocationsEmptyTitle')} hint={t('locationDetail.subLocationsEmptyHint')} />
       )}
     </Section>
   );
