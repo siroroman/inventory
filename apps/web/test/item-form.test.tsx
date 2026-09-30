@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { item, location, page, record, ref } from './fixtures.ts';
@@ -123,29 +123,31 @@ describe('new item', () => {
     expect(screen.getByRole('button', { name: 'Uložit' })).toBeEnabled();
   });
 
-  it('asks before leaving with unsaved changes', async () => {
+  it('asks in the page before leaving with unsaved changes', async () => {
     api();
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const confirm = vi.spyOn(window, 'confirm');
     const user = userEvent.setup();
     renderApp('/items/new');
 
     await user.type(await screen.findByLabelText('Název'), 'Myčka');
     await user.click(screen.getByRole('link', { name: 'Zrušit' }));
-    expect(confirm).toHaveBeenCalledWith('Máte neuložené změny. Opravdu chcete odejít?');
-    expect(screen.getByRole('heading', { name: 'Nová položka' })).toBeInTheDocument();
+    const dialog = await screen.findByRole('alertdialog', { name: 'Zahodit neuložené změny?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Zůstat na stránce' }));
+    expect(screen.getByLabelText('Název')).toHaveValue('Myčka');
 
     await user.click(screen.getByRole('link', { name: 'Zrušit' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Opustit stránku' }));
     expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   it('leaves without asking when nothing was typed', async () => {
     api();
-    const confirm = vi.spyOn(window, 'confirm');
     const user = userEvent.setup();
     renderApp('/items/new');
     await user.click(await screen.findByRole('link', { name: 'Zrušit' }));
     expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
-    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
   it('does not let a reader in', async () => {

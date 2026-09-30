@@ -1,12 +1,13 @@
 import type { ItemDetailDto } from '@inventory/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useBlocker, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { Plus, Trash2 } from 'lucide-react';
 import { type ReactNode, useRef } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { UnsavedChangesGuard } from '@/components/unsaved-changes-guard';
 import { SearchPicker } from '@/components/search-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,11 +77,8 @@ export function ItemForm({ item, onReload }: Props) {
   } = useForm<ItemFormValues>({ resolver: zodResolver(itemFormSchema), defaultValues: defaults });
   const externalIds = useFieldArray({ control, name: 'externalIds' });
 
-  // Leaving with unsaved changes asks first (in-app navigation and closing the tab).
-  useBlocker({
-    shouldBlockFn: () => isDirty && !saved.current && !window.confirm(t('itemForm.discardConfirm')),
-    enableBeforeUnload: () => isDirty && !saved.current,
-  });
+  // Leaving with unsaved changes asks first; a saved form is not "unsaved" any more.
+  const unsaved = () => isDirty && !saved.current;
 
   const save = useMutation({
     mutationFn: async (values: ItemFormValues) => {
@@ -119,6 +117,7 @@ export function ItemForm({ item, onReload }: Props) {
       onSubmit={handleSubmit((values) => save.mutate(values))}
       className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4"
     >
+      <UnsavedChangesGuard changed={unsaved} />
       <h1 className="text-xl font-semibold">{item ? t('itemForm.editTitle') : t('itemForm.newTitle')}</h1>
 
       <Section title={t('item.sections.basic')}>

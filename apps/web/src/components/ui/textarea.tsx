@@ -2,7 +2,7 @@ import type * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-// Same look as Input; 16 px text so iOS does not zoom the page when a field is focused.
+// Same look as Input; 16 px text so iOS does not zoom on focus.
 function Textarea({ className, ...props }: React.ComponentProps<'textarea'>) {
   return (
     <textarea

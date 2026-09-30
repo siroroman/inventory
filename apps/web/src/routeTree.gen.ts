@@ -14,8 +14,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppItemsNewRouteImport } from './routes/_app/items/new'
 import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
+import { Route as AppLocationsNewRouteImport } from './routes/_app/locations/new'
 import { Route as AppItemsIdIndexRouteImport } from './routes/_app/items/$id/index'
 import { Route as AppItemsIdEditRouteImport } from './routes/_app/items/$id/edit'
+import { Route as AppLocationsIdEditRouteImport } from './routes/_app/locations/$id_.edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -41,6 +43,11 @@ const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
   path: '/locations/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLocationsNewRoute = AppLocationsNewRouteImport.update({
+  id: '/locations/new',
+  path: '/locations/new',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppItemsIdIndexRoute = AppItemsIdIndexRouteImport.update({
   id: '/items/$id/',
   path: '/items/$id/',
@@ -51,13 +58,20 @@ const AppItemsIdEditRoute = AppItemsIdEditRouteImport.update({
   path: '/items/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLocationsIdEditRoute = AppLocationsIdEditRouteImport.update({
+  id: '/locations/$id_/edit',
+  path: '/locations/$id/edit',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
+  '/locations/new': typeof AppLocationsNewRoute
   '/items/$id/edit': typeof AppItemsIdEditRoute
+  '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/items/$id/': typeof AppItemsIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -65,7 +79,9 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
+  '/locations/new': typeof AppLocationsNewRoute
   '/items/$id/edit': typeof AppItemsIdEditRoute
+  '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/items/$id': typeof AppItemsIdIndexRoute
 }
 export interface FileRoutesById {
@@ -75,7 +91,9 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/items/new': typeof AppItemsNewRoute
   '/_app/locations/$id': typeof AppLocationsIdRoute
+  '/_app/locations/new': typeof AppLocationsNewRoute
   '/_app/items/$id/edit': typeof AppItemsIdEditRoute
+  '/_app/locations/$id_/edit': typeof AppLocationsIdEditRoute
   '/_app/items/$id/': typeof AppItemsIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -85,7 +103,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/items/new'
     | '/locations/$id'
+    | '/locations/new'
     | '/items/$id/edit'
+    | '/locations/$id/edit'
     | '/items/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -93,7 +113,9 @@ export interface FileRouteTypes {
     | '/'
     | '/items/new'
     | '/locations/$id'
+    | '/locations/new'
     | '/items/$id/edit'
+    | '/locations/$id/edit'
     | '/items/$id'
   id:
     | '__root__'
@@ -102,7 +124,9 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/items/new'
     | '/_app/locations/$id'
+    | '/_app/locations/new'
     | '/_app/items/$id/edit'
+    | '/_app/locations/$id_/edit'
     | '/_app/items/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -148,6 +172,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLocationsIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/locations/new': {
+      id: '/_app/locations/new'
+      path: '/locations/new'
+      fullPath: '/locations/new'
+      preLoaderRoute: typeof AppLocationsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/items/$id/': {
       id: '/_app/items/$id/'
       path: '/items/$id'
@@ -162,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppItemsIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/locations/$id_/edit': {
+      id: '/_app/locations/$id_/edit'
+      path: '/locations/$id/edit'
+      fullPath: '/locations/$id/edit'
+      preLoaderRoute: typeof AppLocationsIdEditRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -169,7 +207,9 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppItemsNewRoute: typeof AppItemsNewRoute
   AppLocationsIdRoute: typeof AppLocationsIdRoute
+  AppLocationsNewRoute: typeof AppLocationsNewRoute
   AppItemsIdEditRoute: typeof AppItemsIdEditRoute
+  AppLocationsIdEditRoute: typeof AppLocationsIdEditRoute
   AppItemsIdIndexRoute: typeof AppItemsIdIndexRoute
 }
 
@@ -177,7 +217,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppItemsNewRoute: AppItemsNewRoute,
   AppLocationsIdRoute: AppLocationsIdRoute,
+  AppLocationsNewRoute: AppLocationsNewRoute,
   AppItemsIdEditRoute: AppItemsIdEditRoute,
+  AppLocationsIdEditRoute: AppLocationsIdEditRoute,
   AppItemsIdIndexRoute: AppItemsIdIndexRoute,
 }
 
