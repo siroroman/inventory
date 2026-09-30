@@ -413,37 +413,50 @@ describe('location form: editing', () => {
 });
 
 describe('location form: unsaved changes', () => {
-  it('asks before leaving a changed form, and stays when the answer is no', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    api();
-    renderApp('/locations/new');
-    await userEvent.type(await screen.findByLabelText('Název'), 'Rozdělané');
-    await userEvent.click(screen.getByRole('link', { name: 'Zrušit' }));
+  const dialog = () => screen.findByRole('alertdialog', { name: 'Zahodit neuložené změny?' });
 
-    expect(confirm).toHaveBeenCalledWith('Máte neuložené změny. Opravdu chcete stránku opustit?');
-    expect(screen.getByLabelText('Název')).toHaveValue('Rozdělané');
-  });
-
-  it('leaves when the answer is yes', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('asks in the page before leaving a changed form, and stays on "Zůstat"', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
     api();
     const { router } = renderApp('/locations/new');
     await userEvent.type(await screen.findByLabelText('Název'), 'Rozdělané');
     await userEvent.click(screen.getByRole('link', { name: 'Zrušit' }));
+
+    await userEvent.click(within(await dialog()).getByRole('button', { name: 'Zůstat na stránce' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Název')).toHaveValue('Rozdělané');
+    expect(router.state.location.pathname).toBe('/locations/new');
+    // A browser confirm is not shown everywhere, so the guard must not depend on one.
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('leaves on "Opustit stránku"', async () => {
+    api();
+    const { router } = renderApp('/locations/new');
+    await userEvent.type(await screen.findByLabelText('Název'), 'Rozdělané');
+    await userEvent.click(screen.getByRole('link', { name: 'Zrušit' }));
+    await userEvent.click(within(await dialog()).getByRole('button', { name: 'Opustit stránku' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('guards the logo link in the top bar the same way', async () => {
+    api();
+    const { router } = renderApp('/locations/new');
+    await userEvent.type(await screen.findByLabelText('Název'), 'Rozdělané');
+    await userEvent.click(screen.getByRole('link', { name: 'Evidence majetku' }));
+    await userEvent.click(within(await dialog()).getByRole('button', { name: 'Opustit stránku' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });
 
   it('leaves an untouched form without asking', async () => {
-    const confirm = vi.spyOn(window, 'confirm');
     api();
     const { router } = renderApp('/locations/new');
     await userEvent.click(await screen.findByRole('link', { name: 'Zrušit' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
-    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
   it('does not ask after a successful save', async () => {
-    const confirm = vi.spyOn(window, 'confirm');
     const created = saved();
     api({
       'POST /api/v1/locations': () => jsonResponse(created, { status: 201 }),
@@ -455,7 +468,7 @@ describe('location form: unsaved changes', () => {
     await userEvent.selectOptions(await screen.findByLabelText('Typ'), 'Centrála');
     await userEvent.click(screen.getByRole('button', { name: 'Uložit' }));
     await screen.findByRole('heading', { level: 1, name: 'Nový sklad' });
-    expect(confirm).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 });
 

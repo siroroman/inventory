@@ -31,6 +31,12 @@
     "noResultsTitle": "Nic jsme nenašli",
     "noResultsHint": "Zkuste upravit hledaný text."
   },
+  "form": {
+    "discardTitle": "Zahodit neuložené změny?",
+    "discardHint": "Vyplněné údaje se neuloží.",
+    "stay": "Zůstat na stránce",
+    "leave": "Opustit stránku"
+  },
   "auth": {
     "tagline": "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě.",
     "email": "E-mail",
@@ -133,7 +139,6 @@
     "save": "Uložit",
     "saving": "Ukládám…",
     "cancel": "Zrušit",
-    "discard": "Máte neuložené změny. Opravdu chcete stránku opustit?",
     "reload": "Načíst aktuální údaje"
   },
   "item": {

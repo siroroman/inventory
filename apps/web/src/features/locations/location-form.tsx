@@ -1,12 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type LocationDto, locationCode, locationLimits } from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useBlocker, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { UnsavedChangesGuard } from '@/components/unsaved-changes-guard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -143,10 +144,6 @@ export function LocationForm({ location, initialParent = null }: Props) {
 
   // Leaving with unsaved changes asks first; a saved form is not "unsaved" any more.
   const unsaved = () => isDirty && !saved.current;
-  useBlocker({
-    shouldBlockFn: () => unsaved() && !window.confirm(t('locationForm.discard')),
-    enableBeforeUnload: unsaved,
-  });
 
   const save = useMutation({
     mutationFn: (values: FormValues) => {
@@ -203,6 +200,7 @@ export function LocationForm({ location, initialParent = null }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-8">
+      <UnsavedChangesGuard changed={unsaved} />
       <h1 className="px-4 pt-2 pb-4 text-xl font-semibold">
         {location ? t('locationForm.editTitle') : initialParent ? t('locationForm.createSubTitle') : t('locationForm.createTitle')}
       </h1>
