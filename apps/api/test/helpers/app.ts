@@ -15,7 +15,7 @@ export const BASE_URL = 'http://localhost:8080';
 export const TEST_SECRET = 'test-secret-that-is-at-least-32-characters';
 export const TEST_PASSWORD = 'correct horse battery staple';
 
-type TestAppOptions = { isProduction?: boolean; google?: AuthDeps['google'] };
+type TestAppOptions = { isProduction?: boolean; google?: AuthDeps['google']; staticRoot?: string };
 
 export function createTestAuth(db: Db, options: TestAppOptions = {}) {
   return createAuth({
@@ -39,6 +39,7 @@ export function createTestApp(db: Db, options: TestAppOptions = {}) {
     isProduction: options.isProduction ?? false,
     log: (entry) => logs.push(entry),
     services: createServices({ db, storage: bucket.storage, invites: invitations.invites }),
+    staticRoot: options.staticRoot,
   });
   return { app, auth, logs, bucket, invitations };
 }

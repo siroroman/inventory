@@ -8,6 +8,8 @@ const schema = z
     /** Public origin of the app; also the base URL Better Auth builds links and cookies for. */
     BETTER_AUTH_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32, 'must be at least 32 characters'),
+    /** Built SPA to serve (the Docker image sets it); unset in development, where Vite serves it. */
+    STATIC_DIR: z.string().min(1).optional(),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   })
@@ -21,6 +23,7 @@ export type Config = {
   isProduction: boolean;
   port: number;
   databaseUrl: string;
+  staticDir?: string;
   auth: {
     baseUrl: string;
     secret: string;
@@ -44,6 +47,7 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
     isProduction: e.NODE_ENV === 'production',
     port: e.PORT,
     databaseUrl: e.DATABASE_URL,
+    staticDir: e.STATIC_DIR,
     auth: {
       baseUrl: e.BETTER_AUTH_URL,
       secret: e.BETTER_AUTH_SECRET,
