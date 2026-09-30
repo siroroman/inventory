@@ -30,3 +30,10 @@ SECRET_AUTH=better-auth-secret
 
 # Local port of the Cloud SQL Auth Proxy (5432 is the local dev database).
 PROXY_PORT=5433
+
+# GitHub Actions deploys (setup-github.sh, .github/workflows/deploy.yml).
+GITHUB_REPO=siroroman/inventory
+DEPLOY_SA_NAME=inventory-deploy   # the workflow's identity: push images, run the job, deploy
+DEPLOY_SA="${DEPLOY_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+WIF_POOL=github                   # Workload Identity pool and provider trusting GitHub's OIDC tokens
+WIF_PROVIDER=github
