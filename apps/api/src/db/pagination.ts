@@ -43,9 +43,10 @@ export function decodeIdCursor(cursor: string): number {
 
 /**
  * Rows after the cursor in `ORDER BY name, id` order. The name column's collation (cs_cz) decides
- * the comparison, so pages continue exactly where the previous one ended.
+ * the comparison, so pages continue exactly where the previous one ended. `name` may also be another
+ * cs_cz text expression the list is ordered by, such as a location's path.
  */
-export function afterName(name: AnyColumn, id: AnyColumn, cursor: string | undefined): SQL | undefined {
+export function afterName(name: AnyColumn | SQL, id: AnyColumn, cursor: string | undefined): SQL | undefined {
   if (!cursor) return undefined;
   const key = decodeNameCursor(cursor);
   return sql`(${name}, ${id}) > (${key.name}, ${key.id}::uuid)`;

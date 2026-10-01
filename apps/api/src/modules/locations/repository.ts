@@ -20,10 +20,16 @@ export type LocationPatch = Partial<LocationFields> & { updatedBy: string };
 /**
  * `parentId: null` lists top-level locations, an id lists that location's direct children, and
  * leaving it out searches every level (used when picking a location for an item). `q` searches by
- * name and code, along the whole path (see `matchesSearch`).
+ * name and code, along the whole path (see `matchesSearch`); `withSubLocations` adds everything
+ * below each match and orders the list by path, so the sub-locations follow the one they are in.
  * `archived` lists the archived locations instead of the active ones.
  */
-export type LocationFilter = { parentId?: string | null; q?: string; archived?: boolean };
+export type LocationFilter = {
+  parentId?: string | null;
+  q?: string;
+  withSubLocations?: boolean;
+  archived?: boolean;
+};
 
 export type PathSegment = { id: string; code: string; name: string };
 export type SubtreeCounts = { itemCount: number; childCount: number };
@@ -57,12 +63,38 @@ function matchesSearch(q: string): SQL | undefined {
   return and(or(...own), onPath);
 }
 
+/** The locations matching `match` and their active sub-locations at every level. */
+function andBelow(match: SQL): SQL {
+  // The inner unaliased `locations` is the one `match` refers to.
+  return sql`${locations.id} IN (
+    WITH RECURSIVE sub (id) AS (
+      SELECT locations.id FROM locations WHERE ${match}
+      UNION
+      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
+    )
+    SELECT sub.id FROM sub
+  )`;
+}
+
+/**
+ * The names from the top-level location down, "Centrála Hradec Králové › Zasedačka", in Czech
+ * collation. Ordered by it, every location follows the one it is in (› sorts before letters/digits).
+ */
+const pathName = sql<string>`((
+  WITH RECURSIVE up (parent_id, name, depth) AS (
+    SELECT p.parent_id, p.name, 0 FROM locations p WHERE p.id = ${locations.id}
+    UNION ALL
+    SELECT p.parent_id, p.name, up.depth + 1 FROM locations p JOIN up ON p.id = up.parent_id
+  )
+  SELECT string_agg(up.name, ' › ' ORDER BY up.depth DESC) FROM up
+) COLLATE cs_cz)`;
+
 function listWhere(filter: LocationFilter): SQL[] {
   const conditions: SQL[] = [filter.archived ? isNotNull(locations.archivedAt) : isNull(locations.archivedAt)];
   if (filter.parentId === null) conditions.push(isNull(locations.parentId));
   else if (filter.parentId) conditions.push(eq(locations.parentId, filter.parentId));
   const search = filter.q ? matchesSearch(filter.q) : undefined;
-  if (search) conditions.push(search);
+  if (search) conditions.push(filter.withSubLocations ? andBelow(search) : search);
   return conditions;
 }
 
@@ -77,19 +109,24 @@ export function createLocationRepository(db: DbExecutor) {
       return row;
     },
 
-    /** Active (or, with `archived`, archived) locations ordered by name (Czech collation). */
+    /**
+     * Active (or, with `archived`, archived) locations ordered by name (Czech collation), or by
+     * path with `withSubLocations`.
+     */
     async list(
       filter: LocationFilter,
       page: { limit: number; cursor?: string },
     ): Promise<Page<LocationWithType>> {
+      const sortKey = filter.withSubLocations ? pathName : locations.name;
       const rows = await db
-        .select(withType)
+        .select({ ...withType, sortKey })
         .from(locations)
         .leftJoin(locationTypes, eq(locationTypes.id, locations.locationTypeId))
-        .where(and(...listWhere(filter), afterName(locations.name, locations.id, page.cursor)))
-        .orderBy(asc(locations.name), asc(locations.id))
+        .where(and(...listWhere(filter), afterName(sortKey, locations.id, page.cursor)))
+        .orderBy(asc(sortKey), asc(locations.id))
         .limit(page.limit + 1);
-      return toPage(rows, page.limit, (r) => ({ name: r.name, id: r.id }));
+      const result = toPage(rows, page.limit, (r) => ({ name: r.sortKey, id: r.id }));
+      return { ...result, items: result.items.map(({ sortKey: _, ...row }) => row) };
     },
 
     async count(filter: LocationFilter): Promise<number> {

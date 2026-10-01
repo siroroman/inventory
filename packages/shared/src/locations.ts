@@ -53,7 +53,13 @@ export type UpdateLocationBody = z.infer<typeof updateLocationBody>;
 
 /**
  * `?parentId=` lists that location's direct children. Without it the list is the top-level
- * locations, or, when `q` is given, every level (to pick a location for an item). With
- * `archived=true` it is the archived locations at every level, narrowed by `parentId` and `q`.
+ * locations, or, when `q` is given, every level (to pick a location for an item); such a search
+ * with `withSubLocations=true` also lists everything below each match, ordered by path so the
+ * sub-locations follow the one they are in. With `archived=true` it is the archived locations at
+ * every level, narrowed by `parentId` and `q`.
  */
-export const locationListQuery = searchPageQuery.extend({ ...archivedQuery.shape, parentId: z.uuid().optional() });
+export const locationListQuery = searchPageQuery.extend({
+  ...archivedQuery.shape,
+  parentId: z.uuid().optional(),
+  withSubLocations: z.literal('true').optional(),
+});

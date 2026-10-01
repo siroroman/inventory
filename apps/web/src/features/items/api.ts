@@ -14,11 +14,15 @@ export const itemDetailQueryOptions = (id: string) =>
     queryFn: () => unwrap(api.api.v1.items[':id'].$get({ param: { id } })),
   });
 
-/** Locations at every level matching `q` (the top-level ones without it), labelled with their full path. */
+/**
+ * Locations at every level matching `q`, each followed by its sub-locations (the top-level ones
+ * without `q`), labelled with their full path.
+ */
 export const locationPickerOptions = (q: string) => ({
   queryKey: ['locations', 'item-picker', q] as const,
   queryFn: async () => {
-    const page = await unwrap(api.api.v1.locations.$get({ query: { q: q || undefined, limit: '20' } }));
+    const query = q ? { q, withSubLocations: 'true' as const, limit: '20' } : { limit: '20' };
+    const page = await unwrap(api.api.v1.locations.$get({ query }));
     return page.items.map((location) => ({ id: location.id, label: location.path.map((p) => p.name).join(' › ') }));
   },
 });

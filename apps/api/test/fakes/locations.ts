@@ -53,14 +53,25 @@ export function createFakeLocationStore() {
       return row && withType(row);
     },
     async list(filter, page) {
+      const found = (l: Location) =>
+        matchesSearch(l, filter.q ?? '') ||
+        // Below a match, through active sub-locations only.
+        (!!filter.withSubLocations && pathOf(l).slice(0, -1).some((above, i, path) =>
+          matchesSearch(above, filter.q ?? '') && path.slice(i + 1).every((l) => !l.archivedAt)));
       const rows = state.locations.filter(
         (l) =>
           !!l.archivedAt === !!filter.archived &&
           (filter.parentId === undefined || l.parentId === filter.parentId) &&
-          matchesSearch(l, filter.q ?? ''),
+          found(l),
       );
-      const result = fakePageByName(rows, page);
-      return { ...result, items: result.items.map(withType) };
+      // Ordered by path ("A › B") with `withSubLocations`, by name otherwise.
+      const keyed = rows.map((row) => ({
+        row,
+        id: row.id,
+        name: filter.withSubLocations ? pathOf(row).map((l) => l.name).join(' › ') : row.name,
+      }));
+      const result = fakePageByName(keyed, page);
+      return { ...result, items: result.items.map(({ row }) => withType(row)) };
     },
     async count(filter) {
       return (await locations.list(filter, { limit: Number.MAX_SAFE_INTEGER })).items.length;
