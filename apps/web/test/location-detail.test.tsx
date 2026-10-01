@@ -169,11 +169,15 @@ describe('location detail: sub-locations and items', () => {
     const items = await within(screen.getByRole('region', { name: 'Položky (12)' })).findByRole('table');
     expect(within(children).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Název',
-      'Adresa',
       'Položky',
       'Podlokality',
     ]);
-    expect(within(items).getByRole('columnheader', { name: 'Servis' })).toBeInTheDocument();
+    expect(within(items).queryByRole('columnheader', { name: 'Servis' })).not.toBeInTheDocument();
+    // Both tables give the name the same width, so the ID lines up with the item count above it.
+    expect(within(items).getByRole('columnheader', { name: 'Název' })).toHaveClass('w-80');
+    expect(within(children).getByRole('columnheader', { name: 'Název' })).toHaveClass('w-80');
+    expect(within(children).getByRole('columnheader', { name: 'Položky' })).toHaveClass('w-28');
+    expect(within(items).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-28');
   });
 });
 

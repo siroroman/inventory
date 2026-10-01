@@ -119,35 +119,30 @@ describe('home: desktop table', () => {
 
     const table = await screen.findByRole('table');
     const headings = within(table).getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headings).toEqual(['Název', 'Typ', 'Adresa', 'Položky', 'Podlokality']);
+    expect(headings).toEqual(['Název', 'Typ', 'Adresa', 'Podlokality', 'Položky']);
     const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
-    expect(cells).toEqual(['Centrála Praha', 'Centrála', 'Vinohradská 12, Praha', '38 položek', '4 podlokality']);
+    expect(cells).toEqual(['Centrála Praha', 'Centrála', 'Vinohradská 12, Praha', '4 podlokality', '38 položek']);
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
-  it('shows items as a table, with the service status in its own column', async () => {
+  it('shows items as a table', async () => {
     stubWideScreen(true);
-    const soon = new Date();
-    soon.setDate(soon.getDate() + 5);
-    const nextServiceOn = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, '0')}-${String(soon.getDate()).padStart(2, '0')}`;
-    api({ items: () => page([item({ nextServiceOn })]) });
+    api({ items: () => page([item()]) });
     renderApp('/?tab=items');
 
     const table = await screen.findByRole('table');
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Název',
       'ID',
-      'Lokalita',
       'Výrobce a model',
-      'Servis',
+      'Lokalita',
     ]);
     const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
     expect(cells).toEqual([
       'Konvektomat',
       'INV-00042',
-      'Centrála Praha › Přízemí › Teplá kuchyně',
       'Rational SCC 101',
-      'Servis do 30 dní',
+      'Centrála Praha › Přízemí › Teplá kuchyně',
     ]);
   });
 

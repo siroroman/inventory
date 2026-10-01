@@ -30,7 +30,15 @@ type Props<T extends { id: string }> = {
   columns: Column<T>[];
   /** ...and a list of these cards below it. */
   card: (item: T) => ReactNode;
+  /** Columns keep their set widths and the spare room goes to the right instead of widening the first one. */
+  packed?: boolean;
 };
+
+/**
+ * Width of the name column in the tables on a location's page; shared so the sub-locations table
+ * and the items table line up (the ID under the item count).
+ */
+export const nestedNameColumnWidth = 'w-80';
 
 // Tailwind's `md` breakpoint.
 const wideScreen = '(min-width: 768px)';
@@ -66,6 +74,7 @@ export function PagedList<T extends { id: string }>({
   empty,
   columns,
   card,
+  packed,
 }: Props<T>) {
   const { t } = useTranslation();
   const wide = useMediaQuery(wideScreen);
@@ -93,6 +102,12 @@ export function PagedList<T extends { id: string }>({
     <div aria-busy={query.isPlaceholderData} className={query.isPlaceholderData ? 'opacity-60' : undefined}>
       {wide ? (
         <table className="w-full table-fixed text-left">
+          {packed && (
+            <colgroup>
+              <col span={columns.length} />
+              <col />
+            </colgroup>
+          )}
           <thead>
             <tr className="border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
               {columns.map((column) => (
