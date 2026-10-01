@@ -59,6 +59,20 @@ describe('location repository', () => {
     expect(await repo().count({ q: 'PRI' })).toBe(1); // Přízemí
   });
 
+  it('searches by code, and by words spread over the path', async () => {
+    const { kuchyne } = await tree();
+    const names = async (q: string) => (await repo().list({ q }, { limit: 50 })).items.map((l) => l.name);
+    expect(await names(kuchyne.code.toLowerCase())).toEqual(['Kuchyně']);
+    expect(await names('kuchyne praha')).toEqual(['Kuchyně']);
+    expect(await names('  praha   PRIZ ')).toEqual(['Přízemí']);
+    expect(await names('LOC-001 kuch')).toEqual(['Kuchyně']);
+    // A word must also be in the location itself: "praha" is not every location below Praha.
+    expect(await names('praha')).toEqual(['Centrála Praha']);
+    expect(await names('centrala praha')).toEqual(['Centrála Praha']);
+    expect(await names('kuchyne brno')).toEqual([]);
+    expect(await repo().count({ q: 'kuchyne praha' })).toBe(1);
+  });
+
   it('pages in Czech order and hides archived locations', async () => {
     const { user, add } = await setup();
     for (const name of ['Žatec', 'Cheb', 'Čáslav', 'Brno', 'Říčany']) await add(name);

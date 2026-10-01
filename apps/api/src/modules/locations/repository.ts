@@ -1,8 +1,8 @@
-import { and, asc, count, eq, getTableColumns, isNotNull, isNull, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { locations, locationTypes } from '../../db/schema/index.ts';
-import { containsText } from '../../db/search.ts';
+import { containsText, searchWords } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
 
 export type Location = typeof locations.$inferSelect;
@@ -19,7 +19,8 @@ export type LocationPatch = Partial<LocationFields> & { updatedBy: string };
 
 /**
  * `parentId: null` lists top-level locations, an id lists that location's direct children, and
- * leaving it out searches every level (used when picking a location for an item).
+ * leaving it out searches every level (used when picking a location for an item). `q` searches by
+ * name and code, along the whole path (see `matchesSearch`).
  * `archived` lists the archived locations instead of the active ones.
  */
 export type LocationFilter = { parentId?: string | null; q?: string; archived?: boolean };
@@ -32,11 +33,36 @@ const withType = {
   type: { id: locationTypes.id, code: locationTypes.code, name: locationTypes.name },
 };
 
+/**
+ * A location matches a search when every word is in the name or code of the location or of one of
+ * the locations above it, and at least one word is in its own name or code. "zasedacka hrad" finds
+ * Zasedačka in Centrála Hradec Králové, but "hrad" alone finds only Hradec, not everything below it.
+ */
+function matchesSearch(q: string): SQL | undefined {
+  const words = searchWords(q);
+  if (words.length === 0) return undefined;
+  const own = words.map((word) => or(containsText(locations.name, word), containsText(locations.code, word)));
+  // Each location with the codes and names of its whole path, top-level first. The words hold no
+  // whitespace, so none can match across two segments.
+  const onPath = sql`${locations.id} IN (
+    WITH RECURSIVE tree (id, path) AS (
+      SELECT l.id, l.code || ' ' || (l.name COLLATE "default")
+        FROM locations l WHERE l.parent_id IS NULL
+      UNION ALL
+      SELECT c.id, tree.path || ' ' || c.code || ' ' || (c.name COLLATE "default")
+        FROM locations c JOIN tree ON c.parent_id = tree.id
+    )
+    SELECT tree.id FROM tree WHERE ${and(...words.map((word) => containsText(sql`tree.path`, word)))}
+  )`;
+  return and(or(...own), onPath);
+}
+
 function listWhere(filter: LocationFilter): SQL[] {
   const conditions: SQL[] = [filter.archived ? isNotNull(locations.archivedAt) : isNull(locations.archivedAt)];
   if (filter.parentId === null) conditions.push(isNull(locations.parentId));
   else if (filter.parentId) conditions.push(eq(locations.parentId, filter.parentId));
-  if (filter.q) conditions.push(containsText(locations.name, filter.q));
+  const search = filter.q ? matchesSearch(filter.q) : undefined;
+  if (search) conditions.push(search);
   return conditions;
 }
 

@@ -81,7 +81,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - A location's item count includes items in all of its sub-locations.
 - **Items** search placeholder: "Search by name, ID, serial number, external ID…". Mobile: thumbnail, name, ID with the full location path, manufacturer and model. Desktop: table with Name, ID, Location, Manufacturer & model, Service.
 - Status badges: "Service overdue" and "Service due within 30 days".
-- Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path.
+- Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path. Location search (the Locations tab and the location pickers) covers name and ID; several words may be spread over the path, each word in the location or one above it and at least one in the location itself ("zasedačka hradec" finds Zasedačka in Centrála Hradec Králové).
 - Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
 - A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it.
 

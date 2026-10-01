@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { searchWords } from '../../src/db/search.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type {
   Location,
@@ -35,6 +36,17 @@ export function createFakeLocationStore() {
   const activeChildren = (id: string) => state.locations.filter((l) => l.parentId === id && !l.archivedAt);
   const subtree = (id: string): string[] => [id, ...activeChildren(id).flatMap((c) => subtree(c.id))];
 
+  const pathOf = (l: Location): Location[] => [...(l.parentId ? pathOf(byId(l.parentId)!) : []), l];
+  // Like the repository: every word on the path, at least one in the location itself.
+  const matchesSearch = (l: Location, q: string) => {
+    const words = searchWords(q);
+    const hit = (word: string) => (segment: Location) =>
+      fakeContains(segment.name, word) || fakeContains(segment.code, word);
+    return (
+      words.length === 0 || (words.some((word) => hit(word)(l)) && words.every((word) => pathOf(l).some(hit(word))))
+    );
+  };
+
   const locations: LocationRepository = {
     async findById(id) {
       const row = byId(id);
@@ -45,7 +57,7 @@ export function createFakeLocationStore() {
         (l) =>
           !!l.archivedAt === !!filter.archived &&
           (filter.parentId === undefined || l.parentId === filter.parentId) &&
-          (!filter.q || fakeContains(l.name, filter.q)),
+          matchesSearch(l, filter.q ?? ''),
       );
       const result = fakePageByName(rows, page);
       return { ...result, items: result.items.map(withType) };

@@ -54,6 +54,20 @@ describe('GET /locations', () => {
     expect(body.items[0]?.path.map((s) => s.name)).toEqual(['Praha', 'Teplá kuchyňa']);
   });
 
+  it('finds a sub-location by its name and a word from a location above it, or by its code', async () => {
+    const { read } = await setup();
+    const hradec = await insertLocation(db().app, { name: 'Centrála Hradec Králové' });
+    const praha = await insertLocation(db().app, { name: 'Centrála Praha' });
+    const room = await insertLocation(db().app, { name: 'Zasedačka', parentId: hradec.id });
+    await insertLocation(db().app, { name: 'Zasedačka', parentId: praha.id });
+
+    const body = await expectJson(await read.get('/locations?q=Zasedacka%20Hrad'), 200, locationListSchema);
+    expect(body.items.map((l) => l.path.map((s) => s.name))).toEqual([['Centrála Hradec Králové', 'Zasedačka']]);
+    expect(body.total).toBe(1);
+    const byCode = await expectJson(await read.get(`/locations?q=${room.code}`), 200, locationListSchema);
+    expect(byCode.items.map((l) => l.id)).toEqual([room.id]);
+  });
+
   it('leaves archived locations out', async () => {
     const { read, write } = await setup();
     const brno = await insertLocation(db().app, { name: 'Brno' });
