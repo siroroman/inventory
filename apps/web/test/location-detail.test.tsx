@@ -173,7 +173,7 @@ describe('location detail: sub-locations and items', () => {
       'Položky',
       'Podlokality',
     ]);
-    expect(within(items).getByRole('columnheader', { name: 'Servis' })).toBeInTheDocument();
+    expect(within(items).queryByRole('columnheader', { name: 'Servis' })).not.toBeInTheDocument();
   });
 });
 

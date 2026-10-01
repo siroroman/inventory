@@ -47,7 +47,6 @@ export function useItemRows() {
       cell: (item) => <span title={pathOf(item)}>{pathOf(item) || t('common.empty')}</span>,
     },
     { header: t('home.items.columns.brand'), cell: brandAndModel },
-    { header: t('home.items.columns.service'), className: 'w-44', cell: serviceBadge },
   ];
 
   const card = (item: ItemListEntryDto) => {

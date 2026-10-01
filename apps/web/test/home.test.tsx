@@ -125,12 +125,9 @@ describe('home: desktop table', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
-  it('shows items as a table, with the service status in its own column', async () => {
+  it('shows items as a table', async () => {
     stubWideScreen(true);
-    const soon = new Date();
-    soon.setDate(soon.getDate() + 5);
-    const nextServiceOn = `${soon.getFullYear()}-${String(soon.getMonth() + 1).padStart(2, '0')}-${String(soon.getDate()).padStart(2, '0')}`;
-    api({ items: () => page([item({ nextServiceOn })]) });
+    api({ items: () => page([item()]) });
     renderApp('/?tab=items');
 
     const table = await screen.findByRole('table');
@@ -139,7 +136,6 @@ describe('home: desktop table', () => {
       'ID',
       'Lokalita',
       'Výrobce a model',
-      'Servis',
     ]);
     const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
     expect(cells).toEqual([
@@ -147,7 +143,6 @@ describe('home: desktop table', () => {
       'INV-00042',
       'Centrála Praha › Přízemí › Teplá kuchyně',
       'Rational SCC 101',
-      'Servis do 30 dní',
     ]);
   });
 

@@ -89,8 +89,7 @@
         "name": "Název",
         "code": "ID",
         "location": "Lokalita",
-        "brand": "Výrobce a model",
-        "service": "Servis"
+        "brand": "Výrobce a model"
       },
       "service": {
         "overdue": "Servis po termínu",
