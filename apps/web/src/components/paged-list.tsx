@@ -34,6 +34,12 @@ type Props<T extends { id: string }> = {
   packed?: boolean;
 };
 
+/**
+ * Width of the name column in the tables on a location's page; shared so the sub-locations table
+ * and the items table line up (the ID under the item count).
+ */
+export const nestedNameColumnWidth = 'w-80';
+
 // Tailwind's `md` breakpoint.
 const wideScreen = '(min-width: 768px)';
 
@@ -96,6 +102,12 @@ export function PagedList<T extends { id: string }>({
     <div aria-busy={query.isPlaceholderData} className={query.isPlaceholderData ? 'opacity-60' : undefined}>
       {wide ? (
         <table className="w-full table-fixed text-left">
+          {packed && (
+            <colgroup>
+              <col span={columns.length} />
+              <col />
+            </colgroup>
+          )}
           <thead>
             <tr className="border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
               {columns.map((column) => (
@@ -103,7 +115,6 @@ export function PagedList<T extends { id: string }>({
                   {column.header}
                 </th>
               ))}
-              {packed && <th aria-hidden />}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -121,7 +132,6 @@ export function PagedList<T extends { id: string }>({
                     {column.cell(item)}
                   </td>
                 ))}
-                {packed && <td aria-hidden />}
               </tr>
             ))}
           </tbody>

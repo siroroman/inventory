@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
-import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { type Column, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -35,7 +35,7 @@ export function useItemRows({ nested }: { nested: boolean }) {
     {
       header: t('home.items.columns.name'),
       primary: true,
-      className: nested ? 'w-80' : undefined,
+      className: nested ? nestedNameColumnWidth : undefined,
       cell: (item) => (
         <>
           <Link to="/items/$id" params={{ id: item.id }} className="hover:underline">

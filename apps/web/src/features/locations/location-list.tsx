@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ListToolbar } from '@/components/list-toolbar';
-import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { type Column, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -64,7 +64,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
     {
       header: t('home.locations.columns.name'),
       primary: true,
-      className: nested ? 'w-80' : undefined,
+      className: nested ? nestedNameColumnWidth : undefined,
       cell: (location) => {
         const above = path(location);
         return (
