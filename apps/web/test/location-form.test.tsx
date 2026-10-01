@@ -226,14 +226,23 @@ describe('location form: adding', () => {
 });
 
 describe('location form: choosing the parent', () => {
+  it('has no parent section on a new top-level location', async () => {
+    api();
+    renderApp('/locations/new');
+    expect(await screen.findByLabelText('Název')).toBeInTheDocument();
+    expect(screen.queryByText('Nadřazená lokalita')).not.toBeInTheDocument();
+    expect(screen.queryByText('Žádná (lokalita nejvyšší úrovně)')).not.toBeInTheDocument();
+  });
+
   it('searches all levels by name and takes the chosen path as the parent', async () => {
     const calls = api({
       'GET /api/v1/locations': (request) =>
         new URL(request.url).searchParams.get('q')
           ? page([location({ name: 'Přízemí', type: null, parentId: hq.id, path: [hq, floor] })])
           : page([location({ name: 'Centrála Praha' })]),
+      [`GET /api/v1/locations/${floor.id}`]: () => jsonResponse(location({ id: floor.id, name: 'Přízemí', type: null, parentId: hq.id, path: [hq, floor] })),
     });
-    renderApp('/locations/new');
+    renderApp(`/locations/new?parentId=${floor.id}`);
     await userEvent.click(await screen.findByRole('button', { name: 'Změnit' }));
 
     // Nothing typed: the top level is offered, with "none" first.
@@ -255,8 +264,10 @@ describe('location form: choosing the parent', () => {
   });
 
   it('does not submit the form when Enter is pressed in the search field', async () => {
-    const calls = api();
-    renderApp('/locations/new');
+    const calls = api({
+      [`GET /api/v1/locations/${floor.id}`]: () => jsonResponse(location({ id: floor.id, name: 'Přízemí', type: null, parentId: hq.id, path: [hq, floor] })),
+    });
+    renderApp(`/locations/new?parentId=${floor.id}`);
     await userEvent.click(await screen.findByRole('button', { name: 'Změnit' }));
     await userEvent.type(screen.getByRole('searchbox'), 'sklad{Enter}');
     expect(calls.some((call) => call.method === 'POST')).toBe(false);

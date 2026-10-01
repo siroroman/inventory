@@ -237,16 +237,21 @@ export function LocationForm({ location, initialParent = null }: Props) {
           </FieldError>
         </div>
 
-        <Controller
-          control={control}
-          name="parent"
-          render={({ field }) => (
-            <LocationPicker value={field.value} onChange={field.onChange} excludeId={location?.id} />
-          )}
-        />
-        <FieldError id="location-parent-error">
-          {message(errors.parent?.message as FieldMessage | undefined, 0)}
-        </FieldError>
+        {/* A new top-level location has no parent to choose; the picker is for editing and for "Add sub-location". */}
+        {(location || initialParent) && (
+          <>
+            <Controller
+              control={control}
+              name="parent"
+              render={({ field }) => (
+                <LocationPicker value={field.value} onChange={field.onChange} excludeId={location?.id} />
+              )}
+            />
+            <FieldError id="location-parent-error">
+              {message(errors.parent?.message as FieldMessage | undefined, 0)}
+            </FieldError>
+          </>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="location-name">{t('locationForm.name')}</Label>
