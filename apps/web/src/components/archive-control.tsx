@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { invalidateAfterWrite } from '@/lib/query';
 
 type Props = {
   archived: boolean;
@@ -35,12 +36,10 @@ export function ArchiveControl({ archived, archive, restore, title, description 
 
   const change = useMutation({
     mutationFn: () => (archived ? restore() : archive()),
-    // The answer is not cached as the detail (an item's has no photos): everything cached is stale,
-    // and the open detail is fetched again.
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' });
-      toast.success(t('common.saved'));
-    },
+    onSuccess: () => toast.success(t('common.saved')),
+    // The answer is not cached as the detail (an item's has no photos): everything cached is
+    // refetched, also after a 409, so the open detail shows the record that won and its version.
+    onSettled: () => invalidateAfterWrite(queryClient),
   });
 
   if (archived) {

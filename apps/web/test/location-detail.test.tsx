@@ -407,6 +407,16 @@ describe('location detail: archive and restore', () => {
     expect(await screen.findByText(/Záznam mezitím někdo upravil/)).toBeInTheDocument();
   });
 
+  it('fetches the location again after a conflict, so the next try has the current version', async () => {
+    const conflict = { type: 'about:blank', title: 'Conflict', status: 409, code: 'conflict' };
+    const calls = stateful(sub, 'write', jsonResponse(conflict, { status: 409, problem: true }));
+    renderApp(`/locations/${sub.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Archivovat' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Archivovat' }));
+    await screen.findByText(/Záznam mezitím někdo upravil/);
+    await waitFor(() => expect(calls.filter((call) => call.method === 'GET' && call.url.endsWith(`/locations/${sub.id}`))).toHaveLength(2));
+  });
+
   it('offers a reader neither archive nor restore', async () => {
     const archived = location({ archivedAt });
     stateful(archived, 'read');

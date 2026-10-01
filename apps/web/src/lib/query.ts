@@ -53,6 +53,10 @@ export function pagedListQueryOptions<T>(
   });
 }
 
+/** After a write: whatever is cached may be stale (lists, counts, paths), except the signed-in user. */
+export const invalidateAfterWrite = (queryClient: QueryClient) =>
+  queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' });
+
 /** Client errors (4xx) will not change on a retry; network and server errors might. */
 export function retryQuery(failureCount: number, error: Error): boolean {
   if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;

@@ -52,19 +52,24 @@ function subtreeOf(locationId: string): SQL {
     SELECT id FROM sub`;
 }
 
-/** Active locations whose name matches, and everything below them: a search hits the full path. */
-function locationsMatching(q: string): SQL {
+/**
+ * Active locations whose name matches, and everything below them: a search hits the full path.
+ * Looking for archived items, archived locations count too (the item may sit in one).
+ */
+function locationsMatching(q: string, archived: boolean): SQL {
+  const active = archived ? sql`TRUE` : sql`${locations.archivedAt} IS NULL`;
+  const activeChild = archived ? sql`TRUE` : sql`c.archived_at IS NULL`;
   return sql`
     WITH RECURSIVE sub (id) AS (
       SELECT ${locations.id} FROM ${locations}
-       WHERE ${locations.archivedAt} IS NULL AND ${containsText(locations.name, q)}
+       WHERE ${active} AND ${containsText(locations.name, q)}
       UNION ALL
-      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
+      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE ${activeChild}
     )
     SELECT id FROM sub`;
 }
 
-function searchCondition(db: DbExecutor, q: string): SQL {
+function searchCondition(db: DbExecutor, q: string, archived: boolean): SQL {
   return or(
     containsText(items.name, q),
     containsText(items.code, q),
@@ -78,7 +83,7 @@ function searchCondition(db: DbExecutor, q: string): SQL {
       items.manufacturerId,
       db.select({ id: manufacturers.id }).from(manufacturers).where(containsText(manufacturers.name, q)),
     ),
-    sql`${items.locationId} IN (${locationsMatching(q)})`,
+    sql`${items.locationId} IN (${locationsMatching(q, archived)})`,
   )!;
 }
 
@@ -86,7 +91,7 @@ function listWhere(db: DbExecutor, filter: ItemFilter): SQL[] {
   const conditions: SQL[] = [filter.archived ? isNotNull(items.archivedAt) : isNull(items.archivedAt)];
   if (filter.locationId) conditions.push(sql`${items.locationId} IN (${subtreeOf(filter.locationId)})`);
   if (filter.manufacturerId) conditions.push(eq(items.manufacturerId, filter.manufacturerId));
-  if (filter.q) conditions.push(searchCondition(db, filter.q));
+  if (filter.q) conditions.push(searchCondition(db, filter.q, Boolean(filter.archived)));
   return conditions;
 }
 

@@ -5,6 +5,7 @@ import { ChevronRight, ExternalLink, Pencil } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { ErrorState } from '@/components/error-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -171,7 +172,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
         <Breadcrumb item={item} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{item.name}</h1>
-          {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
+          {item.archivedAt && <ArchivedBadge />}
           {canWrite && (
             <div className="ml-auto flex items-center gap-2">
               {!item.archivedAt && (

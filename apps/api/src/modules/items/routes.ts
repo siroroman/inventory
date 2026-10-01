@@ -21,9 +21,9 @@ const list = defineRoute({
   minRole: 'read',
   tags: ['items'],
   summary:
-    'List and search active items by name; the search covers name, code, serial number, model, external IDs, manufacturer and location names',
+    'List and search active items by name (`archived=true`: the archived ones); the search covers name, code, serial number, model, external IDs, manufacturer and location names',
   request: { query: itemSearchQuery },
-  responses: { 200: { description: 'One page of active items', content: jsonContent(itemListSchema) } },
+  responses: { 200: { description: 'One page of items', content: jsonContent(itemListSchema) } },
 });
 
 const get = defineRoute({

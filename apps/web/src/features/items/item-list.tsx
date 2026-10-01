@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
-import { Badge } from '@/components/ui/badge';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { serviceStatus } from '@/lib/service-status';
@@ -37,11 +37,7 @@ export function useItemRows() {
           <Link to="/items/$id" params={{ id: item.id }} className="hover:underline">
             {item.name}
           </Link>
-          {item.archivedAt && (
-            <Badge variant="warning" className="mt-1 flex w-fit">
-              {t('item.archived')}
-            </Badge>
-          )}
+          {item.archivedAt && <ArchivedBadge className="mt-1 flex w-fit" />}
         </>
       ),
     },
@@ -60,11 +56,7 @@ export function useItemRows() {
       <Link to="/items/$id" params={{ id: item.id }} className="block">
         <p className="text-[15px] font-semibold">
           {item.name}
-          {item.archivedAt && (
-            <Badge variant="warning" className="ml-2 align-middle">
-              {t('item.archived')}
-            </Badge>
-          )}
+          {item.archivedAt && <ArchivedBadge className="ml-2 align-middle" />}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {[item.code, pathOf(item)].filter(Boolean).join(' · ')}

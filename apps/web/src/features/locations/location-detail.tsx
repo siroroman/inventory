@@ -5,10 +5,10 @@ import { ChevronRight, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { ErrorState } from '@/components/error-state';
 import { EmptyState, PagedList } from '@/components/paged-list';
 import { RouteNotFound, RoutePending } from '@/components/route-states';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { useItemRows } from '@/features/items/item-list';
@@ -165,13 +165,13 @@ function Items({ location, canAdd }: { location: LocationDto; canAdd: boolean })
 
 /** What else disappears from the lists when this location is archived; nothing when it is empty. */
 function HiddenWithIt({ location }: { location: LocationDto }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const parts = [
     location.childCount > 0 && t('common.subLocationCount', { count: location.childCount }),
     location.itemCount > 0 && t('common.itemCount', { count: location.itemCount }),
   ].filter(Boolean);
   if (parts.length === 0) return null;
-  return <p>{t('locationDetail.archiveContents', { what: parts.join(' a ') })}</p>;
+  return <p>{t('locationDetail.archiveContents', { what: new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(parts as string[]) })}</p>;
 }
 
 /** Detail of one location: where it is, its fields, its sub-locations and its items. */
@@ -199,7 +199,7 @@ export function LocationDetail({ id }: { id: string }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-xl font-semibold">{location.name}</h1>
-            {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
+            {location.archivedAt && <ArchivedBadge />}
           </div>
           {canWrite && (
             <div className="flex items-center gap-2">

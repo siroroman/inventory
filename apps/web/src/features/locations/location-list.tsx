@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
 import { Badge } from '@/components/ui/badge';
@@ -64,11 +65,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
             <LocationLink location={location}>
               <span className="block truncate">{location.name}</span>
             </LocationLink>
-            {location.archivedAt && (
-              <Badge variant="warning" className="mt-1 flex w-fit">
-                {t('locationDetail.archived')}
-              </Badge>
-            )}
+            {location.archivedAt && <ArchivedBadge className="mt-1 flex w-fit" />}
             {above && <p className="truncate text-xs font-normal text-muted-foreground">{above}</p>}
           </>
         );
@@ -94,11 +91,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
       <LocationLink location={location} card>
         <p className="truncate text-[15px] font-semibold">
           {location.name}
-          {location.archivedAt && (
-            <Badge variant="warning" className="ml-2 align-middle">
-              {t('locationDetail.archived')}
-            </Badge>
-          )}
+          {location.archivedAt && <ArchivedBadge className="ml-2 align-middle" />}
         </p>
         {above && <p className="truncate text-xs text-muted-foreground">{above}</p>}
         <p className="mt-1 text-sm text-muted-foreground">
