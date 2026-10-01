@@ -43,3 +43,9 @@ export const createLocation = (body: CreateLocationBody) => unwrap(api.api.v1.lo
 
 export const updateLocation = (id: string, body: UpdateLocationBody) =>
   unwrap(api.api.v1.locations[':id'].$patch({ param: { id }, json: body }));
+
+export const archiveLocation = (id: string, version: number) =>
+  unwrap(api.api.v1.locations[':id'].archive.$post({ param: { id }, json: { version } }));
+
+export const restoreLocation = (id: string, version: number) =>
+  unwrap(api.api.v1.locations[':id'].restore.$post({ param: { id }, json: { version } }));

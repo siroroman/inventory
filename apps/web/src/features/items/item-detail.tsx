@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { ChevronRight, ExternalLink, Pencil } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ArchiveControl } from '@/components/archive-control';
 import { ErrorState } from '@/components/error-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { problemMessage } from '@/lib/problem';
 import { warrantyExpired } from '@/lib/service-status';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
-import { itemDetailQueryOptions } from './api';
+import { archiveItem, itemDetailQueryOptions, restoreItem } from './api';
 import { ServiceBadge } from './service-badge';
 
 // Tailwind's `md` breakpoint.
@@ -171,13 +172,24 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{item.name}</h1>
           {item.archivedAt && <Badge>{t('item.archived')}</Badge>}
-          {canWrite && !item.archivedAt && (
-            <Button asChild size="sm" className="ml-auto">
-              <Link to="/items/$id/edit" params={{ id: item.id }}>
-                <Pencil aria-hidden />
-                {t('item.edit')}
-              </Link>
-            </Button>
+          {canWrite && (
+            <div className="ml-auto flex items-center gap-2">
+              {!item.archivedAt && (
+                <Button asChild size="sm">
+                  <Link to="/items/$id/edit" params={{ id: item.id }}>
+                    <Pencil aria-hidden />
+                    {t('item.edit')}
+                  </Link>
+                </Button>
+              )}
+              <ArchiveControl
+                archived={Boolean(item.archivedAt)}
+                archive={() => archiveItem(item.id, item.version)}
+                restore={() => restoreItem(item.id, item.version)}
+                title={t('item.archiveTitle')}
+                description={<p>{t('item.archiveHint')}</p>}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -268,7 +280,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
   );
 }
 
-/** Item detail screen: photos, basic info, warranty, service, documents and note (read only). */
+/** Item detail screen: photos, basic info, warranty, service, documents and note. */
 export function ItemDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useQuery(itemDetailQueryOptions(id));

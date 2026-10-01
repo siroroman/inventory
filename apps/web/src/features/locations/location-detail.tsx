@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { ChevronRight, Pencil, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ArchiveControl } from '@/components/archive-control';
 import { ErrorState } from '@/components/error-state';
 import { EmptyState, PagedList } from '@/components/paged-list';
 import { RouteNotFound, RoutePending } from '@/components/route-states';
@@ -14,7 +15,13 @@ import { useItemRows } from '@/features/items/item-list';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { cn } from '@/lib/utils';
-import { locationChildrenQueryOptions, locationItemsQueryOptions, locationQueryOptions } from './api';
+import {
+  archiveLocation,
+  locationChildrenQueryOptions,
+  locationItemsQueryOptions,
+  locationQueryOptions,
+  restoreLocation,
+} from './api';
 import { useLocationRows } from './location-list';
 
 /** A link in the detail's header or fields: at least 44 px tall to tap. */
@@ -156,7 +163,18 @@ function Items({ location, canAdd }: { location: LocationDto; canAdd: boolean })
   );
 }
 
-/** Read-only detail of one location: where it is, its fields, its sub-locations and its items. */
+/** What else disappears from the lists when this location is archived; nothing when it is empty. */
+function HiddenWithIt({ location }: { location: LocationDto }) {
+  const { t } = useTranslation();
+  const parts = [
+    location.childCount > 0 && t('common.subLocationCount', { count: location.childCount }),
+    location.itemCount > 0 && t('common.itemCount', { count: location.itemCount }),
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+  return <p>{t('locationDetail.archiveContents', { what: parts.join(' a ') })}</p>;
+}
+
+/** Detail of one location: where it is, its fields, its sub-locations and its items. */
 export function LocationDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useQuery(locationQueryOptions(id));
@@ -183,14 +201,30 @@ export function LocationDetail({ id }: { id: string }) {
             <h1 className="text-xl font-semibold">{location.name}</h1>
             {location.archivedAt && <Badge variant="warning">{t('locationDetail.archived')}</Badge>}
           </div>
-          {/* An archived location is read-only until it is restored. */}
-          {canAdd && (
-            <Button asChild size="sm">
-              <Link to="/locations/$id/edit" params={{ id: location.id }}>
-                <Pencil aria-hidden />
-                {t('locationDetail.edit')}
-              </Link>
-            </Button>
+          {canWrite && (
+            <div className="flex items-center gap-2">
+              {/* An archived location is read-only until it is restored. */}
+              {canAdd && (
+                <Button asChild size="sm">
+                  <Link to="/locations/$id/edit" params={{ id: location.id }}>
+                    <Pencil aria-hidden />
+                    {t('locationDetail.edit')}
+                  </Link>
+                </Button>
+              )}
+              <ArchiveControl
+                archived={Boolean(location.archivedAt)}
+                archive={() => archiveLocation(location.id, location.version)}
+                restore={() => restoreLocation(location.id, location.version)}
+                title={t('locationDetail.archiveTitle')}
+                description={
+                  <>
+                    <p>{t('locationDetail.archiveHint')}</p>
+                    <HiddenWithIt location={location} />
+                  </>
+                }
+              />
+            </div>
           )}
         </div>
       </header>

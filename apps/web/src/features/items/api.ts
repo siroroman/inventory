@@ -41,3 +41,9 @@ export const createItem = (json: CreateItemBody) => unwrap(api.api.v1.items.$pos
 
 export const updateItem = (id: string, json: UpdateItemBody) =>
   unwrap(api.api.v1.items[':id'].$patch({ param: { id }, json }));
+
+export const archiveItem = (id: string, version: number) =>
+  unwrap(api.api.v1.items[':id'].archive.$post({ param: { id }, json: { version } }));
+
+export const restoreItem = (id: string, version: number) =>
+  unwrap(api.api.v1.items[':id'].restore.$post({ param: { id }, json: { version } }));

@@ -164,7 +164,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 
 - Both the path up (breadcrumb) and item counts across a whole subtree are computed with a recursive query (`WITH RECURSIVE`). At hundreds of locations there's no need to store the path separately.
 - A location must never become its own ancestor; the server checks this on every parent change.
-- Proposal: a location with active sub-locations or items cannot be archived until they are moved or archived first.
+- Decided: a location with active sub-locations or items can be archived. They drop out of lists and counts with it (an archived sub-location hides everything below it) and come back when the location is restored; the confirm dialog says how many are affected.
 
 **Other rules**
 
@@ -394,7 +394,7 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 3. **Permissions:** May the Write role manage manufacturers, providers, and service order, and archive records — or only Admin?
 4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-00001, SUP-001)? Can an ID change later?
 5. **Starting data:** Is there an existing spreadsheet to import? Roughly how many locations, sub-locations, and items?
-6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? What should happen when archiving a location that still has sub-locations or items?
+6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? ~~What should happen when archiving a location that still has sub-locations or items?~~ *Decided:* allowed, with a warning (see §4).
 7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.
 8. ~~**Categories:** Should an item have a category (machine, equipment, IT…) with a list filter?~~ *Decided:* later, not in v1.
 9. **Service:** Are two dates enough, or do you want a full service history (date, provider, description, report)? Should the next check date be computed from an interval?

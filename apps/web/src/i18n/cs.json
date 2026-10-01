@@ -6,6 +6,9 @@
   "common": {
     "retry": "Zkusit znovu",
     "saved": "Uloženo",
+    "cancel": "Zrušit",
+    "archive": "Archivovat",
+    "restore": "Obnovit",
     "skipToContent": "Přeskočit na obsah",
     "itemCount_one": "{{count}} položka",
     "itemCount_few": "{{count}} položky",
@@ -106,6 +109,9 @@
     "itemsEmptyTitle": "Žádné položky",
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky.",
     "edit": "Upravit",
+    "archiveTitle": "Archivovat lokalitu?",
+    "archiveHint": "Lokalita zmizí ze seznamů a vyhledávání. Archivovanou lokalitu můžete kdykoli obnovit.",
+    "archiveContents": "Ze seznamů zmizí také: {{what}}. Po obnovení lokality se vrátí.",
     "addSubLocation": "Přidat podlokalitu",
     "subLocationsEmptyTitle": "Žádné podlokality",
     "subLocationsEmptyHint": "Tato lokalita zatím nemá žádné podlokality."
@@ -148,6 +154,8 @@
     "breadcrumb": "Umístění",
     "empty": "—",
     "archived": "Archivováno",
+    "archiveTitle": "Archivovat položku?",
+    "archiveHint": "Položka zmizí ze seznamů a vyhledávání. Archivovanou položku můžete kdykoli obnovit. Její externí ID zůstanou rezervovaná.",
     "notFoundTitle": "Položka nenalezena",
     "notFoundHint": "Položka neexistuje nebo byla odstraněna.",
     "photosLabel": "Fotografie",
