@@ -8,10 +8,12 @@ type Props = {
   search: ComponentProps<typeof SearchBox>;
   /** An "Add" button beside the heading, for the roles that may add. */
   action?: ReactNode;
+  /** "Show archived": a switch under the search that swaps the list for the archived records. */
+  archived?: { checked: boolean; onChange: (checked: boolean) => void; label: string };
 };
 
 /** Heading with the record count, and the search field below it. */
-export function ListToolbar({ title, count, search, action }: Props) {
+export function ListToolbar({ title, count, search, action, archived }: Props) {
   return (
     <div className="flex flex-col gap-3 px-4 pt-6 pb-5">
       <div className="flex items-center justify-between gap-3">
@@ -26,6 +28,17 @@ export function ListToolbar({ title, count, search, action }: Props) {
         {action}
       </div>
       <SearchBox {...search} />
+      {archived && (
+        <label className="flex min-h-11 w-fit cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={archived.checked}
+            onChange={(event) => archived.onChange(event.target.checked)}
+            className="size-5 accent-primary"
+          />
+          {archived.label}
+        </label>
+      )}
     </div>
   );
 }

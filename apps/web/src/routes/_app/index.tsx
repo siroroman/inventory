@@ -9,7 +9,8 @@ import { LocationsPanel } from '@/features/locations/location-list';
 const tabs = ['locations', 'items'] as const;
 type Tab = (typeof tabs)[number];
 
-// The URL holds the active tab (missing = locations) and the search text. The router parses a
+// The URL holds the active tab (missing = locations), the search text and whether the archived
+// records are shown instead. The router parses a
 // hand-typed `?q=123` as a number, so numbers are accepted and turned back into text; anything
 // else that does not fit is ignored rather than failing the page.
 const searchSchema = z.object({
@@ -19,13 +20,14 @@ const searchSchema = z.object({
     .transform((value) => String(value).trim())
     .optional()
     .catch(undefined),
+  archived: z.literal(true).optional().catch(undefined),
 });
 
 export const Route = createFileRoute('/_app/')({ validateSearch: searchSchema, component: Home });
 
 function Home() {
   const { t } = useTranslation();
-  const { tab = 'locations', q = '' } = Route.useSearch();
+  const { tab = 'locations', q = '', archived = false } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   // Another tab starts with an empty search: what was typed for locations means little for items.
@@ -34,6 +36,12 @@ function Home() {
   // `replace`: every pause in typing would otherwise add a history entry to walk back through.
   const search = useCallback(
     (text: string) => void navigate({ search: (prev) => ({ ...prev, q: text || undefined }), replace: true }),
+    [navigate],
+  );
+
+  const showArchived = useCallback(
+    (checked: boolean) =>
+      void navigate({ search: (prev) => ({ ...prev, archived: checked || undefined }), replace: true }),
     [navigate],
   );
 
@@ -46,10 +54,10 @@ function Home() {
           <TabsTrigger value="items">{t('home.items.tab')}</TabsTrigger>
         </TabsList>
         <TabsContent value="locations">
-          <LocationsPanel q={q} onSearch={search} />
+          <LocationsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
         </TabsContent>
         <TabsContent value="items">
-          <ItemsPanel q={q} onSearch={search} />
+          <ItemsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
         </TabsContent>
       </Tabs>
     </div>

@@ -64,6 +64,11 @@ export function useLocationRows({ nested }: { nested: boolean }) {
             <LocationLink location={location}>
               <span className="block truncate">{location.name}</span>
             </LocationLink>
+            {location.archivedAt && (
+              <Badge variant="warning" className="mt-1 flex w-fit">
+                {t('locationDetail.archived')}
+              </Badge>
+            )}
             {above && <p className="truncate text-xs font-normal text-muted-foreground">{above}</p>}
           </>
         );
@@ -87,7 +92,14 @@ export function useLocationRows({ nested }: { nested: boolean }) {
     const above = path(location);
     return (
       <LocationLink location={location} card>
-        <p className="truncate text-[15px] font-semibold">{location.name}</p>
+        <p className="truncate text-[15px] font-semibold">
+          {location.name}
+          {location.archivedAt && (
+            <Badge variant="warning" className="ml-2 align-middle">
+              {t('locationDetail.archived')}
+            </Badge>
+          )}
+        </p>
         {above && <p className="truncate text-xs text-muted-foreground">{above}</p>}
         <p className="mt-1 text-sm text-muted-foreground">
           {location.type && <Badge className="mr-2">{location.type.name}</Badge>}
@@ -100,10 +112,18 @@ export function useLocationRows({ nested }: { nested: boolean }) {
   return { columns, card };
 }
 
-/** Locations tab: top-level locations, or matches at every level while searching. */
-export function LocationsPanel({ q, onSearch }: { q: string; onSearch: (text: string) => void }) {
+type PanelProps = {
+  q: string;
+  onSearch: (text: string) => void;
+  /** Whether the archived records are listed instead of the active ones. */
+  archived: boolean;
+  onArchived: (archived: boolean) => void;
+};
+
+/** Locations tab: top-level locations, or matches at every level while searching; or the archived ones. */
+export function LocationsPanel({ q, onSearch, archived, onArchived }: PanelProps) {
   const { t } = useTranslation();
-  const query = useInfiniteQuery(locationListQueryOptions(q));
+  const query = useInfiniteQuery(locationListQueryOptions(q, archived));
   const canWrite = useCanWrite();
   const total = pagedTotal(query.data);
   const { columns, card } = useLocationRows({ nested: false });
@@ -123,6 +143,7 @@ export function LocationsPanel({ q, onSearch }: { q: string; onSearch: (text: st
           )
         }
         count={total === undefined ? undefined : t('common.locationCount', { count: total })}
+        archived={{ checked: archived, onChange: onArchived, label: t('home.showArchived') }}
         search={{
           value: q,
           onSearch,
@@ -133,7 +154,11 @@ export function LocationsPanel({ q, onSearch }: { q: string; onSearch: (text: st
       <PagedList
         query={query}
         searching={q !== ''}
-        empty={{ title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }}
+        empty={
+          archived
+            ? { title: t('home.locations.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
+            : { title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }
+        }
         columns={columns}
         card={card}
       />

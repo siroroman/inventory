@@ -83,6 +83,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - Status badges: "Service overdue" and "Service due within 30 days".
 - Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path.
 - Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
+- A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it.
 
 ### 3.3 Location / sub-location detail
 
@@ -273,14 +274,14 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | Method & path | Purpose | Minimum role |
 | --- | --- | --- |
 | `GET /me` | current user and role | Read |
-| `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q` | Read |
+| `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q`; `archived=true` = the archived ones at every level | Read |
 | `GET /locations/{id}` | detail with path up, sub-locations, item count across the whole subtree | Read |
 | `GET /locations/{id}/items` | items in this location, including all sub-locations | Read |
 | `POST /locations`, `PATCH /locations/{id}` | create, edit incl. changing the parent | Write |
 | `POST /locations/{id}/archive`, `/restore` | archive, restore | Write |
 | `GET /location-types` | location types | Read |
 | `POST /location-types`, `PATCH /location-types/{id}` | manage types | Admin |
-| `GET /items` | list, search incl. external IDs, filter by location/manufacturer | Read |
+| `GET /items` | list, search incl. external IDs, filter by location/manufacturer; `archived=true` = the archived items | Read |
 | `GET /items/{id}` | detail with location path, external IDs, photos, manufacturer | Read |
 | `POST /items`, `PATCH /items/{id}` | create, edit incl. external IDs | Write |
 | `POST /items/{id}/archive`, `/restore` | archive, restore | Write |

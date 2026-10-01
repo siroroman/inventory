@@ -59,12 +59,15 @@
   },
   "home": {
     "title": "Přehled",
+    "showArchived": "Zobrazit archivované",
+    "archivedEmptyHint": "Archivované záznamy se zobrazí tady. Obnovíte je na jejich stránce.",
     "locations": {
       "tab": "Lokality",
       "searchLabel": "Hledat lokality",
       "searchPlaceholder": "Hledat podle názvu…",
       "emptyTitle": "Zatím tu nic není",
       "emptyHint": "Lokality se tu zobrazí, jakmile je někdo přidá.",
+      "archivedEmptyTitle": "Žádné archivované lokality",
       "columns": {
         "name": "Název",
         "type": "Typ",
@@ -80,6 +83,7 @@
       "searchPlaceholder": "Hledat podle názvu, ID, sériového čísla, externího ID…",
       "emptyTitle": "Zatím tu nic není",
       "emptyHint": "Položky se tu zobrazí, jakmile je někdo přidá.",
+      "archivedEmptyTitle": "Žádné archivované položky",
       "columns": {
         "name": "Název",
         "code": "ID",

@@ -3,9 +3,12 @@ import { queryOptions } from '@tanstack/react-query';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
 
-/** Pages of locations by name: the top-level ones, or with `q` the matches at every level. */
-export const locationListQueryOptions = (q: string) =>
-  pagedListQueryOptions('locations', q, (query) => unwrap(api.api.v1.locations.$get({ query })));
+/**
+ * Pages of locations by name: the top-level ones, or with `q` the matches at every level. With
+ * `archived`, the archived ones at every level.
+ */
+export const locationListQueryOptions = (q: string, archived = false) =>
+  pagedListQueryOptions('locations', q, (query) => unwrap(api.api.v1.locations.$get({ query })), archived);
 
 /** One location with its path, counts and (top-level only) type; archived ones too. */
 export const locationQueryOptions = (id: string) =>
