@@ -71,6 +71,7 @@
       "archivedEmptyTitle": "Žádné archivované lokality",
       "columns": {
         "name": "Název",
+        "code": "ID",
         "type": "Typ",
         "address": "Adresa",
         "items": "Položky",

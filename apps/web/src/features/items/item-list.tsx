@@ -18,7 +18,7 @@ const brandAndModel = (item: ItemListEntryDto) =>
 
 /**
  * Table columns and card of an item list. `nested` is the list on a location's page: its name column
- * has the width of the sub-locations table above it, so the ID lines up with that table's item count.
+ * has the width of the sub-locations table above it, so the IDs of both tables line up.
  */
 export function useItemRows({ nested }: { nested: boolean }) {
   const { t } = useTranslation();
