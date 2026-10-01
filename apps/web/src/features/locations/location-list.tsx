@@ -38,7 +38,7 @@ function LocationLink({ location, card, children }: { location: LocationDto; car
 /**
  * Table columns and card of a location list. `nested` is the list of one location's sub-locations:
  * it needs neither the parent path (the page shows it), nor the type (only top-level locations have one),
- * nor the address column.
+ * nor the address column. Its counts keep the items first, so the item count lines up with the ID of the items table.
  */
 export function useLocationRows({ nested }: { nested: boolean }) {
   const { t } = useTranslation();
@@ -60,6 +60,18 @@ export function useLocationRows({ nested }: { nested: boolean }) {
     cell: (location) => location.address,
   };
 
+  const itemsColumn: Column<LocationDto> = {
+    header: t('home.locations.columns.items'),
+    className: 'w-28',
+    cell: (location) => counts(location)[0],
+  };
+
+  const subLocationsColumn: Column<LocationDto> = {
+    header: t('home.locations.columns.subLocations'),
+    className: 'w-36',
+    cell: (location) => counts(location)[1],
+  };
+
   const columns: Column<LocationDto>[] = [
     {
       header: t('home.locations.columns.name'),
@@ -78,17 +90,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
         );
       },
     },
-    ...(nested ? [] : [typeColumn, addressColumn]),
-    {
-      header: t('home.locations.columns.items'),
-      className: 'w-28',
-      cell: (location) => counts(location)[0],
-    },
-    {
-      header: t('home.locations.columns.subLocations'),
-      className: 'w-36',
-      cell: (location) => counts(location)[1],
-    },
+    ...(nested ? [itemsColumn, subLocationsColumn] : [typeColumn, addressColumn, subLocationsColumn, itemsColumn]),
   ];
 
   const card = (location: LocationDto) => {
