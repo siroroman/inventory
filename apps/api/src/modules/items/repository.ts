@@ -1,4 +1,4 @@
-import { and, asc, count, eq, getTableColumns, inArray, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
@@ -38,8 +38,8 @@ export type ExternalIdInput = { source: string; value: string };
 /** An external ID another item already has, as stored, and the code of that item. */
 export type ExternalIdClash = ExternalIdInput & { itemCode: string };
 
-/** `locationId` includes items anywhere below that location. */
-export type ItemFilter = { q?: string; locationId?: string; manufacturerId?: string };
+/** `locationId` includes items anywhere below that location; `archived` lists the archived items instead. */
+export type ItemFilter = { q?: string; locationId?: string; manufacturerId?: string; archived?: boolean };
 
 /** The location and its active descendants; an archived sub-location hides everything below it. */
 function subtreeOf(locationId: string): SQL {
@@ -52,19 +52,24 @@ function subtreeOf(locationId: string): SQL {
     SELECT id FROM sub`;
 }
 
-/** Active locations whose name matches, and everything below them: a search hits the full path. */
-function locationsMatching(q: string): SQL {
+/**
+ * Active locations whose name matches, and everything below them: a search hits the full path.
+ * Looking for archived items, archived locations count too (the item may sit in one).
+ */
+function locationsMatching(q: string, archived: boolean): SQL {
+  const active = archived ? sql`TRUE` : sql`${locations.archivedAt} IS NULL`;
+  const activeChild = archived ? sql`TRUE` : sql`c.archived_at IS NULL`;
   return sql`
     WITH RECURSIVE sub (id) AS (
       SELECT ${locations.id} FROM ${locations}
-       WHERE ${locations.archivedAt} IS NULL AND ${containsText(locations.name, q)}
+       WHERE ${active} AND ${containsText(locations.name, q)}
       UNION ALL
-      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
+      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE ${activeChild}
     )
     SELECT id FROM sub`;
 }
 
-function searchCondition(db: DbExecutor, q: string): SQL {
+function searchCondition(db: DbExecutor, q: string, archived: boolean): SQL {
   return or(
     containsText(items.name, q),
     containsText(items.code, q),
@@ -78,15 +83,15 @@ function searchCondition(db: DbExecutor, q: string): SQL {
       items.manufacturerId,
       db.select({ id: manufacturers.id }).from(manufacturers).where(containsText(manufacturers.name, q)),
     ),
-    sql`${items.locationId} IN (${locationsMatching(q)})`,
+    sql`${items.locationId} IN (${locationsMatching(q, archived)})`,
   )!;
 }
 
 function listWhere(db: DbExecutor, filter: ItemFilter): SQL[] {
-  const conditions: SQL[] = [isNull(items.archivedAt)];
+  const conditions: SQL[] = [filter.archived ? isNotNull(items.archivedAt) : isNull(items.archivedAt)];
   if (filter.locationId) conditions.push(sql`${items.locationId} IN (${subtreeOf(filter.locationId)})`);
   if (filter.manufacturerId) conditions.push(eq(items.manufacturerId, filter.manufacturerId));
-  if (filter.q) conditions.push(searchCondition(db, filter.q));
+  if (filter.q) conditions.push(searchCondition(db, filter.q, Boolean(filter.archived)));
   return conditions;
 }
 
@@ -113,7 +118,7 @@ export function createItemRepository(db: DbExecutor) {
     },
 
     /**
-     * Active items ordered by name. `q` matches name, code, serial number, model, an external ID,
+     * Active (or, with `archived`, archived) items ordered by name. `q` matches name, code, serial number, model, an external ID,
      * the manufacturer, or any location on the item's path, ignoring case and diacritics.
      */
     async list(filter: ItemFilter, page: { limit: number; cursor?: string }): Promise<Page<ItemListRow>> {

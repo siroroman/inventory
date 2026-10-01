@@ -21,9 +21,9 @@ const list = defineRoute({
   minRole: 'read',
   tags: ['items'],
   summary:
-    'List and search active items by name; the search covers name, code, serial number, model, external IDs, manufacturer and location names',
+    'List and search active items by name (`archived=true`: the archived ones); the search covers name, code, serial number, model, external IDs, manufacturer and location names',
   request: { query: itemSearchQuery },
-  responses: { 200: { description: 'One page of active items', content: jsonContent(itemListSchema) } },
+  responses: { 200: { description: 'One page of items', content: jsonContent(itemListSchema) } },
 });
 
 const get = defineRoute({
@@ -87,8 +87,9 @@ type ItemServices = { items: ItemService; photos: PhotoService };
 export function createItemRoutes({ items, photos }: ItemServices) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { q, locationId, manufacturerId, limit, cursor } = c.req.valid('query');
-      const page = await items.list(c.get('actor'), { q, locationId, manufacturerId }, { limit, cursor });
+      const { q, locationId, manufacturerId, archived, limit, cursor } = c.req.valid('query');
+      const filter = { q, locationId, manufacturerId, archived: archived === 'true' };
+      const page = await items.list(c.get('actor'), filter, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toItemListEntryDto) }, 200);
     })
     .openapi(get, async (c) => {

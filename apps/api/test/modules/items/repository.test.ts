@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { itemPhotos } from '../../../src/db/schema/index.ts';
+import { itemPhotos, locations } from '../../../src/db/schema/index.ts';
 import { createItemRepository, type ItemFilter, type NewItem } from '../../../src/modules/items/repository.ts';
 import { useTestDb } from '../../helpers/db.ts';
 import { insertLocation, insertManufacturer, insertUser } from '../../helpers/factories.ts';
@@ -111,6 +112,27 @@ describe('item repository', () => {
     expect([...first.items, ...second.items].map((i) => i.name)).toEqual(['Cedník', 'Čistič', 'Hrnec', 'Chladnička']);
     expect(second.nextCursor).toBeNull();
     expect(await repo().count({})).toBe(4);
+  });
+
+  it('lists the archived items when asked, and no active ones', async () => {
+    const { user, kuchyne, add } = await setup();
+    await add('Hrnec', kuchyne.id);
+    const archived = await add('Archivní', kuchyne.id);
+    await repo().setArchived(archived.id, 1, true, user.id);
+
+    expect((await repo().list({ archived: true }, { limit: 50 })).items.map((i) => i.name)).toEqual(['Archivní']);
+    expect(await repo().count({ archived: true })).toBe(1);
+    expect(await repo().count({ archived: true, q: 'hrnec' })).toBe(0);
+  });
+
+  it('finds an archived item by the name of its archived location, which an active search does not', async () => {
+    const { user, praha, kuchyne, add } = await setup();
+    const archived = await add('Archivní', kuchyne.id);
+    await repo().setArchived(archived.id, 1, true, user.id);
+    await t().app.update(locations).set({ archivedAt: new Date() }).where(eq(locations.id, praha.id));
+
+    expect(await names({ archived: true, q: 'praha' })).toEqual(['Archivní']);
+    expect(await names({ q: 'praha' })).toEqual([]);
   });
 
   it('updates with optimistic locking', async () => {

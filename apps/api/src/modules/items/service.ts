@@ -157,7 +157,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
     });
   }
 
-  /** Active items by name with location paths, plus the total for the list heading. */
+  /** Active (or archived) items by name with location paths, plus the total for the list heading. */
   async function list(
     actor: Actor,
     filter: ItemFilter,

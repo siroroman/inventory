@@ -43,7 +43,7 @@ export function createFakeLocationStore() {
     async list(filter, page) {
       const rows = state.locations.filter(
         (l) =>
-          !l.archivedAt &&
+          !!l.archivedAt === !!filter.archived &&
           (filter.parentId === undefined || l.parentId === filter.parentId) &&
           (!filter.q || fakeContains(l.name, filter.q)),
       );

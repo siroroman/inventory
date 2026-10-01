@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codeRef, humanCode, hasChange, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
-import { searchPageQuery, versionField } from './http.ts';
+import { archivedQuery, searchPageQuery, versionField } from './http.ts';
 
 export const locationSchema = z.object({
   ...recordFields,
@@ -53,6 +53,7 @@ export type UpdateLocationBody = z.infer<typeof updateLocationBody>;
 
 /**
  * `?parentId=` lists that location's direct children. Without it the list is the top-level
- * locations, or, when `q` is given, every level (to pick a location for an item).
+ * locations, or, when `q` is given, every level (to pick a location for an item). With
+ * `archived=true` it is the archived locations at every level, narrowed by `parentId` and `q`.
  */
-export const locationListQuery = searchPageQuery.extend({ parentId: z.uuid().optional() });
+export const locationListQuery = searchPageQuery.extend({ ...archivedQuery.shape, parentId: z.uuid().optional() });

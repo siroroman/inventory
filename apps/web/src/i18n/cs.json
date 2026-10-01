@@ -6,6 +6,10 @@
   "common": {
     "retry": "Zkusit znovu",
     "saved": "Uloženo",
+    "cancel": "Zrušit",
+    "archive": "Archivovat",
+    "archived": "Archivováno",
+    "restore": "Obnovit",
     "skipToContent": "Přeskočit na obsah",
     "itemCount_one": "{{count}} položka",
     "itemCount_few": "{{count}} položky",
@@ -56,12 +60,15 @@
   },
   "home": {
     "title": "Přehled",
+    "showArchived": "Zobrazit archivované",
+    "archivedEmptyHint": "Archivované záznamy se zobrazí tady. Obnovíte je na jejich stránce.",
     "locations": {
       "tab": "Lokality",
       "searchLabel": "Hledat lokality",
       "searchPlaceholder": "Hledat podle názvu…",
       "emptyTitle": "Zatím tu nic není",
       "emptyHint": "Lokality se tu zobrazí, jakmile je někdo přidá.",
+      "archivedEmptyTitle": "Žádné archivované lokality",
       "columns": {
         "name": "Název",
         "type": "Typ",
@@ -77,6 +84,7 @@
       "searchPlaceholder": "Hledat podle názvu, ID, sériového čísla, externího ID…",
       "emptyTitle": "Zatím tu nic není",
       "emptyHint": "Položky se tu zobrazí, jakmile je někdo přidá.",
+      "archivedEmptyTitle": "Žádné archivované položky",
       "columns": {
         "name": "Název",
         "code": "ID",
@@ -93,7 +101,6 @@
   },
   "locationDetail": {
     "breadcrumb": "Umístění",
-    "archived": "Archivováno",
     "fields": {
       "code": "ID",
       "parent": "Nadřazená lokalita",
@@ -106,6 +113,9 @@
     "itemsEmptyTitle": "Žádné položky",
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky.",
     "edit": "Upravit",
+    "archiveTitle": "Archivovat lokalitu?",
+    "archiveHint": "Lokalita zmizí ze seznamů a vyhledávání. Archivovanou lokalitu můžete kdykoli obnovit.",
+    "archiveContents": "Ze seznamů zmizí také: {{what}}. Po obnovení lokality se vrátí.",
     "addSubLocation": "Přidat podlokalitu",
     "subLocationsEmptyTitle": "Žádné podlokality",
     "subLocationsEmptyHint": "Tato lokalita zatím nemá žádné podlokality."
@@ -147,7 +157,8 @@
   "item": {
     "breadcrumb": "Umístění",
     "empty": "—",
-    "archived": "Archivováno",
+    "archiveTitle": "Archivovat položku?",
+    "archiveHint": "Položka zmizí ze seznamů a vyhledávání. Archivovanou položku můžete kdykoli obnovit. Její externí ID zůstanou rezervovaná.",
     "notFoundTitle": "Položka nenalezena",
     "notFoundHint": "Položka neexistuje nebo byla odstraněna.",
     "photosLabel": "Fotografie",

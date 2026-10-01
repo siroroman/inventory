@@ -83,6 +83,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - Status badges: "Service overdue" and "Service due within 30 days".
 - Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path.
 - Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
+- A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it.
 
 ### 3.3 Location / sub-location detail
 
@@ -164,7 +165,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 
 - Both the path up (breadcrumb) and item counts across a whole subtree are computed with a recursive query (`WITH RECURSIVE`). At hundreds of locations there's no need to store the path separately.
 - A location must never become its own ancestor; the server checks this on every parent change.
-- Proposal: a location with active sub-locations or items cannot be archived until they are moved or archived first.
+- Decided: a location with active sub-locations or items can be archived. They drop out of lists and counts with it (an archived sub-location hides everything below it) and come back when the location is restored; the confirm dialog says how many are affected.
 
 **Other rules**
 
@@ -273,14 +274,14 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | Method & path | Purpose | Minimum role |
 | --- | --- | --- |
 | `GET /me` | current user and role | Read |
-| `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q` | Read |
+| `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q`; `archived=true` = the archived ones at every level | Read |
 | `GET /locations/{id}` | detail with path up, sub-locations, item count across the whole subtree | Read |
 | `GET /locations/{id}/items` | items in this location, including all sub-locations | Read |
 | `POST /locations`, `PATCH /locations/{id}` | create, edit incl. changing the parent | Write |
 | `POST /locations/{id}/archive`, `/restore` | archive, restore | Write |
 | `GET /location-types` | location types | Read |
 | `POST /location-types`, `PATCH /location-types/{id}` | manage types | Admin |
-| `GET /items` | list, search incl. external IDs, filter by location/manufacturer | Read |
+| `GET /items` | list, search incl. external IDs, filter by location/manufacturer; `archived=true` = the archived items | Read |
 | `GET /items/{id}` | detail with location path, external IDs, photos, manufacturer | Read |
 | `POST /items`, `PATCH /items/{id}` | create, edit incl. external IDs | Write |
 | `POST /items/{id}/archive`, `/restore` | archive, restore | Write |
@@ -394,7 +395,7 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 3. **Permissions:** May the Write role manage manufacturers, providers, and service order, and archive records — or only Admin?
 4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-00001, SUP-001)? Can an ID change later?
 5. **Starting data:** Is there an existing spreadsheet to import? Roughly how many locations, sub-locations, and items?
-6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? What should happen when archiving a location that still has sub-locations or items?
+6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? ~~What should happen when archiving a location that still has sub-locations or items?~~ *Decided:* allowed, with a warning (see §4).
 7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.
 8. ~~**Categories:** Should an item have a category (machine, equipment, IT…) with a list filter?~~ *Decided:* later, not in v1.
 9. **Service:** Are two dates enough, or do you want a full service history (date, provider, description, report)? Should the next check date be computed from an interval?

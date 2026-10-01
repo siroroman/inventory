@@ -218,6 +218,18 @@ describe('item service', () => {
       ]);
     });
 
+    it('lists only the archived items when asked, and a reader may', async () => {
+      const { service, create } = await setup();
+      await create('Konvektomat');
+      const archived = await create('Starý sporák');
+      await service.archive(writer, archived.id, 1);
+
+      const result = await service.list(reader, { archived: true }, { limit: 50 });
+      expect(result.items.map((i) => i.name)).toEqual(['Starý sporák']);
+      expect(result.total).toBe(1);
+      expect((await service.list(reader, { archived: true, q: 'konv' }, { limit: 50 })).total).toBe(0);
+    });
+
     it('filters by location including its sub-locations, by manufacturer and by search', async () => {
       const { service, praha, sklad, rational, create } = await setup();
       await create('Konvektomat', { manufacturerId: rational.id, externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }] });

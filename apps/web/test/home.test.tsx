@@ -342,3 +342,66 @@ describe('home: loading and failure', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Server není dostupný.');
   });
 });
+
+describe('home: archived records', () => {
+  const archivedAt = '2026-05-01T00:00:00.000Z';
+
+  it('lists the archived locations, marked, once "Zobrazit archivované" is ticked, and goes back when cleared', async () => {
+    const calls = api({
+      locations: (request) =>
+        new URL(request.url).searchParams.get('archived') === 'true'
+          ? page([location({ name: 'Stará pobočka', archivedAt })])
+          : page([location({ name: 'Centrála Praha' })]),
+    });
+    const { router } = renderApp('/');
+    await screen.findByText('Centrála Praha');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Zobrazit archivované' }));
+    expect(await screen.findByText('Stará pobočka')).toBeInTheDocument();
+    expect(screen.queryByText('Centrála Praha')).not.toBeInTheDocument();
+    expect(screen.getByRole('listitem')).toHaveTextContent('Archivováno');
+    expect(router.state.location.search).toEqual({ archived: true });
+    expect(listCalls(calls, '/api/v1/locations').at(-1)?.get('archived')).toBe('true');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Zobrazit archivované' }));
+    expect(await screen.findByText('Centrála Praha')).toBeInTheDocument();
+    expect(router.state.location.search).toEqual({});
+  });
+
+  it('lists the archived items from the URL, linking to their detail, and searches among them', async () => {
+    const archived = item({ name: 'Stará váha', archivedAt });
+    const calls = api({
+      items: (request) => (new URL(request.url).searchParams.get('archived') === 'true' ? page([archived]) : page([])),
+    });
+    renderApp('/?tab=items&archived=true');
+
+    const row = await screen.findByRole('listitem');
+    expect(row).toHaveTextContent('Stará váha');
+    expect(row).toHaveTextContent('Archivováno');
+    expect(screen.getByRole('checkbox', { name: 'Zobrazit archivované' })).toBeChecked();
+    expect(within(row).getByRole('link')).toHaveAttribute('href', `/items/${archived.id}`);
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Hledat položky' }), 'vaha');
+    await waitFor(() =>
+      expect(Object.fromEntries(listCalls(calls, '/api/v1/items').at(-1) ?? [])).toEqual({ archived: 'true', q: 'vaha', limit: '20' }),
+    );
+  });
+
+  it('says there are no archived records when there are none', async () => {
+    api({});
+    renderApp('/?archived=true');
+    expect(await screen.findByText('Žádné archivované lokality')).toBeInTheDocument();
+  });
+
+  it('does not take the switch to the other tab, and ignores a wrong value in the URL', async () => {
+    api({});
+    const { router } = renderApp('/?archived=true');
+    await screen.findByText('Žádné archivované lokality');
+    await userEvent.click(screen.getByRole('tab', { name: 'Položky' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'items' }));
+    expect(screen.getByRole('checkbox', { name: 'Zobrazit archivované' })).not.toBeChecked();
+
+    await router.navigate({ to: '/', search: { archived: 'maybe' } as never });
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Zobrazit archivované' })).not.toBeChecked());
+  });
+});

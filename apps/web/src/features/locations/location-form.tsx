@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
+import { invalidateAfterWrite } from '@/lib/query';
 import { createLocation, locationQueryOptions, locationTypesQueryOptions, updateLocation } from './api';
 import { LocationPicker, type ParentChoice } from './location-picker';
 import { pathLabel } from './path';
@@ -165,7 +166,7 @@ export function LocationForm({ location, initialParent = null }: Props) {
       toast.success(t('common.saved'));
       // The detail opens with the saved data at once; every other cached list and path is stale.
       queryClient.setQueryData(locationQueryOptions(result.id).queryKey, result);
-      void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' });
+      void invalidateAfterWrite(queryClient);
       void navigate({ to: '/locations/$id', params: { id: result.id }, replace: true });
     },
   });

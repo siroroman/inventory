@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { serviceStatus } from '@/lib/service-status';
@@ -32,9 +33,12 @@ export function useItemRows() {
       header: t('home.items.columns.name'),
       primary: true,
       cell: (item) => (
-        <Link to="/items/$id" params={{ id: item.id }} className="hover:underline">
-          {item.name}
-        </Link>
+        <>
+          <Link to="/items/$id" params={{ id: item.id }} className="hover:underline">
+            {item.name}
+          </Link>
+          {item.archivedAt && <ArchivedBadge className="mt-1 flex w-fit" />}
+        </>
       ),
     },
     { header: t('home.items.columns.code'), className: 'w-28', cell: (item) => item.code },
@@ -50,7 +54,10 @@ export function useItemRows() {
     const badge = item.nextServiceOn && serviceStatus(item.nextServiceOn);
     return (
       <Link to="/items/$id" params={{ id: item.id }} className="block">
-        <p className="text-[15px] font-semibold">{item.name}</p>
+        <p className="text-[15px] font-semibold">
+          {item.name}
+          {item.archivedAt && <ArchivedBadge className="ml-2 align-middle" />}
+        </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {[item.code, pathOf(item)].filter(Boolean).join(' · ')}
         </p>
@@ -63,10 +70,21 @@ export function useItemRows() {
   return { columns, card };
 }
 
-/** Items tab: every active item by name, or the matches of a search. */
-export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string) => void }) {
+/** Items tab: every active item by name, or the matches of a search; or the archived ones. */
+export function ItemsPanel({
+  q,
+  onSearch,
+  archived,
+  onArchived,
+}: {
+  q: string;
+  onSearch: (text: string) => void;
+  /** Whether the archived items are listed instead of the active ones. */
+  archived: boolean;
+  onArchived: (archived: boolean) => void;
+}) {
   const { t } = useTranslation();
-  const query = useInfiniteQuery(itemListQueryOptions(q));
+  const query = useInfiniteQuery(itemListQueryOptions(q, archived));
   const total = pagedTotal(query.data);
   const { columns, card } = useItemRows();
   const canWrite = useCanWrite();
@@ -76,6 +94,7 @@ export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string
       <ListToolbar
         title={t('home.items.tab')}
         count={total === undefined ? undefined : t('common.itemCount', { count: total })}
+        archived={{ checked: archived, onChange: onArchived, label: t('home.showArchived') }}
         action={
           canWrite && (
             <Button asChild>
@@ -96,7 +115,11 @@ export function ItemsPanel({ q, onSearch }: { q: string; onSearch: (text: string
       <PagedList
         query={query}
         searching={q !== ''}
-        empty={{ title: t('home.items.emptyTitle'), hint: t('home.items.emptyHint') }}
+        empty={
+          archived
+            ? { title: t('home.items.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
+            : { title: t('home.items.emptyTitle'), hint: t('home.items.emptyHint') }
+        }
         columns={columns}
         card={card}
       />

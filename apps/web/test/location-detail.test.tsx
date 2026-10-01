@@ -320,3 +320,108 @@ describe('location detail: loading and failure', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Podlokality (2)' })).toBeInTheDocument();
   });
 });
+
+describe('location detail: archive and restore', () => {
+  const archivedAt = '2026-05-01T00:00:00.000Z';
+  const bodyOf = async (call: Request) => JSON.parse(await call.clone().text());
+
+  /** The location answers as the server would: archived once the archive call went through. */
+  function stateful(start: { id: string; version: number }, role = 'write', refuse?: Response) {
+    let current: { version: number } & Record<string, unknown> = start;
+    return stubApi({
+      'GET /api/v1/me': () => jsonResponse({ ...me, role }),
+      [`GET /api/v1/locations/${start.id}`]: () => jsonResponse(current),
+      'GET /api/v1/locations': () => page([]),
+      [`GET /api/v1/locations/${start.id}/items`]: () => page([]),
+      [`POST /api/v1/locations/${start.id}/archive`]: () => {
+        if (refuse) return refuse;
+        current = { ...current, archivedAt, version: current.version + 1 };
+        return jsonResponse(current);
+      },
+      [`POST /api/v1/locations/${start.id}/restore`]: () => {
+        current = { ...current, archivedAt: null, version: current.version + 1 };
+        return jsonResponse(current);
+      },
+    });
+  }
+
+  it('asks first, naming what disappears with the location, then archives with the current version', async () => {
+    const calls = stateful(sub);
+    renderApp(`/locations/${sub.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Archivovat' }));
+
+    const dialog = within(await screen.findByRole('alertdialog'));
+    expect(dialog.getByText('Archivovat lokalitu?')).toBeInTheDocument();
+    expect(dialog.getByText(/Ze seznamů zmizí také: 2 podlokality a 12 položek\./)).toBeInTheDocument();
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+
+    await userEvent.click(dialog.getByRole('button', { name: 'Archivovat' }));
+
+    expect(await screen.findByText('Archivováno')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Obnovit' })).toBeInTheDocument();
+    const post = calls.find((call) => call.method === 'POST')!;
+    expect(new URL(post.url).pathname).toBe(`/api/v1/locations/${sub.id}/archive`);
+    expect(await bodyOf(post)).toEqual({ version: sub.version });
+    // Archived, it can no longer be edited or added to.
+    expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
+  });
+
+  it('leaves out the warning of hidden contents for an empty location', async () => {
+    const empty = location({ itemCount: 0, childCount: 0 });
+    stateful(empty);
+    renderApp(`/locations/${empty.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Archivovat' }));
+    const dialog = within(await screen.findByRole('alertdialog'));
+    expect(dialog.getByText(/můžete kdykoli obnovit/)).toBeInTheDocument();
+    expect(dialog.queryByText(/zmizí také/)).not.toBeInTheDocument();
+  });
+
+  it('sends nothing when the dialog is cancelled', async () => {
+    const calls = stateful(sub);
+    renderApp(`/locations/${sub.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Archivovat' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Zrušit' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
+  it('restores an archived location at once and shows the edit button again', async () => {
+    const archived = location({ archivedAt, version: 4 });
+    const calls = stateful(archived);
+    renderApp(`/locations/${archived.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Obnovit' }));
+
+    expect(await screen.findByRole('link', { name: 'Upravit' })).toBeInTheDocument();
+    expect(screen.queryByText('Archivováno')).not.toBeInTheDocument();
+    const post = calls.find((call) => call.method === 'POST')!;
+    expect(new URL(post.url).pathname).toBe(`/api/v1/locations/${archived.id}/restore`);
+    expect(await bodyOf(post)).toEqual({ version: 4 });
+  });
+
+  it('shows the conflict text when somebody changed the location meanwhile', async () => {
+    const conflict = { type: 'about:blank', title: 'Conflict', status: 409, code: 'conflict' };
+    stateful(sub, 'write', jsonResponse(conflict, { status: 409, problem: true }));
+    renderApp(`/locations/${sub.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Archivovat' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Archivovat' }));
+    expect(await screen.findByText(/Záznam mezitím někdo upravil/)).toBeInTheDocument();
+  });
+
+  it('fetches the location again after a conflict, so the next try has the current version', async () => {
+    const conflict = { type: 'about:blank', title: 'Conflict', status: 409, code: 'conflict' };
+    const calls = stateful(sub, 'write', jsonResponse(conflict, { status: 409, problem: true }));
+    renderApp(`/locations/${sub.id}`);
+    await userEvent.click(await screen.findByRole('button', { name: 'Archivovat' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Archivovat' }));
+    await screen.findByText(/Záznam mezitím někdo upravil/);
+    await waitFor(() => expect(calls.filter((call) => call.method === 'GET' && call.url.endsWith(`/locations/${sub.id}`))).toHaveLength(2));
+  });
+
+  it('offers a reader neither archive nor restore', async () => {
+    const archived = location({ archivedAt });
+    stateful(archived, 'read');
+    renderApp(`/locations/${archived.id}`);
+    await screen.findByText('Archivováno');
+    expect(screen.queryByRole('button', { name: /Archivovat|Obnovit/ })).not.toBeInTheDocument();
+  });
+});

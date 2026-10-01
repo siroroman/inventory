@@ -73,6 +73,19 @@ describe('location repository', () => {
     expect(await repo().count({ parentId: null })).toBe(5);
   });
 
+  it('lists archived locations at every level when asked, and no active ones', async () => {
+    const { user, add } = await setup();
+    const brno = await add('Brno');
+    await add('Cheb');
+    await repo().setArchived(brno.id, 1, true, user.id);
+
+    const archived = await repo().list({ archived: true }, { limit: 50 });
+    expect(archived.items.map((l) => l.name)).toEqual(['Brno']);
+    expect(await repo().count({ archived: true })).toBe(1);
+    expect(await repo().count({ archived: true, q: 'cheb' })).toBe(0);
+    expect(await repo().count({ parentId: null })).toBe(1);
+  });
+
   it('returns the path from the top down for several locations at once', async () => {
     const { praha, prizemi, kuchyne, brno } = await tree();
     const paths = await repo().findPaths([kuchyne.id, brno.id]);
