@@ -16,8 +16,11 @@ const pathOf = (item: ItemListEntryDto) => item.path.map((segment) => segment.na
 const brandAndModel = (item: ItemListEntryDto) =>
   [item.manufacturer?.name, item.model].filter(Boolean).join(' ');
 
-/** Table columns and card of an item list. */
-export function useItemRows() {
+/**
+ * Table columns and card of an item list. `nested` is the list on a location's page: its name column
+ * has the width of the sub-locations table above it, so the ID lines up with that table's item count.
+ */
+export function useItemRows({ nested }: { nested: boolean }) {
   const { t } = useTranslation();
 
   // "Service overdue" / "Service due within 30 days", or nothing.
@@ -32,6 +35,7 @@ export function useItemRows() {
     {
       header: t('home.items.columns.name'),
       primary: true,
+      className: nested ? 'w-80' : undefined,
       cell: (item) => (
         <>
           <Link to="/items/$id" params={{ id: item.id }} className="hover:underline">
@@ -42,11 +46,11 @@ export function useItemRows() {
       ),
     },
     { header: t('home.items.columns.code'), className: 'w-28', cell: (item) => item.code },
+    { header: t('home.items.columns.brand'), cell: brandAndModel },
     {
       header: t('home.items.columns.location'),
       cell: (item) => <span title={pathOf(item)}>{pathOf(item) || t('common.empty')}</span>,
     },
-    { header: t('home.items.columns.brand'), cell: brandAndModel },
   ];
 
   const card = (item: ItemListEntryDto) => {
@@ -85,7 +89,7 @@ export function ItemsPanel({
   const { t } = useTranslation();
   const query = useInfiniteQuery(itemListQueryOptions(q, archived));
   const total = pagedTotal(query.data);
-  const { columns, card } = useItemRows();
+  const { columns, card } = useItemRows({ nested: false });
   const canWrite = useCanWrite();
 
   return (

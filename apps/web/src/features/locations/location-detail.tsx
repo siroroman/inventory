@@ -125,6 +125,7 @@ function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boo
           empty={{ title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }}
           columns={columns}
           card={card}
+          packed
         />
       ) : (
         <EmptyState title={t('locationDetail.subLocationsEmptyTitle')} hint={t('locationDetail.subLocationsEmptyHint')} />
@@ -136,7 +137,7 @@ function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boo
 function Items({ location, canAdd }: { location: LocationDto; canAdd: boolean }) {
   const { t } = useTranslation();
   const query = useInfiniteQuery(locationItemsQueryOptions(location.id));
-  const { columns, card } = useItemRows();
+  const { columns, card } = useItemRows({ nested: true });
   return (
     <Section
       id="location-items"

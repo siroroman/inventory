@@ -134,15 +134,15 @@ describe('home: desktop table', () => {
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Název',
       'ID',
-      'Lokalita',
       'Výrobce a model',
+      'Lokalita',
     ]);
     const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
     expect(cells).toEqual([
       'Konvektomat',
       'INV-00042',
-      'Centrála Praha › Přízemí › Teplá kuchyně',
       'Rational SCC 101',
+      'Centrála Praha › Přízemí › Teplá kuchyně',
     ]);
   });
 

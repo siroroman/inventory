@@ -30,6 +30,8 @@ type Props<T extends { id: string }> = {
   columns: Column<T>[];
   /** ...and a list of these cards below it. */
   card: (item: T) => ReactNode;
+  /** Columns keep their set widths and the spare room goes to the right instead of widening the first one. */
+  packed?: boolean;
 };
 
 // Tailwind's `md` breakpoint.
@@ -66,6 +68,7 @@ export function PagedList<T extends { id: string }>({
   empty,
   columns,
   card,
+  packed,
 }: Props<T>) {
   const { t } = useTranslation();
   const wide = useMediaQuery(wideScreen);
@@ -100,6 +103,7 @@ export function PagedList<T extends { id: string }>({
                   {column.header}
                 </th>
               ))}
+              {packed && <th aria-hidden />}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -117,6 +121,7 @@ export function PagedList<T extends { id: string }>({
                     {column.cell(item)}
                   </td>
                 ))}
+                {packed && <td aria-hidden />}
               </tr>
             ))}
           </tbody>

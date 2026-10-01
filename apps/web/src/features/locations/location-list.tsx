@@ -37,7 +37,8 @@ function LocationLink({ location, card, children }: { location: LocationDto; car
 
 /**
  * Table columns and card of a location list. `nested` is the list of one location's sub-locations:
- * it needs neither the parent path (the page shows it) nor the type (only top-level locations have one).
+ * it needs neither the parent path (the page shows it), nor the type (only top-level locations have one),
+ * nor the address column.
  */
 export function useLocationRows({ nested }: { nested: boolean }) {
   const { t } = useTranslation();
@@ -54,10 +55,16 @@ export function useLocationRows({ nested }: { nested: boolean }) {
     cell: (location) => location.type && <Badge>{location.type.name}</Badge>,
   };
 
+  const addressColumn: Column<LocationDto> = {
+    header: t('home.locations.columns.address'),
+    cell: (location) => location.address,
+  };
+
   const columns: Column<LocationDto>[] = [
     {
       header: t('home.locations.columns.name'),
       primary: true,
+      className: nested ? 'w-80' : undefined,
       cell: (location) => {
         const above = path(location);
         return (
@@ -71,8 +78,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
         );
       },
     },
-    ...(nested ? [] : [typeColumn]),
-    { header: t('home.locations.columns.address'), cell: (location) => location.address },
+    ...(nested ? [] : [typeColumn, addressColumn]),
     {
       header: t('home.locations.columns.items'),
       className: 'w-28',

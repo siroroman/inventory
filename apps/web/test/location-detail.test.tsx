@@ -169,7 +169,6 @@ describe('location detail: sub-locations and items', () => {
     const items = await within(screen.getByRole('region', { name: 'Položky (12)' })).findByRole('table');
     expect(within(children).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Název',
-      'Adresa',
       'Položky',
       'Podlokality',
     ]);
