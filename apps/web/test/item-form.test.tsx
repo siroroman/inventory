@@ -503,13 +503,17 @@ describe('new item from a location', () => {
 
 describe('shared cache', () => {
   it('does not break the location form, which searches locations too, after the item form was open', async () => {
-    api({ 'GET /api/v1/location-types': () => jsonResponse({ items: [ref('HQ', 'Centrála')] }) });
+    const hq = location({ name: 'Centrála Praha' });
+    api({
+      'GET /api/v1/location-types': () => jsonResponse({ items: [ref('HQ', 'Centrála')] }),
+      [`GET /api/v1/locations/${hq.id}`]: () => jsonResponse(hq),
+    });
     const user = userEvent.setup();
     const { router } = renderApp('/items/new');
     await user.click(await screen.findByPlaceholderText(/Hledat lokalitu/));
     await screen.findByRole('button', { name: 'Centrála Praha › Teplá kuchyně' });
 
-    await router.navigate({ to: '/locations/new' });
+    await router.navigate({ to: '/locations/new', search: { parentId: hq.id } });
     await user.click(await screen.findByRole('button', { name: 'Změnit' }));
     expect(await screen.findByRole('button', { name: /Teplá kuchyně/ })).toBeInTheDocument();
   });
