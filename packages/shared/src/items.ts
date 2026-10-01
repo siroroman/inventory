@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codeRef, documentsUrl, humanCode, hasChange, isoDate, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
-import { searchPageQuery, versionField } from './http.ts';
+import { archivedQuery, searchPageQuery, versionField } from './http.ts';
 
 /** One row of an item list; `itemSchema` extends it with the rest of the item. */
 export const itemListEntrySchema = z.object({
@@ -93,6 +93,7 @@ export type UpdateItemBody = z.infer<typeof updateItemBody>;
 
 /** `GET /items`: `locationId` includes everything below that location. */
 export const itemSearchQuery = itemListQuery.extend({
+  ...archivedQuery.shape,
   locationId: z.uuid().optional(),
   manufacturerId: z.uuid().optional(),
 });

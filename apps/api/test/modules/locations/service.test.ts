@@ -295,6 +295,22 @@ describe('location service', () => {
       expect(children.items.map((l) => l.name)).toEqual(['Sklad']);
       expect((await service.list(reader, { parentId: brno.id, q: 'xyz' }, { limit: 50 })).total).toBe(0);
     });
+
+    it('lists the archived locations at every level, and only those, when asked', async () => {
+      const { service, top, sub } = setup();
+      const brno = await top('Brno');
+      const sklad = await sub('Sklad', brno.id);
+      await top('Cheb');
+      await service.archive(writer, sklad.id, 1);
+      await service.archive(writer, (await top('Zlín')).id, 1);
+
+      const archived = await service.list(reader, { archived: true }, { limit: 50 });
+      expect(archived.items.map((l) => l.name)).toEqual(['Sklad', 'Zlín']);
+      expect(archived.total).toBe(2);
+      expect(archived.items[0]?.path.map((p) => p.name)).toEqual(['Brno', 'Sklad']);
+      expect((await service.list(reader, { archived: true, q: 'zl' }, { limit: 50 })).items.map((l) => l.name)).toEqual(['Zlín']);
+      expect((await service.list(reader, {}, { limit: 50 })).items.map((l) => l.name)).toEqual(['Brno', 'Cheb']);
+    });
   });
 });
 

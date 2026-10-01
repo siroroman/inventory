@@ -132,6 +132,21 @@ describe('GET /items', () => {
     expect((await expectJson(await read.get('/items'), 200, itemListSchema)).items).toEqual([]);
   });
 
+  it('lists the archived items, and only those, with ?archived=true', async () => {
+    const { read, write } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    const item = await insertItem(db().app, { name: 'Váha', locationId: loc.id });
+    await insertItem(db().app, { name: 'Regál', locationId: loc.id });
+    await write.post(`/items/${item.id}/archive`, { version: 1 });
+
+    const body = await expectJson(await read.get('/items?archived=true'), 200, itemListSchema);
+    expect(body.items.map((i) => i.name)).toEqual(['Váha']);
+    expect(body.total).toBe(1);
+    expect(body.items[0]?.archivedAt).toEqual(expect.any(String));
+    expect((await expectJson(await read.get('/items?archived=true&q=regal'), 200, itemListSchema)).items).toEqual([]);
+    await expectProblem(await read.get('/items?archived=1'), 400, 'validation_error');
+  });
+
   it('pages with limit and cursor', async () => {
     const { read } = await setup();
     const loc = await insertLocation(db().app, { name: 'Sklad' });

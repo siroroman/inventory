@@ -1,4 +1,4 @@
-import { and, asc, count, eq, getTableColumns, inArray, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
@@ -38,8 +38,8 @@ export type ExternalIdInput = { source: string; value: string };
 /** An external ID another item already has, as stored, and the code of that item. */
 export type ExternalIdClash = ExternalIdInput & { itemCode: string };
 
-/** `locationId` includes items anywhere below that location. */
-export type ItemFilter = { q?: string; locationId?: string; manufacturerId?: string };
+/** `locationId` includes items anywhere below that location; `archived` lists the archived items instead. */
+export type ItemFilter = { q?: string; locationId?: string; manufacturerId?: string; archived?: boolean };
 
 /** The location and its active descendants; an archived sub-location hides everything below it. */
 function subtreeOf(locationId: string): SQL {
@@ -83,7 +83,7 @@ function searchCondition(db: DbExecutor, q: string): SQL {
 }
 
 function listWhere(db: DbExecutor, filter: ItemFilter): SQL[] {
-  const conditions: SQL[] = [isNull(items.archivedAt)];
+  const conditions: SQL[] = [filter.archived ? isNotNull(items.archivedAt) : isNull(items.archivedAt)];
   if (filter.locationId) conditions.push(sql`${items.locationId} IN (${subtreeOf(filter.locationId)})`);
   if (filter.manufacturerId) conditions.push(eq(items.manufacturerId, filter.manufacturerId));
   if (filter.q) conditions.push(searchCondition(db, filter.q));
@@ -113,7 +113,7 @@ export function createItemRepository(db: DbExecutor) {
     },
 
     /**
-     * Active items ordered by name. `q` matches name, code, serial number, model, an external ID,
+     * Active (or, with `archived`, archived) items ordered by name. `q` matches name, code, serial number, model, an external ID,
      * the manufacturer, or any location on the item's path, ignoring case and diacritics.
      */
     async list(filter: ItemFilter, page: { limit: number; cursor?: string }): Promise<Page<ItemListRow>> {

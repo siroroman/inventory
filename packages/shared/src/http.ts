@@ -27,5 +27,11 @@ export const pageQuery = z.object({
 /** Optimistic locking: updates send the version they were based on; a stale one returns 409. */
 export const versionField = z.number().int().min(1);
 
+/**
+ * `?archived=true` lists the archived records instead of the active ones (to find one and restore
+ * it). Only `true` is accepted; leaving it out is the normal list.
+ */
+export const archivedQuery = z.object({ archived: z.literal('true').optional() });
+
 /** A list that can be searched: `?q=` plus paging. */
 export const searchPageQuery = pageQuery.extend({ q: searchQuery.optional() });

@@ -87,8 +87,9 @@ type ItemServices = { items: ItemService; photos: PhotoService };
 export function createItemRoutes({ items, photos }: ItemServices) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { q, locationId, manufacturerId, limit, cursor } = c.req.valid('query');
-      const page = await items.list(c.get('actor'), { q, locationId, manufacturerId }, { limit, cursor });
+      const { q, locationId, manufacturerId, archived, limit, cursor } = c.req.valid('query');
+      const filter = { q, locationId, manufacturerId, archived: archived === 'true' };
+      const page = await items.list(c.get('actor'), filter, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toItemListEntryDto) }, 200);
     })
     .openapi(get, async (c) => {

@@ -1,4 +1,4 @@
-import { and, asc, count, eq, getTableColumns, isNull, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, isNotNull, isNull, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { locations, locationTypes } from '../../db/schema/index.ts';
@@ -20,8 +20,9 @@ export type LocationPatch = Partial<LocationFields> & { updatedBy: string };
 /**
  * `parentId: null` lists top-level locations, an id lists that location's direct children, and
  * leaving it out searches every level (used when picking a location for an item).
+ * `archived` lists the archived locations instead of the active ones.
  */
-export type LocationFilter = { parentId?: string | null; q?: string };
+export type LocationFilter = { parentId?: string | null; q?: string; archived?: boolean };
 
 export type PathSegment = { id: string; code: string; name: string };
 export type SubtreeCounts = { itemCount: number; childCount: number };
@@ -32,7 +33,7 @@ const withType = {
 };
 
 function listWhere(filter: LocationFilter): SQL[] {
-  const conditions: SQL[] = [isNull(locations.archivedAt)];
+  const conditions: SQL[] = [filter.archived ? isNotNull(locations.archivedAt) : isNull(locations.archivedAt)];
   if (filter.parentId === null) conditions.push(isNull(locations.parentId));
   else if (filter.parentId) conditions.push(eq(locations.parentId, filter.parentId));
   if (filter.q) conditions.push(containsText(locations.name, filter.q));
@@ -50,7 +51,7 @@ export function createLocationRepository(db: DbExecutor) {
       return row;
     },
 
-    /** Active locations ordered by name (Czech collation). */
+    /** Active (or, with `archived`, archived) locations ordered by name (Czech collation). */
     async list(
       filter: LocationFilter,
       page: { limit: number; cursor?: string },

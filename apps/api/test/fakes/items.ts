@@ -30,7 +30,7 @@ export function createFakeItemStore() {
 
   const matching = (filter: Parameters<ItemRepository['list']>[0]) =>
     state.items.filter((item) => {
-      if (item.archivedAt) return false;
+      if (!!item.archivedAt !== !!filter.archived) return false;
       if (filter.locationId && !(item.locationId && subtree(filter.locationId).includes(item.locationId))) return false;
       if (filter.manufacturerId && item.manufacturerId !== filter.manufacturerId) return false;
       if (!filter.q) return true;

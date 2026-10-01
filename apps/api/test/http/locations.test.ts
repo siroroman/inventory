@@ -61,6 +61,22 @@ describe('GET /locations', () => {
     expect((await expectJson(await read.get('/locations'), 200, locationListSchema)).items).toEqual([]);
   });
 
+  it('lists the archived ones, at every level, with ?archived=true', async () => {
+    const { read, write } = await setup();
+    const praha = await insertLocation(db().app, { name: 'Praha' });
+    const sklad = await insertLocation(db().app, { name: 'Sklad', parentId: praha.id });
+    await insertLocation(db().app, { name: 'Brno' });
+    await write.post(`/locations/${sklad.id}/archive`, { version: 1 });
+
+    const body = await expectJson(await read.get('/locations?archived=true'), 200, locationListSchema);
+    expect(body.items.map((l) => l.name)).toEqual(['Sklad']);
+    expect(body).toMatchObject({ total: 1 });
+    expect(body.items[0]).toMatchObject({ archivedAt: expect.any(String), path: [{ name: 'Praha' }, { name: 'Sklad' }] });
+    const searched = await expectJson(await read.get('/locations?archived=true&q=SKL'), 200, locationListSchema);
+    expect(searched.items).toHaveLength(1);
+    await expectProblem(await read.get('/locations?archived=false'), 400, 'validation_error');
+  });
+
   it('pages with limit and cursor', async () => {
     const { read } = await setup();
     for (const name of ['A', 'B', 'C']) await insertLocation(db().app, { name });

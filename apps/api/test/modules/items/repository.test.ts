@@ -113,6 +113,17 @@ describe('item repository', () => {
     expect(await repo().count({})).toBe(4);
   });
 
+  it('lists the archived items when asked, and no active ones', async () => {
+    const { user, kuchyne, add } = await setup();
+    await add('Hrnec', kuchyne.id);
+    const archived = await add('Archivní', kuchyne.id);
+    await repo().setArchived(archived.id, 1, true, user.id);
+
+    expect((await repo().list({ archived: true }, { limit: 50 })).items.map((i) => i.name)).toEqual(['Archivní']);
+    expect(await repo().count({ archived: true })).toBe(1);
+    expect(await repo().count({ archived: true, q: 'hrnec' })).toBe(0);
+  });
+
   it('updates with optimistic locking', async () => {
     const { user, kuchyne, brno, add } = await setup();
     const item = await add('Konvektomat', kuchyne.id);
