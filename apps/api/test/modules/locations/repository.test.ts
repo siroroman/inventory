@@ -76,7 +76,7 @@ describe('location repository', () => {
   it('adds everything below each match when asked, each right after the one it is in', async () => {
     const { user, add, praha, prizemi, kuchyne } = await tree();
     const sklad = await add('Sklad', praha.id);
-    await add('Centrála Praha 2'); // sorts after everything inside Centrála Praha
+    await add('Centrála Praha - sklad'); // after everything inside Centrála Praha, despite the "-"
     const archived = await add('Archiv', praha.id);
     await add('Pod archivem', archived.id);
     await repo().setArchived(archived.id, 1, true, user.id);
@@ -91,7 +91,8 @@ describe('location repository', () => {
       sklad.id,
       expect.any(String),
     ]);
-    expect(second.items.at(-1)?.name).toBe('Centrála Praha 2');
+    expect(second.items.at(-1)?.name).toBe('Centrála Praha - sklad');
+    await expect(repo().list(filter, { limit: 3, cursor: 'bm9wZQ' })).rejects.toThrow('invalid cursor');
     expect(second.nextCursor).toBeNull();
     expect(await repo().count(filter)).toBe(5);
   });

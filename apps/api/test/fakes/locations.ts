@@ -10,7 +10,7 @@ import type {
 } from '../../src/modules/locations/repository.ts';
 import type { LocationRepos } from '../../src/modules/locations/service.ts';
 import { createFakeAuditRepository } from './audit.ts';
-import { bumpVersion as bump, fakeContains, fakePageByName, fakeTransact } from './common.ts';
+import { bumpVersion as bump, fakeContains, fakePageByName, fakePageByPath, fakeTransact } from './common.ts';
 
 type FakeItem = { locationId: string; archived: boolean };
 
@@ -64,14 +64,10 @@ export function createFakeLocationStore() {
           (filter.parentId === undefined || l.parentId === filter.parentId) &&
           found(l),
       );
-      // Ordered by path ("A › B") with `withSubLocations`, by name otherwise.
-      const keyed = rows.map((row) => ({
-        row,
-        id: row.id,
-        name: filter.withSubLocations ? pathOf(row).map((l) => l.name).join(' › ') : row.name,
-      }));
-      const result = fakePageByName(keyed, page);
-      return { ...result, items: result.items.map(({ row }) => withType(row)) };
+      const result = filter.withSubLocations
+        ? fakePageByPath(rows.map((row) => ({ ...row, path: pathOf(row).map((l) => l.name) })), page)
+        : fakePageByName(rows, page);
+      return { ...result, items: result.items.map(withType) };
     },
     async count(filter) {
       return (await locations.list(filter, { limit: Number.MAX_SAFE_INTEGER })).items.length;
@@ -79,11 +75,8 @@ export function createFakeLocationStore() {
     async findPaths(ids) {
       const paths = new Map<string, PathSegment[]>();
       for (const id of ids) {
-        const path: PathSegment[] = [];
-        for (let l = byId(id); l; l = l.parentId ? byId(l.parentId) : undefined) {
-          path.unshift({ id: l.id, code: l.code, name: l.name });
-        }
-        if (path.length) paths.set(id, path);
+        const l = byId(id);
+        if (l) paths.set(id, pathOf(l).map(({ id, code, name }) => ({ id, code, name })));
       }
       return paths;
     },

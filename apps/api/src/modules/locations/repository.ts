@@ -1,6 +1,6 @@
 import { and, asc, count, eq, getTableColumns, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
-import { afterName, type Page, toPage } from '../../db/pagination.ts';
+import { afterName, afterPath, type Page, toPage } from '../../db/pagination.ts';
 import { locations, locationTypes } from '../../db/schema/index.ts';
 import { containsText, searchWords } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
@@ -48,6 +48,8 @@ function matchesSearch(q: string): SQL | undefined {
   const words = searchWords(q);
   if (words.length === 0) return undefined;
   const own = words.map((word) => or(containsText(locations.name, word), containsText(locations.code, word)));
+  // One word in the location itself is on its path too.
+  if (words.length === 1) return own[0];
   // Each location with the codes and names of its whole path, top-level first. The words hold no
   // whitespace, so none can match across two segments.
   const onPath = sql`${locations.id} IN (
@@ -77,16 +79,17 @@ function andBelow(match: SQL): SQL {
 }
 
 /**
- * The names from the top-level location down, "Centrála Hradec Králové › Zasedačka", in Czech
- * collation. Ordered by it, every location follows the one it is in (› sorts before letters/digits).
+ * The names from the top-level location down, {Centrála Hradec Králové, Zasedačka}, in Czech
+ * collation. Arrays compare name by name and a prefix sorts first, so ordered by it every location
+ * follows the one it is in, before any sibling of that one ("Sklad", "Sklad › A", "Sklad - B").
  */
-const pathName = sql<string>`((
+const pathNames = sql<string[]>`((
   WITH RECURSIVE up (parent_id, name, depth) AS (
     SELECT p.parent_id, p.name, 0 FROM locations p WHERE p.id = ${locations.id}
     UNION ALL
     SELECT p.parent_id, p.name, up.depth + 1 FROM locations p JOIN up ON p.id = up.parent_id
   )
-  SELECT string_agg(up.name, ' › ' ORDER BY up.depth DESC) FROM up
+  SELECT array_agg(up.name ORDER BY up.depth DESC) FROM up
 ) COLLATE cs_cz)`;
 
 function listWhere(filter: LocationFilter): SQL[] {
@@ -117,16 +120,25 @@ export function createLocationRepository(db: DbExecutor) {
       filter: LocationFilter,
       page: { limit: number; cursor?: string },
     ): Promise<Page<LocationWithType>> {
-      const sortKey = filter.withSubLocations ? pathName : locations.name;
+      if (filter.withSubLocations) {
+        const rows = await db
+          .select({ ...withType, path: pathNames })
+          .from(locations)
+          .leftJoin(locationTypes, eq(locationTypes.id, locations.locationTypeId))
+          .where(and(...listWhere(filter), afterPath(pathNames, locations.id, page.cursor)))
+          .orderBy(asc(pathNames), asc(locations.id))
+          .limit(page.limit + 1);
+        const result = toPage(rows, page.limit, (r) => ({ path: r.path, id: r.id }));
+        return { ...result, items: result.items.map(({ path: _, ...row }) => row) };
+      }
       const rows = await db
-        .select({ ...withType, sortKey })
+        .select(withType)
         .from(locations)
         .leftJoin(locationTypes, eq(locationTypes.id, locations.locationTypeId))
-        .where(and(...listWhere(filter), afterName(sortKey, locations.id, page.cursor)))
-        .orderBy(asc(sortKey), asc(locations.id))
+        .where(and(...listWhere(filter), afterName(locations.name, locations.id, page.cursor)))
+        .orderBy(asc(locations.name), asc(locations.id))
         .limit(page.limit + 1);
-      const result = toPage(rows, page.limit, (r) => ({ name: r.sortKey, id: r.id }));
-      return { ...result, items: result.items.map(({ sortKey: _, ...row }) => row) };
+      return toPage(rows, page.limit, (r) => ({ name: r.name, id: r.id }));
     },
 
     async count(filter: LocationFilter): Promise<number> {
