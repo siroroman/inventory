@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { searchWords } from '../../src/db/search.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type {
   Location,
@@ -9,7 +10,7 @@ import type {
 } from '../../src/modules/locations/repository.ts';
 import type { LocationRepos } from '../../src/modules/locations/service.ts';
 import { createFakeAuditRepository } from './audit.ts';
-import { bumpVersion as bump, fakeContains, fakePageByName, fakeTransact } from './common.ts';
+import { bumpVersion as bump, fakeContains, fakePageByName, fakePageByPath, fakeTransact } from './common.ts';
 
 type FakeItem = { locationId: string; archived: boolean };
 
@@ -35,19 +36,37 @@ export function createFakeLocationStore() {
   const activeChildren = (id: string) => state.locations.filter((l) => l.parentId === id && !l.archivedAt);
   const subtree = (id: string): string[] => [id, ...activeChildren(id).flatMap((c) => subtree(c.id))];
 
+  const pathOf = (l: Location): Location[] => [...(l.parentId ? pathOf(byId(l.parentId)!) : []), l];
+  // Like the repository: every word on the path, at least one in the location itself.
+  const matchesSearch = (l: Location, q: string) => {
+    const words = searchWords(q);
+    const hit = (word: string) => (segment: Location) =>
+      fakeContains(segment.name, word) || fakeContains(segment.code, word);
+    return (
+      words.length === 0 || (words.some((word) => hit(word)(l)) && words.every((word) => pathOf(l).some(hit(word))))
+    );
+  };
+
   const locations: LocationRepository = {
     async findById(id) {
       const row = byId(id);
       return row && withType(row);
     },
     async list(filter, page) {
+      const found = (l: Location) =>
+        matchesSearch(l, filter.q ?? '') ||
+        // Below a match, through active sub-locations only.
+        (!!filter.withSubLocations && pathOf(l).slice(0, -1).some((above, i, path) =>
+          matchesSearch(above, filter.q ?? '') && path.slice(i + 1).every((l) => !l.archivedAt)));
       const rows = state.locations.filter(
         (l) =>
           !!l.archivedAt === !!filter.archived &&
           (filter.parentId === undefined || l.parentId === filter.parentId) &&
-          (!filter.q || fakeContains(l.name, filter.q)),
+          found(l),
       );
-      const result = fakePageByName(rows, page);
+      const result = filter.withSubLocations
+        ? fakePageByPath(rows.map((row) => ({ ...row, path: pathOf(row).map((l) => l.name) })), page)
+        : fakePageByName(rows, page);
       return { ...result, items: result.items.map(withType) };
     },
     async count(filter) {
@@ -56,11 +75,8 @@ export function createFakeLocationStore() {
     async findPaths(ids) {
       const paths = new Map<string, PathSegment[]>();
       for (const id of ids) {
-        const path: PathSegment[] = [];
-        for (let l = byId(id); l; l = l.parentId ? byId(l.parentId) : undefined) {
-          path.unshift({ id: l.id, code: l.code, name: l.name });
-        }
-        if (path.length) paths.set(id, path);
+        const l = byId(id);
+        if (l) paths.set(id, pathOf(l).map(({ id, code, name }) => ({ id, code, name })));
       }
       return paths;
     },

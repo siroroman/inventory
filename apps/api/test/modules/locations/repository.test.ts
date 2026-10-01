@@ -59,6 +59,44 @@ describe('location repository', () => {
     expect(await repo().count({ q: 'PRI' })).toBe(1); // Přízemí
   });
 
+  it('searches by code, and by words spread over the path', async () => {
+    const { kuchyne } = await tree();
+    const names = async (q: string) => (await repo().list({ q }, { limit: 50 })).items.map((l) => l.name);
+    expect(await names(kuchyne.code.toLowerCase())).toEqual(['Kuchyně']);
+    expect(await names('kuchyne praha')).toEqual(['Kuchyně']);
+    expect(await names('  praha   PRIZ ')).toEqual(['Přízemí']);
+    expect(await names('LOC-001 kuch')).toEqual(['Kuchyně']);
+    // A word must also be in the location itself: "praha" is not every location below Praha.
+    expect(await names('praha')).toEqual(['Centrála Praha']);
+    expect(await names('centrala praha')).toEqual(['Centrála Praha']);
+    expect(await names('kuchyne brno')).toEqual([]);
+    expect(await repo().count({ q: 'kuchyne praha' })).toBe(1);
+  });
+
+  it('adds everything below each match when asked, each right after the one it is in', async () => {
+    const { user, add, praha, prizemi, kuchyne } = await tree();
+    const sklad = await add('Sklad', praha.id);
+    await add('Centrála Praha - sklad'); // after everything inside Centrála Praha, despite the "-"
+    const archived = await add('Archiv', praha.id);
+    await add('Pod archivem', archived.id);
+    await repo().setArchived(archived.id, 1, true, user.id);
+
+    const filter = { q: 'centrala praha', withSubLocations: true };
+    const first = await repo().list(filter, { limit: 3 });
+    const second = await repo().list(filter, { limit: 3, cursor: first.nextCursor! });
+    expect([...first.items, ...second.items].map((l) => l.id)).toEqual([
+      praha.id,
+      prizemi.id,
+      kuchyne.id,
+      sklad.id,
+      expect.any(String),
+    ]);
+    expect(second.items.at(-1)?.name).toBe('Centrála Praha - sklad');
+    await expect(repo().list(filter, { limit: 3, cursor: 'bm9wZQ' })).rejects.toThrow('invalid cursor');
+    expect(second.nextCursor).toBeNull();
+    expect(await repo().count(filter)).toBe(5);
+  });
+
   it('pages in Czech order and hides archived locations', async () => {
     const { user, add } = await setup();
     for (const name of ['Žatec', 'Cheb', 'Čáslav', 'Brno', 'Říčany']) await add(name);

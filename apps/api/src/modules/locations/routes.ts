@@ -25,7 +25,7 @@ const list = defineRoute({
   path: '/locations',
   minRole: 'read',
   tags: ['locations'],
-  summary: 'List locations: top level, the children of one location, or a search across all levels; `archived=true` lists the archived ones',
+  summary: 'List locations: top level, the children of one location, or a search across all levels (`withSubLocations=true` adds everything below each match, ordered by path); `archived=true` lists the archived ones',
   request: { query: locationListQuery },
   responses: { 200: { description: 'One page of locations', content: jsonContent(locationListSchema) } },
 });
@@ -102,8 +102,9 @@ type LocationServices = { locations: LocationService; items: ItemService };
 export function createLocationRoutes({ locations, items }: LocationServices) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { parentId, q, archived, limit, cursor } = c.req.valid('query');
-      const page = await locations.list(c.get('actor'), { parentId, q, archived: archived === 'true' }, { limit, cursor });
+      const { parentId, q, withSubLocations, archived, limit, cursor } = c.req.valid('query');
+      const query = { parentId, q, withSubLocations: withSubLocations === 'true', archived: archived === 'true' };
+      const page = await locations.list(c.get('actor'), query, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toLocationDto) }, 200);
     })
     .openapi(get, async (c) => {

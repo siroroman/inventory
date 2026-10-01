@@ -65,12 +65,13 @@
     "locations": {
       "tab": "Lokality",
       "searchLabel": "Hledat lokality",
-      "searchPlaceholder": "Hledat podle názvu…",
+      "searchPlaceholder": "Hledat podle názvu nebo ID…",
       "emptyTitle": "Zatím tu nic není",
       "emptyHint": "Lokality se tu zobrazí, jakmile je někdo přidá.",
       "archivedEmptyTitle": "Žádné archivované lokality",
       "columns": {
         "name": "Název",
+        "code": "ID",
         "type": "Typ",
         "address": "Adresa",
         "items": "Položky",
@@ -134,8 +135,8 @@
     "parentChange": "Změnit",
     "parentDone": "Hotovo",
     "parentSearchLabel": "Hledat nadřazenou lokalitu",
-    "parentSearchPlaceholder": "Hledat podle názvu…",
-    "parentHint": "Bez hledání se nabízejí lokality nejvyšší úrovně. Podlokalitu najdete podle názvu.",
+    "parentSearchPlaceholder": "Hledat podle názvu nebo ID…",
+    "parentHint": "Bez hledání se nabízejí lokality nejvyšší úrovně. Podlokalitu najdete podle názvu nebo ID, upřesnit ji můžete názvem nadřazené lokality.",
     "parentNoResults": "Nic jsme nenašli",
     "parentTooMany": "Zobrazeno je prvních {{count}}, zpřesněte hledání.",
     "name": "Název",
@@ -245,7 +246,7 @@
     "sections": {
       "registration": "Registrace, záruka a servis"
     },
-    "locationPlaceholder": "Hledat lokalitu podle názvu…",
+    "locationPlaceholder": "Hledat lokalitu podle názvu nebo ID…",
     "noLocations": "Žádná lokalita nenalezena.",
     "manufacturerPlaceholder": "Hledat nebo zadat nového výrobce…",
     "noManufacturers": "Zatím žádný výrobce. Napište název a vytvořte ho.",

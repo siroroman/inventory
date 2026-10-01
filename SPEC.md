@@ -81,7 +81,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - A location's item count includes items in all of its sub-locations.
 - **Items** search placeholder: "Search by name, ID, serial number, external ID…". Mobile: thumbnail, name, ID with the full location path, manufacturer and model. Desktop: table with Name, ID, Location, Manufacturer & model, Service.
 - Status badges: "Service overdue" and "Service due within 30 days".
-- Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path.
+- Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path. Location search (the Locations tab and the location pickers) covers name and ID; several words may be spread over the path, each word in the location or one above it and at least one in the location itself ("zasedačka hradec" finds Zasedačka in Centrála Hradec Králové).
 - Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
 - A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it.
 
@@ -124,7 +124,7 @@ ID (e.g. SUP-001), Name, Contact person, Phone, Email, Web, Note, and the brands
 ### 3.7 Forms
 
 - **Location:** Parent location (optional; empty = top level), Name, Location type (top level only: Centrála/HQ, Prodejna/Store, Provozovna/Site, Sklad/Warehouse; extensible list), Address (single line), Note.
-- **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is optional (an item can be added before anyone knows where it is) and is chosen via search, including sub-locations shown with their full path; tapping the chosen location searches again. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
+- **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is optional (an item can be added before anyone knows where it is) and is chosen via search, including sub-locations shown with their full path; each match is followed by the sub-locations below it; tapping the chosen location searches again. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
 - **To add beyond the current design:** a Documents field (Google Drive folder link) in the item form's Basic info section.
 - **Service provider:** Name, Contact person, Phone, Email, Web, Brands serviced (addable tags), Note. Per-brand priority is set from the manufacturer detail screen.
 - **Manufacturer:** no standalone form in the current design. Proposal: a new manufacturer is created by typing a new name in the Manufacturer or Brands field; its note is edited from its detail page.
@@ -274,7 +274,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | Method & path | Purpose | Minimum role |
 | --- | --- | --- |
 | `GET /me` | current user and role | Read |
-| `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q`; `archived=true` = the archived ones at every level | Read |
+| `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q` (every level; `withSubLocations=true` adds everything below each match, ordered by path); `archived=true` = the archived ones at every level | Read |
 | `GET /locations/{id}` | detail with path up, sub-locations, item count across the whole subtree | Read |
 | `GET /locations/{id}/items` | items in this location, including all sub-locations | Read |
 | `POST /locations`, `PATCH /locations/{id}` | create, edit incl. changing the parent | Write |

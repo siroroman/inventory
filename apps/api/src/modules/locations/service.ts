@@ -83,17 +83,19 @@ async function checkPlacement(r: LocationRepos, p: Placement): Promise<void> {
 }
 
 /** What a list request asks for. See `toFilter` for how a missing parent is read. */
-export type LocationQuery = { parentId?: string; q?: string; archived?: boolean };
+export type LocationQuery = { parentId?: string; q?: string; withSubLocations?: boolean; archived?: boolean };
 
 /**
  * `parentId` lists that location's direct children. Without it the list is the top level, or every
- * level when searching (to pick a location for an item). The archived ones are listed at every
- * level, as a sub-location is archived on its own and there is no tree to walk down to it.
+ * level when searching (to pick a location for an item); `withSubLocations` adds everything below
+ * each match to such a search. The archived ones are listed at every level, as a sub-location is
+ * archived on its own and there is no tree to walk down to it.
  */
-function toFilter({ parentId, q, archived }: LocationQuery): LocationFilter {
+function toFilter({ parentId, q, withSubLocations, archived }: LocationQuery): LocationFilter {
   if (archived) return { ...(parentId && { parentId }), q, archived };
   if (parentId) return { parentId, q };
-  return q ? { q } : { parentId: null };
+  if (!q) return { parentId: null };
+  return withSubLocations ? { q, withSubLocations } : { q };
 }
 
 /** Adds the path and subtree counts. Takes the repos to read from, so a write can do it in its transaction. */

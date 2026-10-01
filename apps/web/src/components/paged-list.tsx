@@ -36,7 +36,7 @@ type Props<T extends { id: string }> = {
 
 /**
  * Width of the name column in the tables on a location's page; shared so the sub-locations table
- * and the items table line up (the ID under the item count).
+ * and the items table line up (the ID columns one under the other).
  */
 export const nestedNameColumnWidth = 'w-80';
 

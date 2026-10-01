@@ -108,6 +108,21 @@ describe('new item', () => {
     expect(screen.queryByRole('list', { name: 'Výsledky: Lokalita' })).not.toBeInTheDocument();
   });
 
+  it('searches locations together with their sub-locations, and lists the top level without a search', async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp('/items/new');
+
+    const params = () =>
+      calls.filter((c) => new URL(c.url).pathname === '/api/v1/locations').map((c) => new URL(c.url).searchParams);
+    await user.click(await screen.findByPlaceholderText(/Hledat lokalitu/));
+    await waitFor(() => expect(params()).toHaveLength(1));
+    expect(params()[0]?.has('withSubLocations')).toBe(false);
+    await user.type(screen.getByPlaceholderText(/Hledat lokalitu/), 'centrala hradec');
+    await waitFor(() => expect(params().at(-1)?.get('q')).toBe('centrala hradec'));
+    expect(params().at(-1)?.get('withSubLocations')).toBe('true');
+  });
+
   it('shows an empty external ID row to type in, and sends none when it stays empty', async () => {
     const created = detail({ id: crypto.randomUUID(), name: 'Myčka' });
     const calls = api({

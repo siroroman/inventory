@@ -1,8 +1,8 @@
-import { and, asc, count, eq, getTableColumns, isNotNull, isNull, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
-import { afterName, type Page, toPage } from '../../db/pagination.ts';
+import { afterName, afterPath, type Page, toPage } from '../../db/pagination.ts';
 import { locations, locationTypes } from '../../db/schema/index.ts';
-import { containsText } from '../../db/search.ts';
+import { containsText, searchWords } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
 
 export type Location = typeof locations.$inferSelect;
@@ -19,10 +19,17 @@ export type LocationPatch = Partial<LocationFields> & { updatedBy: string };
 
 /**
  * `parentId: null` lists top-level locations, an id lists that location's direct children, and
- * leaving it out searches every level (used when picking a location for an item).
+ * leaving it out searches every level (used when picking a location for an item). `q` searches by
+ * name and code, along the whole path (see `matchesSearch`); `withSubLocations` adds everything
+ * below each match and orders the list by path, so the sub-locations follow the one they are in.
  * `archived` lists the archived locations instead of the active ones.
  */
-export type LocationFilter = { parentId?: string | null; q?: string; archived?: boolean };
+export type LocationFilter = {
+  parentId?: string | null;
+  q?: string;
+  withSubLocations?: boolean;
+  archived?: boolean;
+};
 
 export type PathSegment = { id: string; code: string; name: string };
 export type SubtreeCounts = { itemCount: number; childCount: number };
@@ -32,11 +39,65 @@ const withType = {
   type: { id: locationTypes.id, code: locationTypes.code, name: locationTypes.name },
 };
 
+/**
+ * A location matches a search when every word is in the name or code of the location or of one of
+ * the locations above it, and at least one word is in its own name or code. "zasedacka hrad" finds
+ * Zasedačka in Centrála Hradec Králové, but "hrad" alone finds only Hradec, not everything below it.
+ */
+function matchesSearch(q: string): SQL | undefined {
+  const words = searchWords(q);
+  if (words.length === 0) return undefined;
+  const own = words.map((word) => or(containsText(locations.name, word), containsText(locations.code, word)));
+  // One word in the location itself is on its path too.
+  if (words.length === 1) return own[0];
+  // Each location with the codes and names of its whole path, top-level first. The words hold no
+  // whitespace, so none can match across two segments.
+  const onPath = sql`${locations.id} IN (
+    WITH RECURSIVE tree (id, path) AS (
+      SELECT l.id, l.code || ' ' || (l.name COLLATE "default")
+        FROM locations l WHERE l.parent_id IS NULL
+      UNION ALL
+      SELECT c.id, tree.path || ' ' || c.code || ' ' || (c.name COLLATE "default")
+        FROM locations c JOIN tree ON c.parent_id = tree.id
+    )
+    SELECT tree.id FROM tree WHERE ${and(...words.map((word) => containsText(sql`tree.path`, word)))}
+  )`;
+  return and(or(...own), onPath);
+}
+
+/** The locations matching `match` and their active sub-locations at every level. */
+function andBelow(match: SQL): SQL {
+  // The inner unaliased `locations` is the one `match` refers to.
+  return sql`${locations.id} IN (
+    WITH RECURSIVE sub (id) AS (
+      SELECT locations.id FROM locations WHERE ${match}
+      UNION
+      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
+    )
+    SELECT sub.id FROM sub
+  )`;
+}
+
+/**
+ * The names from the top-level location down, {Centrála Hradec Králové, Zasedačka}, in Czech
+ * collation. Arrays compare name by name and a prefix sorts first, so ordered by it every location
+ * follows the one it is in, before any sibling of that one ("Sklad", "Sklad › A", "Sklad - B").
+ */
+const pathNames = sql<string[]>`((
+  WITH RECURSIVE up (parent_id, name, depth) AS (
+    SELECT p.parent_id, p.name, 0 FROM locations p WHERE p.id = ${locations.id}
+    UNION ALL
+    SELECT p.parent_id, p.name, up.depth + 1 FROM locations p JOIN up ON p.id = up.parent_id
+  )
+  SELECT array_agg(up.name ORDER BY up.depth DESC) FROM up
+) COLLATE cs_cz)`;
+
 function listWhere(filter: LocationFilter): SQL[] {
   const conditions: SQL[] = [filter.archived ? isNotNull(locations.archivedAt) : isNull(locations.archivedAt)];
   if (filter.parentId === null) conditions.push(isNull(locations.parentId));
   else if (filter.parentId) conditions.push(eq(locations.parentId, filter.parentId));
-  if (filter.q) conditions.push(containsText(locations.name, filter.q));
+  const search = filter.q ? matchesSearch(filter.q) : undefined;
+  if (search) conditions.push(filter.withSubLocations ? andBelow(search) : search);
   return conditions;
 }
 
@@ -51,11 +112,25 @@ export function createLocationRepository(db: DbExecutor) {
       return row;
     },
 
-    /** Active (or, with `archived`, archived) locations ordered by name (Czech collation). */
+    /**
+     * Active (or, with `archived`, archived) locations ordered by name (Czech collation), or by
+     * path with `withSubLocations`.
+     */
     async list(
       filter: LocationFilter,
       page: { limit: number; cursor?: string },
     ): Promise<Page<LocationWithType>> {
+      if (filter.withSubLocations) {
+        const rows = await db
+          .select({ ...withType, path: pathNames })
+          .from(locations)
+          .leftJoin(locationTypes, eq(locationTypes.id, locations.locationTypeId))
+          .where(and(...listWhere(filter), afterPath(pathNames, locations.id, page.cursor)))
+          .orderBy(asc(pathNames), asc(locations.id))
+          .limit(page.limit + 1);
+        const result = toPage(rows, page.limit, (r) => ({ path: r.path, id: r.id }));
+        return { ...result, items: result.items.map(({ path: _, ...row }) => row) };
+      }
       const rows = await db
         .select(withType)
         .from(locations)

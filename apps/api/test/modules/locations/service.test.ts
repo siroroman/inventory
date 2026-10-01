@@ -296,6 +296,20 @@ describe('location service', () => {
       expect((await service.list(reader, { parentId: brno.id, q: 'xyz' }, { limit: 50 })).total).toBe(0);
     });
 
+    it('adds the sub-locations of each match to a search when asked, and only to a search', async () => {
+      const { store, service, top, sub } = setup();
+      await top('Brno');
+      await top('Cheb');
+      const brno = store.state.locations.find((l) => l.name === 'Brno')!;
+      await sub('Sklad', brno.id);
+
+      const search = await service.list(reader, { q: 'brno', withSubLocations: true }, { limit: 50 });
+      expect(search.items.map((l) => l.name)).toEqual(['Brno', 'Sklad']);
+      expect(search.total).toBe(2);
+      const all = await service.list(reader, { withSubLocations: true }, { limit: 50 });
+      expect(all.items.map((l) => l.name)).toEqual(['Brno', 'Cheb']);
+    });
+
     it('lists the archived locations at every level, and only those, when asked', async () => {
       const { service, top, sub } = setup();
       const brno = await top('Brno');

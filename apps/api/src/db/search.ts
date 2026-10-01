@@ -12,3 +12,8 @@ export function escapeLike(text: string): string {
 export function containsText(column: AnyColumn | SQL, query: string): SQL {
   return sql`f_unaccent(lower(${column})) LIKE '%' || f_unaccent(lower(${escapeLike(query)})) || '%'`;
 }
+
+/** The words of a search text, split on whitespace; empty for a blank text. */
+export function searchWords(query: string): string[] {
+  return query.split(/\s+/).filter(Boolean);
+}
