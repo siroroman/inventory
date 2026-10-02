@@ -15,6 +15,7 @@ import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { archiveServiceRecord, restoreServiceRecord, serviceRecordQueryOptions } from './api';
+import { ServiceRecordDocuments } from './documents';
 
 function DetailSkeleton() {
   const { t } = useTranslation();
@@ -90,6 +91,9 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
           </div>
         )}
       </section>
+
+      {/* Documents can be added and changed while the record and its item are active, as the API requires. */}
+      <ServiceRecordDocuments recordId={record.id} canEdit={changeable && !record.archivedAt} />
     </>
   );
 }

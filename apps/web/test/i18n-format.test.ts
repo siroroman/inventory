@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '../src/i18n/index.ts';
-import { formatDate } from '../src/lib/format.ts';
+import { formatDate, formatFileSize, formatTimestamp } from '../src/lib/format.ts';
 
 describe('Czech plurals', () => {
   it.each([
@@ -20,5 +20,27 @@ describe('formatDate', () => {
   it('formats a date-only value the Czech way, without shifting the day', () => {
     expect(formatDate('2026-09-27').replace(/ /g, ' ')).toBe('27. 9. 2026');
     expect(formatDate('2026-01-01').replace(/ /g, ' ')).toBe('1. 1. 2026');
+  });
+});
+
+describe('formatTimestamp', () => {
+  it('shows the day of a moment in time the Czech way', () => {
+    // Noon UTC is the same calendar day in every time zone from UTC-11 to UTC+11.
+    expect(formatTimestamp('2026-10-02T12:00:00.000Z').replace(/\s/g, ' ')).toBe('2. 10. 2026');
+  });
+});
+
+describe('formatFileSize', () => {
+  it.each([
+    [0, '0 B'],
+    [512, '512 B'],
+    [1024, '1 kB'],
+    [122_880, '120 kB'],
+    [1024 * 1024 - 1, '1024 kB'],
+    [1024 * 1024, '1 MB'],
+    [1_258_291, '1,2 MB'],
+    [20 * 1024 * 1024, '20 MB'],
+  ])('%s bytes', (bytes, text) => {
+    expect(formatFileSize(bytes).replace(/\s/g, ' ')).toBe(text);
   });
 });
