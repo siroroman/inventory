@@ -34,8 +34,9 @@ export function ListToolbar({ title, count, search, action, archived }: Props) {
       {desktop ? (
         <div className="flex items-center justify-between gap-4">
           {heading}
-          <div className="flex items-center gap-3">
-            <div className="w-96">
+          {/* The search widens with the screen, up to where its whole placeholder fits. */}
+          <div className="flex flex-1 items-center justify-end gap-3">
+            <div className="w-full max-w-lg">
               <SearchBox {...search} />
             </div>
             {action}

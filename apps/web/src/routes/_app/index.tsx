@@ -56,7 +56,7 @@ function Home() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl lg:max-w-5xl">
+    <div className="mx-auto w-full max-w-[1600px]">
       <h1 className="sr-only">{t('home.title')}</h1>
       {sideMenu ? (
         panels[tab]

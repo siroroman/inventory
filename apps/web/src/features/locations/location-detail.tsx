@@ -14,6 +14,7 @@ import { useCanWrite } from '@/features/auth/use-can-write';
 import { useItemRows } from '@/features/items/item-list';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
+import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
 import {
   archiveLocation,
@@ -101,6 +102,7 @@ function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boo
   const { t } = useTranslation();
   const query = useInfiniteQuery({ ...locationChildrenQueryOptions(location.id), enabled: location.childCount > 0 });
   const { columns, card } = useLocationRows({ nested: true });
+  const desktop = useMediaQuery(desktopScreen);
   // A location without sub-locations (most of them) has no section, unless the user can add one.
   if (location.childCount === 0 && !canAdd) return null;
   return (
@@ -125,7 +127,10 @@ function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boo
           empty={{ title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }}
           columns={columns}
           card={card}
-          packed
+          // Item and sub-location counts share the room of the items table's manufacturer column,
+          // so the divider after them lines up with its location column. Narrower, that room is too
+          // small for two counts, so they take the whole rest of the row.
+          fill={desktop ? 2 : undefined}
         />
       ) : (
         <EmptyState title={t('locationDetail.subLocationsEmptyTitle')} hint={t('locationDetail.subLocationsEmptyHint')} />

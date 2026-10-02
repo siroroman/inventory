@@ -30,8 +30,12 @@ type Props<T extends { id: string }> = {
   columns: Column<T>[];
   /** ...and a list of these cards below it. */
   card: (item: T) => ReactNode;
-  /** Columns keep their set widths and the spare room goes to the right instead of widening the first one. */
-  packed?: boolean;
+  /**
+   * An empty column after the last one, as wide as this many columns without a set width (those share
+   * the spare room evenly). It lines the columns up with a table below that has more of them, and the
+   * row lines still reach the edge.
+   */
+  fill?: number;
 };
 
 /**
@@ -74,7 +78,7 @@ export function PagedList<T extends { id: string }>({
   empty,
   columns,
   card,
-  packed,
+  fill,
 }: Props<T>) {
   const { t } = useTranslation();
   const wide = useMediaQuery(wideScreen);
@@ -102,12 +106,6 @@ export function PagedList<T extends { id: string }>({
     <div aria-busy={query.isPlaceholderData} className={query.isPlaceholderData ? 'opacity-60' : undefined}>
       {wide ? (
         <table className="w-full table-fixed text-left">
-          {packed && (
-            <colgroup>
-              <col span={columns.length} />
-              <col />
-            </colgroup>
-          )}
           <thead>
             <tr className="divide-x border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
               {columns.map((column) => (
@@ -115,6 +113,7 @@ export function PagedList<T extends { id: string }>({
                   {column.header}
                 </th>
               ))}
+              {fill && <th aria-hidden colSpan={fill} />}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -132,6 +131,7 @@ export function PagedList<T extends { id: string }>({
                     {column.cell(item)}
                   </td>
                 ))}
+                {fill && <td aria-hidden colSpan={fill} />}
               </tr>
             ))}
           </tbody>
