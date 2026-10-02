@@ -3,7 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ListToolbar } from '@/components/list-toolbar';
+import { ListFrame, ListToolbar } from '@/components/list-toolbar';
 import { type Column, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { Button } from '@/components/ui/button';
@@ -115,17 +115,19 @@ export function ItemsPanel({
           placeholder: t('home.items.searchPlaceholder'),
         }}
       />
-      <PagedList
-        query={query}
-        searching={q !== ''}
-        empty={
-          archived
-            ? { title: t('home.items.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
-            : { title: t('home.items.emptyTitle'), hint: t('home.items.emptyHint') }
-        }
-        columns={columns}
-        card={card}
-      />
+      <ListFrame>
+        <PagedList
+          query={query}
+          searching={q !== ''}
+          empty={
+            archived
+              ? { title: t('home.items.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
+              : { title: t('home.items.emptyTitle'), hint: t('home.items.emptyHint') }
+          }
+          columns={columns}
+          card={card}
+        />
+      </ListFrame>
     </>
   );
 }

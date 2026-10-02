@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
-import { ListToolbar } from '@/components/list-toolbar';
+import { ListFrame, ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -103,17 +103,19 @@ export function ServiceRecordsPanel({
           placeholder: t('home.maintenance.searchPlaceholder'),
         }}
       />
-      <PagedList
-        query={query}
-        searching={q !== ''}
-        empty={
-          archived
-            ? { title: t('home.maintenance.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
-            : { title: t('home.maintenance.emptyTitle'), hint: t('home.maintenance.emptyHint') }
-        }
-        columns={columns}
-        card={card}
-      />
+      <ListFrame>
+        <PagedList
+          query={query}
+          searching={q !== ''}
+          empty={
+            archived
+              ? { title: t('home.maintenance.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
+              : { title: t('home.maintenance.emptyTitle'), hint: t('home.maintenance.emptyHint') }
+          }
+          columns={columns}
+          card={card}
+        />
+      </ListFrame>
     </>
   );
 }

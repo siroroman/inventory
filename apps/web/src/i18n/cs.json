@@ -3,6 +3,9 @@
     "name": "Evidence majetku",
     "logo": "EM"
   },
+  "nav": {
+    "main": "Hlavní navigace"
+  },
   "common": {
     "retry": "Zkusit znovu",
     "saved": "Uloženo",

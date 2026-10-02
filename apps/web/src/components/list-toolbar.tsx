@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
 import { SearchBox } from '@/components/search-box';
+import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 
 type Props = {
   title: string;
@@ -12,22 +13,43 @@ type Props = {
   archived?: { checked: boolean; onChange: (checked: boolean) => void; label: string };
 };
 
-/** Heading with the record count, and the search field below it. */
+/**
+ * Heading with the record count, and the search field below it. On desktop (next to the side menu)
+ * the search and the "Add" button share the heading's row, as designed.
+ */
 export function ListToolbar({ title, count, search, action, archived }: Props) {
+  const desktop = useMediaQuery(desktopScreen);
+  const heading = (
+    <div className="flex items-baseline gap-2">
+      <h2 className={desktop ? 'text-[22px] font-semibold' : 'text-xl font-semibold'}>{title}</h2>
+      {count && (
+        <span role="status" className="text-sm text-muted-foreground">
+          {count}
+        </span>
+      )}
+    </div>
+  );
   return (
-    <div className="flex flex-col gap-3 px-4 pt-6 pb-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-2">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          {count && (
-            <span role="status" className="text-sm text-muted-foreground">
-              {count}
-            </span>
-          )}
+    <div className={desktop ? 'flex flex-col gap-2 px-8 pt-7 pb-4' : 'flex flex-col gap-3 px-4 pt-6 pb-5'}>
+      {desktop ? (
+        <div className="flex items-center justify-between gap-4">
+          {heading}
+          <div className="flex items-center gap-3">
+            <div className="w-96">
+              <SearchBox {...search} />
+            </div>
+            {action}
+          </div>
         </div>
-        {action}
-      </div>
-      <SearchBox {...search} />
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3">
+            {heading}
+            {action}
+          </div>
+          <SearchBox {...search} />
+        </>
+      )}
       {archived && (
         <label className="flex min-h-11 w-fit cursor-pointer items-center gap-2 text-sm">
           <input
@@ -41,4 +63,10 @@ export function ListToolbar({ title, count, search, action, archived }: Props) {
       )}
     </div>
   );
+}
+
+/** The list under a `ListToolbar`: on desktop a card with the rounded border of the design. */
+export function ListFrame({ children }: { children: ReactNode }) {
+  const desktop = useMediaQuery(desktopScreen);
+  return desktop ? <div className="mx-8 mb-8 overflow-hidden rounded-xl border bg-card">{children}</div> : children;
 }
