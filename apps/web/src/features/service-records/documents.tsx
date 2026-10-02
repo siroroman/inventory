@@ -20,7 +20,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ApiError } from '@/lib/api';
 import { formatDate, formatFileSize, formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { invalidateAfterWrite } from '@/lib/query';
@@ -52,11 +51,11 @@ function RenameDialog({ recordId, document, onClose }: { recordId: string; docum
   const nameId = useId();
   const errorId = useId();
   const [name, setName] = useState(document.name);
-  const [conflict, setConflict] = useState(false);
   const trimmed = name.trim();
   const invalid = trimmed.length === 0 ? t('serviceRecordDocuments.nameRequired') : trimmed.length > MAX_NAME ? t('serviceRecordDocuments.nameTooLong') : null;
 
-  // A version that moved on under us is fetched again; the user then saves a second time.
+  // `document` is the list's current row, not the one the dialog was opened with: after a 409 the list
+  // is refetched (onSettled) and the next save carries the version that won.
   const save = useMutation({
     mutationFn: () => renameServiceRecordDocument(recordId, document.id, { name: trimmed, version: document.version }),
     meta: { silentError: true },
@@ -64,7 +63,6 @@ function RenameDialog({ recordId, document, onClose }: { recordId: string; docum
       toast.success(t('common.saved'));
       onClose();
     },
-    onError: (error) => setConflict(error instanceof ApiError && error.code === 'conflict'),
     onSettled: () => invalidateAfterWrite(queryClient),
   });
 
@@ -107,7 +105,7 @@ function RenameDialog({ recordId, document, onClose }: { recordId: string; docum
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={save.isPending || invalid !== null}>
-              {conflict ? t('serviceRecordDocuments.reload') : t('serviceRecordDocuments.save')}
+              {t('serviceRecordDocuments.save')}
             </Button>
           </DialogFooter>
         </form>
@@ -269,7 +267,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
   const cameraInput = useRef<HTMLInputElement>(null);
   const [picked, setPicked] = useState<PickedFile[] | null>(null);
   const [viewing, setViewing] = useState<DocumentDto | null>(null);
-  const [renaming, setRenaming] = useState<DocumentDto | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<DocumentDto | null>(null);
 
   const pick = (event: ChangeEvent<HTMLInputElement>, fromCamera: boolean) => {
@@ -283,6 +281,8 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
   };
 
   const documents = query.data;
+  // Looked up in the current list, so a dialog never works on a stale row (and closes if the document is gone).
+  const renaming = documents?.find((d) => d.id === renamingId);
   let body: ReactNode;
   if (documents) {
     body =
@@ -296,7 +296,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
               document={document}
               canEdit={canEdit}
               onView={previewable(document.contentType, touchScreen) ? () => setViewing(document) : undefined}
-              onRename={() => setRenaming(document)}
+              onRename={() => setRenamingId(document.id)}
               onDelete={() => setDeleting(document)}
             />
           ))}
@@ -340,7 +340,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
 
       {picked && <DocumentUploadDialog recordId={recordId} picked={picked} onClose={() => setPicked(null)} />}
       {viewing && <DocumentViewer document={viewing} onClose={() => setViewing(null)} />}
-      {renaming && <RenameDialog recordId={recordId} document={renaming} onClose={() => setRenaming(null)} />}
+      {renaming && <RenameDialog recordId={recordId} document={renaming} onClose={() => setRenamingId(null)} />}
       {deleting && <DeleteDialog recordId={recordId} document={deleting} onClose={() => setDeleting(null)} />}
     </section>
   );

@@ -344,7 +344,6 @@
     "nameRequired": "Zadejte název.",
     "nameTooLong": "Název může mít nejvýše 200 znaků.",
     "save": "Uložit",
-    "reload": "Načíst aktuální údaje",
     "delete": "Smazat",
     "deleteLabel": "Smazat {{name}}",
     "deleteTitle": "Smazat dokument?",

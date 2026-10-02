@@ -23,6 +23,8 @@ const megabytes = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 });
 /** A file size the way people read it: `512 B`, `120 kB`, `1,2 MB`. */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kB`;
+  const kilobytes = Math.round(bytes / 1024);
+  // 1048575 bytes rounds to 1024 kB: call that a megabyte.
+  if (kilobytes < 1024) return `${kilobytes} kB`;
   return `${megabytes.format(bytes / (1024 * 1024))} MB`;
 }

@@ -417,15 +417,43 @@ describe('documents of a service record: rename and delete', () => {
     expect(await screen.findByText('Uloženo')).toBeInTheDocument();
   });
 
-  it('says so when someone else changed the document, and keeps the dialog open', async () => {
+  it('says so when someone else changed the document, and the second save carries the version that won', async () => {
     const user = userEvent.setup();
-    withDocument({ [`PATCH ${documentUrl}`]: () => problem(409, 'conflict') });
+    let version = 1;
+    const versions: number[] = [];
+    withDocument({
+      [`GET ${documentsUrl}`]: () => jsonResponse([documentDto({ version })]),
+      [`PATCH ${documentUrl}`]: async (request) => {
+        const sent = ((await request.json()) as { version: number }).version;
+        versions.push(sent);
+        if (sent === version) return jsonResponse(documentDto({ version: version + 1 }));
+        return problem(409, 'conflict');
+      },
+    });
     await user.click(await screen.findByRole('button', { name: 'Přejmenovat Servisní protokol' }));
     const dialog = await screen.findByRole('dialog');
+    // Someone else renames it meanwhile: the server is at version 2, our dialog still knows 1.
+    version = 2;
     await user.type(within(dialog).getByRole('textbox'), '2');
     await user.click(within(dialog).getByRole('button', { name: 'Uložit' }));
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Záznam mezitím někdo upravil');
-    expect(within(dialog).getByRole('button', { name: 'Načíst aktuální údaje' })).toBeInTheDocument();
+
+    // The list was refetched behind the dialog; saving again uses its version, and our typed name is kept.
+    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(versions).toEqual([1, 2]);
+  });
+
+  it('closes the rename dialog when the document is gone from the list', async () => {
+    const user = userEvent.setup();
+    let gone = false;
+    withDocument({ [`GET ${documentsUrl}`]: () => jsonResponse(gone ? [] : [documentDto()]), [`PATCH ${documentUrl}`]: () => problem(404, 'not_found') });
+    await user.click(await screen.findByRole('button', { name: 'Přejmenovat Servisní protokol' }));
+    const dialog = await screen.findByRole('dialog');
+    gone = true;
+    await user.type(within(dialog).getByRole('textbox'), '2');
+    await user.click(within(dialog).getByRole('button', { name: 'Uložit' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('does not save a blank name', async () => {
