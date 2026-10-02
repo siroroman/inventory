@@ -33,7 +33,7 @@ exists gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" --p
 step "Deployer service account $DEPLOY_SA_NAME"
 exists gcloud iam service-accounts describe "$DEPLOY_SA" --project="$PROJECT_ID" ||
   gcloud iam service-accounts create "$DEPLOY_SA_NAME" --project="$PROJECT_ID" \
-    --display-name="Evidence majetku (GitHub deploy)"
+    --display-name="Správa majetku (GitHub deploy)"
 gcloud iam service-accounts add-iam-policy-binding "$DEPLOY_SA" --project="$PROJECT_ID" \
   --role=roles/iam.workloadIdentityUser \
   --member="principalSet://iam.googleapis.com/projects/${project_number}/locations/global/workloadIdentityPools/${WIF_POOL}/attribute.repository_id/${repo_id}" \

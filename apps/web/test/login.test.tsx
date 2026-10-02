@@ -30,10 +30,16 @@ async function fillAndSubmit(email = 'anna@example.test', password = 'tajne-hesl
 describe('login screen', () => {
   it('shows the app name, both fields and a sign-in button', async () => {
     renderApp('/login');
-    expect(await screen.findByRole('heading', { name: 'Evidence majetku' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Správa majetku' })).toBeInTheDocument();
     expect(screen.getByLabelText('E-mail')).toHaveAttribute('autocomplete', 'email');
     expect(screen.getByLabelText('Heslo')).toHaveAttribute('autocomplete', 'current-password');
     expect(screen.getByRole('button', { name: 'Přihlásit se' })).toBeEnabled();
+  });
+
+  it('shows the tagline and the form heading used by the desktop layout', async () => {
+    renderApp('/login');
+    expect(await screen.findByText(/Přehled o lokalitách, vybavení a servisních dodavatelích/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Přihlášení' })).toBeInTheDocument();
   });
 
   it('asks for the missing fields without sending anything', async () => {

@@ -94,7 +94,7 @@ describe('item detail', () => {
     signedIn(() => jsonResponse(detail()));
     const { router } = renderApp(`/items/${id}`);
     await screen.findByRole('heading', { name: 'Konvektomat' });
-    await userEvent.click(screen.getByRole('link', { name: 'Evidence majetku' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Správa majetku' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });
 

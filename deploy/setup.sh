@@ -18,7 +18,7 @@ gcloud services enable --project="$PROJECT_ID" \
 step "Artifact Registry repository $REPO"
 exists gcloud artifacts repositories describe "$REPO" --project="$PROJECT_ID" --location="$REGION" ||
   gcloud artifacts repositories create "$REPO" --project="$PROJECT_ID" --location="$REGION" \
-    --repository-format=docker --description="Evidence majetku images"
+    --repository-format=docker --description="Správa majetku images"
 
 step "Cloud SQL instance $INSTANCE (takes several minutes the first time)"
 # Public IP without authorized networks: reachable only through the IAM-checked Cloud SQL
@@ -97,8 +97,8 @@ grant_secret() {
   gcloud secrets add-iam-policy-binding "$1" --project="$PROJECT_ID" \
     --member="serviceAccount:$2" --role=roles/secretmanager.secretAccessor >/dev/null
 }
-service_account "$RUN_SA_NAME" "Evidence majetku (Cloud Run service)"
-service_account "$MIGRATE_SA_NAME" "Evidence majetku (migrations)"
+service_account "$RUN_SA_NAME" "Správa majetku (Cloud Run service)"
+service_account "$MIGRATE_SA_NAME" "Správa majetku (migrations)"
 # Least privilege: each connects to Cloud SQL and reads only its own secrets.
 for sa in "$RUN_SA" "$MIGRATE_SA"; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$sa" \

@@ -1,7 +1,6 @@
 {
   "app": {
-    "name": "Evidence majetku",
-    "logo": "EM"
+    "name": "Správa majetku"
   },
   "nav": {
     "main": "Hlavní navigace"
@@ -49,6 +48,7 @@
     "leave": "Opustit stránku"
   },
   "auth": {
+    "title": "Přihlášení",
     "tagline": "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě.",
     "email": "E-mail",
     "password": "Heslo",

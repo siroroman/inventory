@@ -17,7 +17,7 @@ describe('App', () => {
     });
     renderApp('/');
     expect(await screen.findByRole('heading', { name: 'Přehled' })).toBeInTheDocument();
-    expect(screen.getByRole('banner')).toHaveTextContent('Evidence majetku');
+    expect(screen.getByRole('banner')).toHaveTextContent('Správa majetku');
     expect(screen.getByRole('link', { name: 'Přeskočit na obsah' })).toHaveAttribute(
       'href',
       '#content',
