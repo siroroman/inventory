@@ -454,7 +454,7 @@ describe('location form: unsaved changes', () => {
     api();
     const { router } = renderApp('/locations/new');
     await userEvent.type(await screen.findByLabelText('Název'), 'Rozdělané');
-    await userEvent.click(screen.getByRole('link', { name: 'Evidence majetku' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Správa majetku' }));
     await userEvent.click(within(await dialog()).getByRole('button', { name: 'Opustit stránku' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
   });

@@ -84,7 +84,7 @@ export function createApp({ auth, baseUrl, isProduction, log, services, staticRo
   });
   routes.doc31('/api/v1/openapi.json', {
     openapi: '3.1.0',
-    info: { title: 'Evidence majetku API', version: '1.0.0' },
+    info: { title: 'Správa majetku API', version: '1.0.0' },
   });
 
   // Last, so every API route above answers first. Registered on `app`, outside `AppType`.

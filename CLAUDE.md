@@ -1,4 +1,4 @@
-# Evidence majetku
+# Správa majetku
 
 Simple installable web app (PWA) for a small company to keep an inventory of assets: locations (with unlimited sub-locations), items with photos and service data, manufacturers, and service providers in a priority order. UI is Czech only. A handful of users (up to ~10).
 

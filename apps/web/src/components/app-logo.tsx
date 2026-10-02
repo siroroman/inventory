@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-/** The "EM" square shown before the app name in the top bar and the side menu. */
+/** The "SM" square shown before the app name in the top bar and the side menu. */
 export function AppLogo() {
   const { t } = useTranslation();
   return (
