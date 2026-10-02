@@ -38,7 +38,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
   return (
     <>
       {/* The item's name as a text button above the title; the accessible name also says where it leads. */}
-      <Button asChild variant="link" className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0">
+      <Button asChild variant="link" className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0 text-foreground">
         <Link
           to="/items/$id"
           params={{ id: record.item.id }}
