@@ -116,7 +116,7 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
         {item ? (
           <div>
-            <p className="text-sm text-muted-foreground">{t('serviceRecord.fields.item')}</p>
+            <p className="text-sm font-semibold text-foreground">{t('serviceRecord.fields.item')}</p>
             <p className="text-[15px]">{item.name}</p>
           </div>
         ) : (

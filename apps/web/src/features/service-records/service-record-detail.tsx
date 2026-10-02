@@ -83,7 +83,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
         />
         {record.description && (
           <div className="mt-4">
-            <h2 className="mb-1 text-sm text-muted-foreground">
+            <h2 className="mb-1 text-sm font-semibold text-foreground">
               {t('serviceRecord.fields.description')}
             </h2>
             <p className="text-[15px] break-words whitespace-pre-line">{record.description}</p>

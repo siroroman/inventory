@@ -68,7 +68,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
-      <dt className="text-sm text-muted-foreground sm:w-44 sm:shrink-0">{label}</dt>
+      <dt className="text-sm font-semibold text-foreground sm:w-44 sm:shrink-0">{label}</dt>
       <dd className="text-sm whitespace-pre-line">{children || t('common.empty')}</dd>
     </div>
   );
