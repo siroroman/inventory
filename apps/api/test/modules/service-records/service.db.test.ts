@@ -3,7 +3,7 @@ import type { Actor } from '../../../src/auth/roles.ts';
 import { transactor } from '../../../src/db/transaction.ts';
 import { createServiceRecordService, serviceRecordRepos } from '../../../src/modules/service-records/service.ts';
 import { useTestDb } from '../../helpers/db.ts';
-import { insertItem, insertUser } from '../../helpers/factories.ts';
+import { insertItem, insertLocation, insertServiceRecord, insertUser } from '../../helpers/factories.ts';
 
 // The rules are unit-tested with fakes; this checks the wiring against a real database.
 describe('service record service with the database', () => {
@@ -29,5 +29,22 @@ describe('service record service with the database', () => {
       { limit: 10 },
     );
     expect(history.items.map((e) => e.action)).toEqual(['archive', 'update', 'create']);
+  });
+
+  it('lists records of all items with the location path', async () => {
+    const user = await insertUser(t().app, { role: 'read' });
+    const actor: Actor = { id: user.id, role: 'read' };
+    const service = createServiceRecordService({
+      repos: serviceRecordRepos(t().app),
+      transact: transactor(t().app, serviceRecordRepos),
+    });
+    const top = await insertLocation(t().app, { name: 'Centrála Praha' });
+    const kitchen = await insertLocation(t().app, { name: 'Teplá kuchyně', parentId: top.id });
+    const item = await insertItem(t().app, { name: 'Kávovar', locationId: kitchen.id });
+    await insertServiceRecord(t().app, { itemId: item.id });
+
+    const page = await service.list(actor, { q: 'centrala' }, { limit: 50 });
+    expect(page.total).toBe(1);
+    expect(page.items[0]).toMatchObject({ item: { name: 'Kávovar' }, path: [{ name: 'Centrála Praha' }, { name: 'Teplá kuchyně' }] });
   });
 });

@@ -6,18 +6,32 @@ import { DomainError } from '../../errors.ts';
 import { changedFields, initialFields } from '../audit/changes.ts';
 import { type AuditRepository, createAuditRepository } from '../audit/repository.ts';
 import { createItemRepository, type Item, type ItemRepository } from '../items/repository.ts';
-import { createServiceRecordRepository, type ServiceRecord, type ServiceRecordRepository } from './repository.ts';
+import {
+  createLocationRepository,
+  type LocationRepository,
+  type PathSegment,
+} from '../locations/repository.ts';
+import {
+  createServiceRecordRepository,
+  type ServiceRecord,
+  type ServiceRecordFilter,
+  type ServiceRecordListRow,
+  type ServiceRecordRepository,
+} from './repository.ts';
 
 export type ServiceRecordRepos = {
   serviceRecords: ServiceRecordRepository;
   /** Read-only here: records belong to an existing, active item. */
   items: ItemRepository;
+  /** Read-only: the location paths of the all-items list. */
+  locations: LocationRepository;
   audit: AuditRepository;
 };
 
 export const serviceRecordRepos = (db: DbExecutor): ServiceRecordRepos => ({
   serviceRecords: createServiceRecordRepository(db),
   items: createItemRepository(db),
+  locations: createLocationRepository(db),
   audit: createAuditRepository(db),
 });
 
@@ -27,6 +41,7 @@ export type ServiceRecordDeps = { repos: ServiceRecordRepos; transact: Transact<
 /** The item a record belongs to, as much as the record's screens need. */
 export type ServiceRecordItem = { id: string; code: string; name: string; archivedAt: Date | null };
 export type ServiceRecordDetail = ServiceRecord & { item: ServiceRecordItem };
+export type ServiceRecordListEntry = ServiceRecordListRow & { path: PathSegment[] };
 
 export type CreateServiceRecordInput = {
   performedOn: string;
@@ -96,6 +111,27 @@ export function createServiceRecordService({ repos, transact }: ServiceRecordDep
         repos.serviceRecords.countByItem(itemId),
       ]);
       return { ...result, total };
+    },
+
+    /** Records of all items, newest first, with each item's location path and the total for the list heading. */
+    async list(
+      actor: Actor,
+      filter: ServiceRecordFilter,
+      page: { limit: number; cursor?: string },
+    ): Promise<Page<ServiceRecordListEntry> & { total: number }> {
+      assertRole(actor, 'read');
+      const [result, total] = await Promise.all([
+        repos.serviceRecords.list(filter, page),
+        repos.serviceRecords.count(filter),
+      ]);
+      const paths = await repos.locations.findPaths([
+        ...new Set(result.items.flatMap((row) => (row.location ? [row.location.id] : []))),
+      ]);
+      return {
+        items: result.items.map((row) => ({ ...row, path: (row.location && paths.get(row.location.id)) || [] })),
+        nextCursor: result.nextCursor,
+        total,
+      };
     },
 
     /** Archived records are returned too, so they can be viewed (and later restored). */

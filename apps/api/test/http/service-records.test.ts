@@ -1,10 +1,10 @@
-import { serviceRecordListSchema, serviceRecordSchema } from '@inventory/shared';
+import { serviceRecordListSchema, serviceRecordSchema, serviceRecordSearchListSchema } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { auditLog, items } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
-import { insertItem, insertServiceRecord } from '../helpers/factories.ts';
+import { insertItem, insertLocation, insertServiceRecord } from '../helpers/factories.ts';
 import { api, expectJson, expectProblem, roleClients } from '../helpers/http.ts';
 
 const db = useTestDb();
@@ -25,6 +25,68 @@ async function auditOf(id: string) {
     .where(and(eq(auditLog.entityType, 'service_record'), eq(auditLog.entityId, id)))
     .orderBy(auditLog.id);
 }
+
+describe('GET /service-records', () => {
+  it('lists the records of all items newest first with the item, location and path', async () => {
+    const { read } = await setup();
+    const top = await insertLocation(db().app, { name: 'Centrála Praha' });
+    const kitchen = await insertLocation(db().app, { name: 'Teplá kuchyně', parentId: top.id });
+    const coffee = await insertItem(db().app, { name: 'Kávovar Linea PB', locationId: kitchen.id });
+    const chair = await insertItem(db().app, { name: 'Židle', locationId: null });
+    await insertServiceRecord(db().app, { itemId: coffee.id, title: 'Roční prohlídka', performedOn: '2025-11-02' });
+    await insertServiceRecord(db().app, { itemId: coffee.id, title: 'Výměna filtru', performedOn: '2026-04-15' });
+    await insertServiceRecord(db().app, { itemId: chair.id, title: 'Oprava nohy', performedOn: '2026-02-01' });
+
+    const body = await expectJson(await read.get('/service-records'), 200, serviceRecordSearchListSchema);
+    expect(body.items.map((r) => r.title)).toEqual(['Výměna filtru', 'Oprava nohy', 'Roční prohlídka']);
+    expect(body).toMatchObject({ total: 3, nextCursor: null });
+    expect(body.items[0]).toMatchObject({
+      item: { id: coffee.id, code: coffee.code, name: 'Kávovar Linea PB' },
+      location: { id: kitchen.id, name: 'Teplá kuchyně' },
+      path: [{ name: 'Centrála Praha' }, { name: 'Teplá kuchyně' }],
+    });
+    expect(body.items[1]).toMatchObject({ item: { id: chair.id }, location: null, path: [] });
+  });
+
+  it('searches, pages and lists the archived records instead of the active ones', async () => {
+    const { read, write } = await setup();
+    const kitchen = await insertLocation(db().app, { name: 'Teplá kuchyně' });
+    const coffee = await insertItem(db().app, { name: 'Kávovar', locationId: kitchen.id });
+    const other = await insertItem(db().app, { name: 'Myčka', locationId: (await insertLocation(db().app, { name: 'Sklad' })).id });
+    for (const day of ['01', '02', '03']) {
+      await insertServiceRecord(db().app, { itemId: coffee.id, title: `Záznam ${day}`, performedOn: `2026-03-${day}` });
+    }
+    const archived = await insertServiceRecord(db().app, { itemId: other.id, title: 'Smazaný', performedOn: '2026-03-04' });
+    await write.post(`/service-records/${archived.id}/archive`, { version: 1 });
+
+    const first = await expectJson(await read.get('/service-records?limit=2'), 200, serviceRecordSearchListSchema);
+    expect(first.items.map((r) => r.title)).toEqual(['Záznam 03', 'Záznam 02']);
+    expect(first.total).toBe(3);
+    const next = await expectJson(
+      await read.get(`/service-records?limit=2&cursor=${first.nextCursor}`),
+      200,
+      serviceRecordSearchListSchema,
+    );
+    expect(next.items.map((r) => r.title)).toEqual(['Záznam 01']);
+
+    const byLocation = await expectJson(await read.get('/service-records?q=KUCHYNE'), 200, serviceRecordSearchListSchema);
+    expect(byLocation.total).toBe(3);
+    const byTitle = await expectJson(await read.get('/service-records?q=zaznam%2002'), 200, serviceRecordSearchListSchema);
+    expect(byTitle.items.map((r) => r.title)).toEqual(['Záznam 02']);
+
+    const gone = await expectJson(await read.get('/service-records?archived=true'), 200, serviceRecordSearchListSchema);
+    expect(gone.items.map((r) => r.title)).toEqual(['Smazaný']);
+    expect(gone.items[0]!.archivedAt).not.toBeNull();
+  });
+
+  it('answers 400 for bad input and 401 for an anonymous caller', async () => {
+    const { app, read } = await setup();
+    await expectProblem(await read.get('/service-records?limit=0'), 400, 'validation_error');
+    await expectProblem(await read.get('/service-records?archived=maybe'), 400, 'validation_error');
+    await expectProblem(await read.get('/service-records?cursor=garbage'), 400, 'invalid_cursor');
+    await expectProblem(await api(app).get('/service-records'), 401, 'unauthenticated');
+  });
+});
 
 describe('GET /items/{id}/service-records', () => {
   it("lists the item's records newest first, with a total", async () => {

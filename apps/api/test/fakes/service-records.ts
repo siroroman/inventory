@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { decodeDateCursor, toPage } from '../../src/db/pagination.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
-import type { ServiceRecord, ServiceRecordRepository } from '../../src/modules/service-records/repository.ts';
+import type {
+  ServiceRecord,
+  ServiceRecordFilter,
+  ServiceRecordRepository,
+} from '../../src/modules/service-records/repository.ts';
 import type { ServiceRecordRepos } from '../../src/modules/service-records/service.ts';
 import { createFakeAuditRepository } from './audit.ts';
-import { bumpVersion as bump, fakeTransact } from './common.ts';
+import { bumpVersion as bump, fakeContains, fakeTransact } from './common.ts';
 import { createFakeItemStore } from './items.ts';
 
 /** Service records on top of the item fakes, which stay reachable for test setup. */
@@ -19,6 +23,28 @@ export function createFakeServiceRecordStore() {
     a.performedOn < b.performedOn ? 1 : a.performedOn > b.performedOn ? -1 : a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
   const activeOf = (itemId: string) => state.records.filter((r) => r.itemId === itemId && !r.archivedAt);
 
+  const locationRows = itemStore.locationStore.state.locations;
+  /** Like `locationsMatching`: a location whose name matches, or one below it that is reachable through active ones. */
+  const locationMatches = (locationId: string | null, q: string, archived: boolean) => {
+    const chain: typeof locationRows = [];
+    for (let l = locationRows.find((x) => x.id === locationId); l; l = locationRows.find((x) => x.id === l!.parentId)) {
+      chain.push(l);
+    }
+    return chain.some((l, i) => fakeContains(l.name, q) && (archived || chain.slice(0, i + 1).every((c) => !c.archivedAt)));
+  };
+  const matching = (filter: ServiceRecordFilter) =>
+    state.records.filter((r) => {
+      if (!!r.archivedAt !== !!filter.archived) return false;
+      if (!filter.q) return true;
+      const item = itemStore.state.items.find((i) => i.id === r.itemId)!;
+      return (
+        fakeContains(r.title, filter.q) ||
+        fakeContains(item.name, filter.q) ||
+        fakeContains(item.code, filter.q) ||
+        locationMatches(item.locationId, filter.q, Boolean(filter.archived))
+      );
+    });
+
   const serviceRecords: ServiceRecordRepository = {
     async findById(id) {
       const row = byId(id);
@@ -31,6 +57,29 @@ export function createFakeServiceRecordStore() {
         rows = rows.filter((r) => newestFirst(r, { ...r, performedOn: key.on, id: key.id }) > 0);
       }
       return toPage(rows.slice(0, page.limit + 1), page.limit, (r) => ({ on: r.performedOn, id: r.id }));
+    },
+    async list(filter, page) {
+      let rows = matching(filter).sort(newestFirst);
+      if (page.cursor) {
+        const key = decodeDateCursor(page.cursor);
+        rows = rows.filter((r) => newestFirst(r, { ...r, performedOn: key.on, id: key.id }) > 0);
+      }
+      const result = toPage(rows.slice(0, page.limit + 1), page.limit, (r) => ({ on: r.performedOn, id: r.id }));
+      const withItem = await Promise.all(
+        result.items.map(async (r) => {
+          const item = (await itemStore.repos.items.findById(r.itemId))!;
+          const location = item.locationId ? (await itemStore.repos.locations.findById(item.locationId))! : null;
+          return {
+            ...r,
+            item: { id: item.id, code: item.code, name: item.name },
+            location: location && { id: location.id, code: location.code, name: location.name },
+          };
+        }),
+      );
+      return { ...result, items: withItem };
+    },
+    async count(filter) {
+      return matching(filter).length;
     },
     async countByItem(itemId) {
       return activeOf(itemId).length;
@@ -67,6 +116,7 @@ export function createFakeServiceRecordStore() {
   const repos: ServiceRecordRepos = {
     serviceRecords,
     items: itemStore.repos.items,
+    locations: itemStore.repos.locations,
     audit: createFakeAuditRepository(state.audit),
   };
 

@@ -4,13 +4,25 @@ import {
   serviceRecordListQuery,
   serviceRecordListSchema,
   serviceRecordSchema,
+  serviceRecordSearchListSchema,
+  serviceRecordSearchQuery,
   updateServiceRecordBody,
   versionBody,
 } from '@inventory/shared';
 import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
-import { toServiceRecordDto, toServiceRecordSummaryDto } from './dto.ts';
+import { toServiceRecordDto, toServiceRecordListEntryDto, toServiceRecordSummaryDto } from './dto.ts';
 import type { ServiceRecordService } from './service.ts';
+
+const list = defineRoute({
+  method: 'get',
+  path: '/service-records',
+  minRole: 'read',
+  tags: ['service-records'],
+  summary: 'Service records of all items, newest first; `archived=true` lists the archived ones',
+  request: { query: serviceRecordSearchQuery },
+  responses: { 200: { description: 'One page of service records', content: jsonContent(serviceRecordSearchListSchema) } },
+});
 
 const listByItem = defineRoute({
   method: 'get',
@@ -81,6 +93,11 @@ const restore = defineRoute({
 /** Service history of items. Mounted under /api/v1. */
 export function createServiceRecordRoutes(serviceRecords: ServiceRecordService) {
   return createRouter()
+    .openapi(list, async (c) => {
+      const { q, archived, limit, cursor } = c.req.valid('query');
+      const page = await serviceRecords.list(c.get('actor'), { q, archived: archived === 'true' }, { limit, cursor });
+      return c.json({ ...page, items: page.items.map(toServiceRecordListEntryDto) }, 200);
+    })
     .openapi(listByItem, async (c) => {
       const { limit, cursor } = c.req.valid('query');
       const page = await serviceRecords.listByItem(c.get('actor'), c.req.valid('param').id, { limit, cursor });
