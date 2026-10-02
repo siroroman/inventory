@@ -8,6 +8,7 @@ import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ErrorState } from '@/components/error-state';
 import { EmptyState, PagedList } from '@/components/paged-list';
+import { sectionTitleClass } from '@/components/section';
 import { RouteNotFound, RoutePending } from '@/components/route-states';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -28,7 +29,6 @@ import { useLocationRows } from './location-list';
 /** A link in the detail's header or fields: at least 44 px tall to tap. */
 const crumbLink =
   'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
-const sectionHeading = 'mx-4 pb-2 text-xs font-bold tracking-wide text-muted-foreground uppercase';
 
 /** The way up: every ancestor links to its own detail, the location itself is the current page. */
 function Breadcrumb({ path }: { path: LocationDto['path'] }) {
@@ -79,7 +79,7 @@ function Section({ id, title, action, children }: { id: string; title: string; a
   return (
     <section aria-labelledby={id} className="pt-8">
       <div className="mx-4 flex items-center justify-between gap-3 pb-4">
-        <h2 id={id} className={cn(sectionHeading, 'mx-0 pb-0')}>
+        <h2 id={id} className={sectionTitleClass}>
           {title}
         </h2>
         {action}
@@ -204,7 +204,7 @@ export function LocationDetail({ id }: { id: string }) {
         <Breadcrumb path={location.path} />
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-xl font-semibold">{location.name}</h1>
+            <h1 className="text-2xl font-semibold">{location.name}</h1>
             {location.archivedAt && <ArchivedBadge />}
           </div>
           {canWrite && (

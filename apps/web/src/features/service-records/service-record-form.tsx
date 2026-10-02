@@ -109,7 +109,7 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
       className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4"
     >
       <UnsavedChangesGuard changed={unsaved} />
-      <h1 className="pt-2 text-xl font-semibold">
+      <h1 className="pt-2 text-2xl font-semibold">
         {record ? t('serviceRecordForm.editTitle') : t('serviceRecordForm.newTitle')}
       </h1>
 
