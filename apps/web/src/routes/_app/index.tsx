@@ -62,10 +62,17 @@ function Home() {
         panels[tab]
       ) : (
         <Tabs value={tab} onValueChange={selectTab}>
-          <TabsList aria-label={t('home.title')}>
-            <TabsTrigger value="locations">{t('home.locations.tab')}</TabsTrigger>
-            <TabsTrigger value="items">{t('home.items.tab')}</TabsTrigger>
-            <TabsTrigger value="maintenance">{t('home.maintenance.tab')}</TabsTrigger>
+          {/* Inset like the lists below, so the line and the underline start and end at their edges. */}
+          <TabsList aria-label={t('home.title')} className="mx-4 gap-6">
+            <TabsTrigger value="locations" className="px-0">
+              {t('home.locations.tab')}
+            </TabsTrigger>
+            <TabsTrigger value="items" className="px-0">
+              {t('home.items.tab')}
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="px-0">
+              {t('home.maintenance.tab')}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="locations">{panels.locations}</TabsContent>
           <TabsContent value="items">{panels.items}</TabsContent>
