@@ -277,7 +277,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
             },
           ]}
         />
-        <ServiceHistory itemId={item.id} />
+        <ServiceHistory itemId={item.id} canAdd={canWrite && !item.archivedAt} />
       </Section>
     </>
   );

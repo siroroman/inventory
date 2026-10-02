@@ -1,3 +1,4 @@
+import type { CreateServiceRecordBody, UpdateServiceRecordBody } from '@inventory/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
@@ -20,3 +21,9 @@ export const archiveServiceRecord = (id: string, version: number) =>
 
 export const restoreServiceRecord = (id: string, version: number) =>
   unwrap(api.api.v1['service-records'][':id'].restore.$post({ param: { id }, json: { version } }));
+
+export const createServiceRecord = (itemId: string, json: CreateServiceRecordBody) =>
+  unwrap(api.api.v1.items[':id']['service-records'].$post({ param: { id: itemId }, json }));
+
+export const updateServiceRecord = (id: string, json: UpdateServiceRecordBody) =>
+  unwrap(api.api.v1['service-records'][':id'].$patch({ param: { id }, json }));

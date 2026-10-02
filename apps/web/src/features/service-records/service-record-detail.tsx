@@ -1,12 +1,13 @@
 import type { ServiceRecordDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ErrorState } from '@/components/error-state';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { ApiError } from '@/lib/api';
@@ -63,6 +64,12 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
           {record.archivedAt && <ArchivedBadge />}
           {editable && (
             <div className="ml-auto flex items-center gap-2">
+              <Button asChild size="sm">
+                <Link to="/service-records/$id/edit" params={{ id: record.id }}>
+                  <Pencil aria-hidden />
+                  {t('serviceRecord.edit')}
+                </Link>
+              </Button>
               <ArchiveControl
                 archived={false}
                 archive={async () => {

@@ -244,6 +244,31 @@ describe('item detail: service history', () => {
     expect(screen.getByRole('heading', { name: 'Historie servisu (0)', level: 3 })).toBeInTheDocument();
   });
 
+  it('offers writers "Přidat záznam", leading to the form of this item', async () => {
+    signedIn(() => jsonResponse(detail()), () => history(rows));
+    renderApp(`/items/${id}`);
+    const add = await screen.findByRole('link', { name: 'Přidat záznam' });
+    expect(add).toHaveAttribute('href', `/items/${id}/service-records/new`);
+  });
+
+  it('offers no "Přidat záznam" to a reader or on an archived item', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse({ ...me, role: 'read' }),
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
+      [recordsPath]: () => history(rows),
+    });
+    renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Historie servisu (2)', level: 3 });
+    expect(screen.queryByRole('link', { name: 'Přidat záznam' })).not.toBeInTheDocument();
+  });
+
+  it('offers no "Přidat záznam" on an archived item, not even to a writer', async () => {
+    signedIn(() => jsonResponse(detail({ archivedAt: '2026-02-01T00:00:00.000Z' })), () => history(rows));
+    renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Historie servisu (2)', level: 3 });
+    expect(screen.queryByRole('link', { name: 'Přidat záznam' })).not.toBeInTheDocument();
+  });
+
   it('loads the next page on request and then offers no more', async () => {
     const more = { id: crypto.randomUUID(), performedOn: '2025-06-20', title: 'Oprava netěsnícího ventilu' };
     const calls = signedIn(

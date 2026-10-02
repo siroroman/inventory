@@ -297,6 +297,23 @@
     "archiveHint": "Záznam zmizí z historie servisu položky.",
     "notFoundTitle": "Servisní záznam nenalezen",
     "notFoundHint": "Záznam neexistuje nebo byl odstraněn.",
-    "backToItem": "Zpět na položku {{name}}"
+    "backToItem": "Zpět na položku {{name}}",
+    "add": "Přidat záznam"
+  },
+  "serviceRecordForm": {
+    "newTitle": "Nový servisní záznam",
+    "editTitle": "Upravit servisní záznam",
+    "titlePlaceholder": "Např. Výměna filtru",
+    "performedByPlaceholder": "Např. Servis Novák s.r.o.",
+    "responsiblePersonPlaceholder": "Jméno a příjmení",
+    "descriptionPlaceholder": "Co bylo provedeno, naměřené hodnoty, doporučení…",
+    "errors": {
+      "required": "Vyplňte toto pole.",
+      "tooLong": "Text je příliš dlouhý.",
+      "date": "Zadejte platné datum."
+    },
+    "reload": "Načíst aktuální údaje",
+    "save": "Uložit",
+    "saving": "Ukládám…"
   }
 }

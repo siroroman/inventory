@@ -48,6 +48,12 @@ describe('service record detail', () => {
     expect(screen.getByText(/Vyměněn vodní filtr\./)).toHaveTextContent('Vyměněn vodní filtr. Tlak bojleru 9,2 bar.');
   });
 
+  it('offers a writer Upravit, leading to the form', async () => {
+    signedIn(() => jsonResponse(record()));
+    renderApp(`/service-records/${id}`);
+    expect(await screen.findByRole('link', { name: 'Upravit' })).toHaveAttribute('href', `/service-records/${id}/edit`);
+  });
+
   it('shows a dash for empty fields and leaves out the description section', async () => {
     signedIn(() => jsonResponse(record({ performedBy: null, responsiblePerson: null, description: null })));
     renderApp(`/service-records/${id}`);
@@ -127,6 +133,7 @@ describe('service record detail', () => {
     renderApp(`/service-records/${id}`);
     await screen.findByRole('heading', { name: 'Servisní záznam' });
     expect(screen.queryByRole('button', { name: 'Archivovat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
   });
 
   it('marks an archived record and offers no buttons for it', async () => {
@@ -134,6 +141,7 @@ describe('service record detail', () => {
     renderApp(`/service-records/${id}`);
     expect(await screen.findByText('Archivováno')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Archivovat|Obnovit/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
   });
 
   it('offers no buttons for a record of an archived item', async () => {
@@ -141,6 +149,7 @@ describe('service record detail', () => {
     renderApp(`/service-records/${id}`);
     await screen.findByRole('heading', { name: 'Servisní záznam' });
     expect(screen.queryByRole('button', { name: 'Archivovat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
   });
 
   it('says the record does not exist on a 404, without a retry button', async () => {

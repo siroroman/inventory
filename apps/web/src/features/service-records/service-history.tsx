@@ -1,13 +1,16 @@
 import type { ServiceRecordSummaryDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
 import { itemServiceRecordsQueryOptions } from './api';
 
 /** The service history of an item: newest first, each row opens the record. */
-export function ServiceHistory({ itemId }: { itemId: string }) {
+/** `canAdd`: a writer on an active item, who gets the "Add record" button. */
+export function ServiceHistory({ itemId, canAdd }: { itemId: string; canAdd: boolean }) {
   const { t } = useTranslation();
   const query = useInfiniteQuery(itemServiceRecordsQueryOptions(itemId));
   const total = pagedTotal(query.data);
@@ -42,6 +45,14 @@ export function ServiceHistory({ itemId }: { itemId: string }) {
         <h3 className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
           {total === undefined ? t('serviceRecord.history') : t('serviceRecord.historyCount', { count: total })}
         </h3>
+        {canAdd && (
+          <Button asChild size="sm">
+            <Link to="/items/$id/service-records/new" params={{ id: itemId }}>
+              <Plus aria-hidden />
+              {t('serviceRecord.add')}
+            </Link>
+          </Button>
+        )}
       </div>
       <div className="overflow-hidden rounded-lg border">
         <PagedList
