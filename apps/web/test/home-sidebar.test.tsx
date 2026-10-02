@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { location, page } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubScreenWidth, stubWideScreen } from './helpers.tsx';
 
 function api() {
   return stubApi({
@@ -83,5 +83,16 @@ describe('home: narrow screen', () => {
     expect(await screen.findByRole('tablist', { name: 'Přehled' })).toBeInTheDocument();
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Hlavní navigace' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the top bar and the tabs at tablet width, with the table', async () => {
+    stubScreenWidth(800);
+    api();
+    renderApp('/');
+
+    expect(await screen.findByRole('tablist', { name: 'Přehled' })).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Hlavní navigace' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('table')).toBeInTheDocument();
   });
 });

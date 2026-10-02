@@ -20,10 +20,10 @@ type Props = {
 export function ListToolbar({ title, count, search, action, archived }: Props) {
   const desktop = useMediaQuery(desktopScreen);
   const heading = (
-    <div className="flex items-baseline gap-2">
+    <div className="flex shrink-0 items-baseline gap-2">
       <h2 className={desktop ? 'text-[22px] font-semibold' : 'text-xl font-semibold'}>{title}</h2>
       {count && (
-        <span role="status" className="text-sm text-muted-foreground">
+        <span role="status" className="text-sm whitespace-nowrap text-muted-foreground">
           {count}
         </span>
       )}
