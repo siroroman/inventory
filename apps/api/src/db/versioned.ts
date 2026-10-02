@@ -5,9 +5,9 @@ import type { DbExecutor } from './client.ts';
 type VersionedTable = PgTable & {
   id: PgColumn;
   version: PgColumn;
-  archivedAt: PgColumn;
   updatedBy: PgColumn;
 };
+type ArchivableTable = VersionedTable & { archivedAt: PgColumn };
 
 /**
  * Optimistic update: changes the row only if it still has `version`. Returns the updated row, or
@@ -30,7 +30,7 @@ export async function updateVersioned<T extends VersionedTable>(
 }
 
 /** Archives (or restores) a row with the same optimistic check as updateVersioned. */
-export function setArchived<T extends VersionedTable>(
+export function setArchived<T extends ArchivableTable>(
   db: DbExecutor,
   table: T,
   id: string,

@@ -63,6 +63,10 @@ export const statusByCode: Record<ErrorCode, ProblemStatus> = {
   photo_too_large: 422,
   photo_type_not_allowed: 422,
   invalid_photo_order: 422,
+  invalid_document_key: 422,
+  document_not_uploaded: 422,
+  document_too_large: 422,
+  document_type_not_allowed: 422,
   validation_error: 400,
   invalid_cursor: 400,
   payload_too_large: 413,
@@ -84,6 +88,7 @@ export const constraintErrors: Record<string, ErrorCode> = {
   manufacturers_name_lower_key: 'duplicate_manufacturer',
   manufacturer_service_providers_manufacturer_priority_key: 'conflict',
   item_photos_storage_key_key: 'conflict',
+  service_record_documents_storage_key_key: 'conflict',
   user_email_lower_key: 'email_taken',
 };
 

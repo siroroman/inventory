@@ -10,6 +10,7 @@ import {
 } from './modules/locations/service.ts';
 import { createManufacturerService, manufacturerRepos } from './modules/manufacturers/service.ts';
 import { createPhotoService, photoRepos } from './modules/photos/service.ts';
+import { createRecordDocumentService, recordDocumentRepos } from './modules/service-record-documents/service.ts';
 import { createServiceProviderService, serviceProviderRepos } from './modules/service-providers/service.ts';
 import { createServiceRecordService, serviceRecordRepos } from './modules/service-records/service.ts';
 import { createUserService, type UserInvites, userRepos } from './modules/users/service.ts';
@@ -40,6 +41,12 @@ export function createServices({ db, storage, invites }: { db: Db; storage: Obje
     photos: createPhotoService({
       repos: photoRepos(db),
       transact: transactor(db, photoRepos),
+      storage,
+      newId: randomUUID,
+    }),
+    recordDocuments: createRecordDocumentService({
+      repos: recordDocumentRepos(db),
+      transact: transactor(db, recordDocumentRepos),
       storage,
       newId: randomUUID,
     }),
