@@ -181,12 +181,36 @@ describe('documents of a service record: view and download', () => {
     expect(screen.queryByRole('button', { name: /Zobrazit/ })).not.toBeInTheDocument();
   });
 
-  it('leaves viewing to the browser on a touch screen: the name link, no viewer button', async () => {
+  it('leaves a PDF to the browser on a touch screen: the name link opens a tab, no viewer button', async () => {
+    const user = userEvent.setup();
     stubTouchScreen();
     open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto()]) });
-    expect(await screen.findByRole('link', { name: 'Servisní protokol' })).toHaveAttribute('target', '_blank');
+    const link = await screen.findByRole('link', { name: 'Servisní protokol' });
+    expect(link).toHaveAttribute('target', '_blank');
     expect(screen.getByRole('link', { name: 'Stáhnout Servisní protokol' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Zobrazit/ })).not.toBeInTheDocument();
+    await user.click(link);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows a picture in the viewer on a touch screen too, with a close button, instead of a bare tab', async () => {
+    const user = userEvent.setup();
+    stubTouchScreen();
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto({ name: 'Foto', contentType: 'image/png', url: 'https://storage.test/p.png' })]) });
+    expect(await screen.findByRole('button', { name: 'Zobrazit Foto' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'Foto' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Foto' });
+    expect(within(dialog).getByRole('img', { name: 'Foto' })).toHaveAttribute('src', 'https://storage.test/p.png');
+    await user.click(within(dialog).getByRole('button', { name: 'Zavřít' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('opens the viewer from the name of a PDF on a computer', async () => {
+    const user = userEvent.setup();
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto()]) });
+    await user.click(await screen.findByRole('link', { name: 'Servisní protokol' }));
+    expect(within(await screen.findByRole('dialog')).getByTitle('Servisní protokol')).toHaveAttribute('src', pdfUrl);
   });
 });
 

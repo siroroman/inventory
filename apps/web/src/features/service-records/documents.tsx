@@ -140,8 +140,13 @@ function DeleteDialog({ recordId, document, onClose }: { recordId: string; docum
   );
 }
 
-/** What the viewer can show: the browser has a PDF viewer and shows pictures. Word and Excel files are only downloaded. */
-const previewable = (contentType: string) => contentType === 'application/pdf' || contentType.startsWith('image/');
+/**
+ * Whether the in-app viewer shows this file: pictures everywhere, PDFs on a computer. On a touch
+ * screen a PDF goes to the browser's own tab, whose viewer pages and zooms better than a frame.
+ * Word and Excel files are only downloaded.
+ */
+const previewable = (contentType: string, touchScreen: boolean) =>
+  contentType.startsWith('image/') || (contentType === 'application/pdf' && !touchScreen);
 
 function DownloadButton({ document, size = 'icon' }: { document: DocumentDto; size?: 'icon' | 'sm' }) {
   const { t } = useTranslation();
@@ -191,7 +196,7 @@ function DocumentRow({
 }: {
   document: DocumentDto;
   canEdit: boolean;
-  /** Opens the viewer; left out where the browser's own tab is the better viewer (touch screens) or the type has none. */
+  /** Opens the viewer; left out where the file opens in the browser's own tab or the type has no viewer. */
   onView: (() => void) | undefined;
   onRename: () => void;
   onDelete: () => void;
@@ -208,6 +213,12 @@ function DocumentRow({
             href={document.url}
             target="_blank"
             rel="noopener noreferrer"
+            // A plain click opens the viewer; a click with a modifier key keeps the browser's own new tab.
+            onClick={(event) => {
+              if (!onView || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+              event.preventDefault();
+              onView();
+            }}
             className="text-[15px] font-medium break-words underline-offset-2 hover:underline focus-visible:underline"
           >
             {document.name}
@@ -284,8 +295,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
               key={document.id}
               document={document}
               canEdit={canEdit}
-              // On a phone the name link opens the file in the browser's own viewer, which pages and zooms better than a frame.
-              onView={!touchScreen && previewable(document.contentType) ? () => setViewing(document) : undefined}
+              onView={previewable(document.contentType, touchScreen) ? () => setViewing(document) : undefined}
               onRename={() => setRenaming(document)}
               onDelete={() => setDeleting(document)}
             />
