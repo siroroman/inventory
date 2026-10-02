@@ -129,10 +129,10 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
     <form
       noValidate
       onSubmit={handleSubmit((values) => save.mutate(values))}
-      className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4"
+      className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4"
     >
       <UnsavedChangesGuard changed={unsaved} />
-      <h1 className="text-xl font-semibold">{item ? t('itemForm.editTitle') : t('itemForm.newTitle')}</h1>
+      <h1 className="pt-2 text-xl font-semibold">{item ? t('itemForm.editTitle') : t('itemForm.newTitle')}</h1>
 
       <Section title={t('item.sections.basic')}>
         <div className="flex flex-col gap-1.5">

@@ -200,9 +200,9 @@ export function LocationForm({ location, initialParent = null }: Props) {
   const message = (key: FieldMessage | undefined, max: number) => key && t(key, { max });
 
   return (
-    <div className="mx-auto w-full max-w-2xl pb-8">
+    <div className="mx-auto w-full max-w-4xl pb-8">
       <UnsavedChangesGuard changed={unsaved} />
-      <h1 className="px-4 pt-2 pb-4 text-xl font-semibold">
+      <h1 className="px-4 pt-4 pb-4 text-xl font-semibold">
         {location ? t('locationForm.editTitle') : initialParent ? t('locationForm.createSubTitle') : t('locationForm.createTitle')}
       </h1>
       <form

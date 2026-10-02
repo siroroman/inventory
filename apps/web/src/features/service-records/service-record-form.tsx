@@ -106,10 +106,10 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
     <form
       noValidate
       onSubmit={handleSubmit((values) => save.mutate(values))}
-      className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4"
+      className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4"
     >
       <UnsavedChangesGuard changed={unsaved} />
-      <h1 className="text-xl font-semibold">
+      <h1 className="pt-2 text-xl font-semibold">
         {record ? t('serviceRecordForm.editTitle') : t('serviceRecordForm.newTitle')}
       </h1>
 

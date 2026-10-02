@@ -32,7 +32,7 @@ export function ItemCreate({ locationId }: { locationId?: string }) {
 export function FormSkeleton() {
   const { t } = useTranslation();
   return (
-    <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
+    <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4">
       <Skeleton className="h-6 w-56" />
       <Skeleton className="h-64 w-full" />
     </div>
@@ -66,7 +66,7 @@ export function ItemEdit({ id }: { id: string }) {
     );
   }
   return (
-    <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
+    <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4">
       <Skeleton className="h-6 w-56" />
       <Skeleton className="h-64 w-full" />
     </div>
