@@ -29,8 +29,20 @@ let storage: ObjectStorage = {
 };
 if (config.storage) {
   const bucket = openBucket({ name: config.storage.bucket, apiEndpoint: config.storage.apiEndpoint });
-  // The emulator starts empty; the production bucket is created by deploy/setup.sh.
-  if (config.storage.apiEndpoint && !(await bucket.exists())[0]) await bucket.create();
+  // The emulator starts empty; the production bucket is created by deploy/setup.sh. The bucket is made in
+  // the background: an emulator that is not running (the client retries for minutes) must not hold the
+  // API back, since the rest of the app does not need it. Uploads fail until it is up.
+  if (config.storage.apiEndpoint) {
+    void (async () => {
+      if (!(await bucket.exists())[0]) await bucket.create();
+    })().catch(() =>
+      log({
+        severity: 'WARNING',
+        message: 'storage emulator not reachable: start it (docker compose up -d storage) and restart the API',
+        endpoint: config.storage?.apiEndpoint,
+      }),
+    );
+  }
   storage = createCloudStorage(bucket);
 }
 // Likewise the invitation adapter (Better Auth account plus email): inviting fails with a logged 500
