@@ -38,7 +38,7 @@ function LocationLink({ location, card, children }: { location: LocationDto; car
 /**
  * Table columns and card of a location list. `nested` is the list of one location's sub-locations:
  * it needs neither the parent path (the page shows it), nor the type (only top-level locations have one),
- * nor the address column. It shows the ID instead, in the same place as the ID of the items table below it.
+ * nor the address column. The ID column follows the name in both lists.
  */
 export function useLocationRows({ nested }: { nested: boolean }) {
   const { t } = useTranslation();
@@ -98,7 +98,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
         );
       },
     },
-    ...(nested ? [codeColumn, itemsColumn, subLocationsColumn] : [typeColumn, addressColumn, subLocationsColumn, itemsColumn]),
+    ...(nested ? [codeColumn, itemsColumn, subLocationsColumn] : [codeColumn, typeColumn, addressColumn, subLocationsColumn, itemsColumn]),
   ];
 
   const card = (location: LocationDto) => {
