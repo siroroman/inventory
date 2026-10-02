@@ -107,23 +107,23 @@ export function PagedList<T extends { id: string }>({
       {wide ? (
         <table className="w-full table-fixed text-left">
           <thead>
-            <tr className="divide-x border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
+            <tr className="divide-x divide-line border-b border-line bg-primary-soft text-xs font-bold tracking-wide text-secondary-foreground uppercase">
               {columns.map((column) => (
-                <th key={column.header} scope="col" className={cn('px-4 py-2', column.className)}>
+                <th key={column.header} scope="col" className={cn('h-12 px-4 py-2', column.className)}>
                   {column.header}
                 </th>
               ))}
               {fill ? <td aria-hidden colSpan={fill} /> : null}
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-line">
             {items.map((item) => (
-              <tr key={item.id} className="divide-x">
+              <tr key={item.id} className="divide-x divide-line">
                 {columns.map((column) => (
                   <td
                     key={column.header}
                     className={cn(
-                      'overflow-hidden px-4 py-3 align-middle text-sm text-ellipsis whitespace-nowrap text-muted-foreground',
+                      'h-12 overflow-hidden px-4 py-3 align-middle text-sm text-ellipsis whitespace-nowrap text-foreground/80',
                       column.primary && 'text-[15px] font-semibold text-foreground',
                       column.className,
                     )}
@@ -137,7 +137,7 @@ export function PagedList<T extends { id: string }>({
           </tbody>
         </table>
       ) : (
-        <ul className="divide-y">
+        <ul className="divide-y divide-line">
           {items.map((item) => (
             <li key={item.id} className="px-4 py-3">
               {card(item)}

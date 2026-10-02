@@ -68,5 +68,5 @@ export function ListToolbar({ title, count, search, action, archived }: Props) {
 
 /** The list under a `ListToolbar`: a white card with a rounded border, as the design has it on desktop. */
 export function ListFrame({ children }: { children: ReactNode }) {
-  return <div className="mx-4 mb-6 overflow-hidden rounded-xl border bg-card lg:mx-8 lg:mb-8">{children}</div>;
+  return <div className="mx-4 mb-6 overflow-hidden rounded-xl border border-line bg-card lg:mx-8 lg:mb-8">{children}</div>;
 }
