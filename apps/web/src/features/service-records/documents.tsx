@@ -171,8 +171,10 @@ function DocumentViewer({ document, onClose }: { document: DocumentDto; onClose:
         {document.contentType === 'application/pdf' ? (
           <iframe src={document.url} title={document.name} className="min-h-0 w-full flex-1 rounded-md border bg-background" />
         ) : (
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md border bg-muted">
-            <img src={document.url} alt={document.name} className="max-h-full max-w-full object-contain" />
+          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md border bg-muted">
+            {/* A tap beside the picture closes the viewer. Keyboard users have Escape and the close button. */}
+            <button type="button" aria-hidden tabIndex={-1} onClick={onClose} className="absolute inset-0 cursor-pointer" />
+            <img src={document.url} alt={document.name} className="relative max-h-full max-w-full object-contain" />
           </div>
         )}
       </DialogContent>

@@ -161,6 +161,20 @@ describe('documents of a service record: view and download', () => {
     expect(dialog.querySelector('iframe')).toBeNull();
   });
 
+  it('closes the picture viewer on a tap beside the picture, but not on the picture', async () => {
+    const user = userEvent.setup();
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto({ name: 'Foto', contentType: 'image/jpeg', url: 'https://storage.test/p.jpg' })]) });
+    await user.click(await screen.findByRole('button', { name: 'Zobrazit Foto' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Foto' });
+    const picture = within(dialog).getByRole('img', { name: 'Foto' });
+
+    await user.click(picture);
+    expect(screen.getByRole('dialog', { name: 'Foto' })).toBeInTheDocument();
+    // The empty area is a button stretched behind the picture.
+    await user.click(picture.previousElementSibling!);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('has no viewer for Word and Excel files, only the download', async () => {
     open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto({ name: 'Tabulka', contentType: 'application/vnd.ms-excel' })]) });
     await screen.findByRole('link', { name: 'Stáhnout Tabulka' });
