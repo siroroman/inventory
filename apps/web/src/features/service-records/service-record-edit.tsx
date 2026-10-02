@@ -1,24 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { itemDetailQueryOptions } from '@/features/items/api';
-import { NoWriteAccess } from '@/features/items/item-edit';
+import { FormSkeleton, NoWriteAccess } from '@/features/items/item-edit';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { serviceRecordQueryOptions } from './api';
 import { ServiceRecordForm } from './service-record-form';
-
-function FormSkeleton() {
-  const { t } = useTranslation();
-  return (
-    <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
-      <Skeleton className="h-6 w-56" />
-      <Skeleton className="h-64 w-full" />
-    </div>
-  );
-}
 
 const isMissing = (error: unknown) =>
   error instanceof ApiError && (error.code === 'not_found' || error.code === 'validation_error');

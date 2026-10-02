@@ -29,7 +29,7 @@ export function ItemCreate({ locationId }: { locationId?: string }) {
   return <ItemForm initialLocation={start} />;
 }
 
-function FormSkeleton() {
+export function FormSkeleton() {
   const { t } = useTranslation();
   return (
     <div role="status" aria-label={t('states.loading')} className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">

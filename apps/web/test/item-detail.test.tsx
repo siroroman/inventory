@@ -251,7 +251,7 @@ describe('item detail: service history', () => {
     expect(add).toHaveAttribute('href', `/items/${id}/service-records/new`);
   });
 
-  it('offers no "Přidat záznam" to a reader or on an archived item', async () => {
+  it('offers no "Přidat záznam" to a reader', async () => {
     stubApi({
       'GET /api/v1/me': () => jsonResponse({ ...me, role: 'read' }),
       [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),

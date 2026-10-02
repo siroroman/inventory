@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
+import { DetailFields } from '@/components/detail-fields';
 import { ErrorState } from '@/components/error-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,21 +23,6 @@ function DetailSkeleton() {
       <Skeleton className="h-6 w-56 max-w-full" />
       <Skeleton className="h-40 w-full" />
     </div>
-  );
-}
-
-/** Label and value pairs; an empty value shows as "—". */
-function Fields({ rows }: { rows: { label: string; value: ReactNode }[] }) {
-  const { t } = useTranslation();
-  return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      {rows.map(({ label, value }) => (
-        <div key={label}>
-          <dt className="text-sm text-muted-foreground">{label}</dt>
-          <dd className="text-[15px] break-words">{value || t('common.empty')}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
@@ -87,7 +73,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
       </div>
 
       <section className="rounded-lg border bg-card p-4">
-        <Fields
+        <DetailFields
           rows={[
             {
               label: t('serviceRecord.fields.item'),

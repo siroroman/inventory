@@ -46,7 +46,7 @@ export function ServiceHistory({ itemId, canAdd }: { itemId: string; canAdd: boo
           {total === undefined ? t('serviceRecord.history') : t('serviceRecord.historyCount', { count: total })}
         </h3>
         {canAdd && (
-          <Button asChild size="sm">
+          <Button asChild>
             <Link to="/items/$id/service-records/new" params={{ id: itemId }}>
               <Plus aria-hidden />
               {t('serviceRecord.add')}
