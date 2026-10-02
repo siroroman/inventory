@@ -68,13 +68,15 @@ export function useLocationRows({ nested }: { nested: boolean }) {
 
   const itemsColumn: Column<LocationDto> = {
     header: t('home.locations.columns.items'),
-    className: 'w-28',
+    // Nested, the two counts have no set width: they share the spare room (on a location's page, from
+    // 1024 px, with the empty column after them).
+    className: nested ? undefined : 'w-28',
     cell: (location) => counts(location)[0],
   };
 
   const subLocationsColumn: Column<LocationDto> = {
     header: t('home.locations.columns.subLocations'),
-    className: 'w-36',
+    className: nested ? undefined : 'w-36',
     cell: (location) => counts(location)[1],
   };
 
