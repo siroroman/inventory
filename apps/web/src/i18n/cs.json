@@ -15,6 +15,10 @@
     "itemCount_few": "{{count}} položky",
     "itemCount_many": "{{count}} položky",
     "itemCount_other": "{{count}} položek",
+    "recordCount_one": "{{count}} záznam",
+    "recordCount_few": "{{count}} záznamy",
+    "recordCount_many": "{{count}} záznamu",
+    "recordCount_other": "{{count}} záznamů",
     "loadMore": "Načíst další",
     "empty": "—",
     "locationCount_one": "{{count}} lokalita",
@@ -97,6 +101,21 @@
         "soon": "Servis do 30 dní"
       },
       "add": "Přidat položku"
+    },
+    "maintenance": {
+      "tab": "Údržba",
+      "searchLabel": "Hledat servisní záznamy",
+      "searchPlaceholder": "Hledat podle názvu, položky, lokality…",
+      "emptyTitle": "Zatím žádný servisní záznam",
+      "emptyHint": "Provedené servisy a prohlídky všech položek se zobrazí tady.",
+      "archivedEmptyTitle": "Žádné archivované záznamy",
+      "columns": {
+        "title": "Název",
+        "date": "Datum",
+        "item": "Položka",
+        "location": "Lokalita"
+      },
+      "add": "Přidat záznam"
     }
   },
   "locationDetail": {

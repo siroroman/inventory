@@ -9,6 +9,10 @@ export const itemServiceRecordsQueryOptions = (itemId: string) =>
     unwrap(api.api.v1.items[':id']['service-records'].$get({ param: { id: itemId }, query: { cursor, limit } })),
   );
 
+/** Pages of the service records of all items, newest first (the archived ones with `archived`); `q` searches title, item name and ID and location names. */
+export const serviceRecordListQueryOptions = (q: string, archived = false) =>
+  pagedListQueryOptions('service-records', q, (query) => unwrap(api.api.v1['service-records'].$get({ query })), archived);
+
 /** One service record with its item; archived records included. */
 export const serviceRecordQueryOptions = (id: string) =>
   queryOptions({

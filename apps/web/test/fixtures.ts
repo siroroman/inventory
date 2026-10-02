@@ -42,3 +42,18 @@ export function item(over: Record<string, unknown> = {}) {
 
 export const page = (items: unknown[], extra: { nextCursor?: string | null; total?: number } = {}) =>
   jsonResponse({ items, nextCursor: extra.nextCursor ?? null, total: extra.total ?? items.length });
+
+/** A row of the all-items service record list. */
+export function recordListEntry(over: Record<string, unknown> = {}) {
+  const place = ref('LOC-019', 'Teplá kuchyně');
+  return {
+    ...record,
+    id: crypto.randomUUID(),
+    performedOn: '2026-04-15',
+    title: 'Výměna filtru a kontrola tlaku',
+    item: ref('INV-00042', 'Kávovar Linea PB'),
+    location: place,
+    path: [ref('LOC-001', 'Centrála Praha'), ref('LOC-004', 'Přízemí výroba'), place],
+    ...over,
+  };
+}
