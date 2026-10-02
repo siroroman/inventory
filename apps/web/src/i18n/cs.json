@@ -99,10 +99,6 @@
         "location": "Lokalita",
         "brand": "Výrobce a model"
       },
-      "service": {
-        "overdue": "Servis po termínu",
-        "soon": "Servis do 30 dní"
-      },
       "add": "Přidat položku"
     },
     "maintenance": {

@@ -169,27 +169,6 @@ describe('home: items tab', () => {
     expect(await screen.findByText('1 položka')).toBeInTheDocument();
   });
 
-  it('shows a badge for overdue service and for service due within 30 days, none for later', async () => {
-    const day = (offset: number) => {
-      const d = new Date();
-      d.setDate(d.getDate() + offset);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-    api({
-      items: () =>
-        page([
-          item({ name: 'A', nextServiceOn: day(-1) }),
-          item({ name: 'B', nextServiceOn: day(10) }),
-          item({ name: 'C', nextServiceOn: day(90) }),
-        ]),
-    });
-    renderApp('/?tab=items');
-    const [a, b, c] = await screen.findAllByRole('listitem');
-    expect(a).toHaveTextContent('Servis po termínu');
-    expect(b).toHaveTextContent('Servis do 30 dní');
-    expect(c).not.toHaveTextContent('Servis');
-  });
-
   it('copes with an item without a brand or a model', async () => {
     api({ items: () => page([item({ manufacturer: null, model: null })]) });
     renderApp('/?tab=items');
