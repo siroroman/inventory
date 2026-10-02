@@ -35,6 +35,7 @@ const documentDto = (over: Record<string, unknown> = {}) => ({
   contentType: PDF,
   size: 122_880,
   url: 'https://storage.test/service-records/x/a.pdf?sig=1',
+  downloadUrl: 'https://storage.test/service-records/x/a.pdf?sig=1&download=1',
   createdAt: '2026-10-02T12:00:00.000Z',
   createdBy: { id: me.id, name: 'Jana Nováková' },
   ...over,
@@ -86,7 +87,7 @@ describe('documents of a service record: list', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(screen.getByText('Přidáno 2. 10. 2026 · Jana Nováková · 120 kB')).toBeInTheDocument();
     expect(screen.getByText('Přidáno 2. 10. 2026 · 2,5 MB')).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Servisní protokol|Faktura/ }).map((a) => a.textContent)).toEqual(['Servisní protokol', 'Faktura']);
+    expect(screen.getAllByRole('link', { name: /^(Servisní protokol|Faktura)$/ }).map((a) => a.textContent)).toEqual(['Servisní protokol', 'Faktura']);
   });
 
   it('shows an empty state', async () => {
@@ -124,6 +125,54 @@ describe('documents of a service record: list', () => {
     open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto()]) }, { rec: record({}, { archivedAt: '2026-05-01T00:00:00.000Z' }) });
     expect(await screen.findByRole('link', { name: 'Servisní protokol' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Nahrát soubor|Smazat/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('documents of a service record: view and download', () => {
+  const pdfUrl = 'https://storage.test/service-records/x/a.pdf?sig=1';
+
+  it('offers a download for every document, also to a reader and under an archived record', async () => {
+    const docx = documentDto({ id: 'd2', name: 'Zpráva', contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', downloadUrl: 'https://storage.test/z.docx?download=1' });
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto(), docx]) }, { role: 'read', rec: record({ archivedAt: '2026-05-01T00:00:00.000Z' }) });
+    const pdfLink = await screen.findByRole('link', { name: 'Stáhnout Servisní protokol' });
+    expect(pdfLink).toHaveAttribute('href', `${pdfUrl}&download=1`);
+    expect(pdfLink).toHaveAttribute('download');
+    expect(screen.getByRole('link', { name: 'Stáhnout Zpráva' })).toHaveAttribute('href', 'https://storage.test/z.docx?download=1');
+  });
+
+  it('shows a PDF in a viewer with the document name and a download, and closes it', async () => {
+    const user = userEvent.setup();
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto()]) }, { role: 'read' });
+    await user.click(await screen.findByRole('button', { name: 'Zobrazit Servisní protokol' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Servisní protokol' });
+    expect(within(dialog).getByTitle('Servisní protokol')).toHaveAttribute('src', pdfUrl);
+    expect(within(dialog).getByRole('link', { name: 'Stáhnout Servisní protokol' })).toHaveAttribute('href', `${pdfUrl}&download=1`);
+    await user.click(within(dialog).getByRole('button', { name: 'Zavřít' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows a picture as a picture', async () => {
+    const user = userEvent.setup();
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto({ name: 'Foto', contentType: 'image/jpeg', url: 'https://storage.test/p.jpg' })]) });
+    await user.click(await screen.findByRole('button', { name: 'Zobrazit Foto' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Foto' });
+    expect(within(dialog).getByRole('img', { name: 'Foto' })).toHaveAttribute('src', 'https://storage.test/p.jpg');
+    expect(dialog.querySelector('iframe')).toBeNull();
+  });
+
+  it('has no viewer for Word and Excel files, only the download', async () => {
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto({ name: 'Tabulka', contentType: 'application/vnd.ms-excel' })]) });
+    await screen.findByRole('link', { name: 'Stáhnout Tabulka' });
+    expect(screen.queryByRole('button', { name: /Zobrazit/ })).not.toBeInTheDocument();
+  });
+
+  it('leaves viewing to the browser on a touch screen: the name link, no viewer button', async () => {
+    stubTouchScreen();
+    open({ [`GET ${documentsUrl}`]: () => jsonResponse([documentDto()]) });
+    expect(await screen.findByRole('link', { name: 'Servisní protokol' })).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('link', { name: 'Stáhnout Servisní protokol' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Zobrazit/ })).not.toBeInTheDocument();
   });
 });
 

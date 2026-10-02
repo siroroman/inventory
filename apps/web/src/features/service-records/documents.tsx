@@ -1,6 +1,6 @@
 import type { DocumentDto } from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, FileSpreadsheet, FileText, Image as ImageIcon, Pencil, Trash2, Upload } from 'lucide-react';
+import { Camera, Download, Eye, FileSpreadsheet, FileText, Image as ImageIcon, Pencil, Trash2, Upload } from 'lucide-react';
 import { type ChangeEvent, type FormEvent, type ReactNode, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ApiError } from '@/lib/api';
@@ -140,33 +140,103 @@ function DeleteDialog({ recordId, document, onClose }: { recordId: string; docum
   );
 }
 
-function DocumentRow({ document, canEdit, onRename, onDelete }: { document: DocumentDto; canEdit: boolean; onRename: () => void; onDelete: () => void }) {
+/** What the viewer can show: the browser has a PDF viewer and shows pictures. Word and Excel files are only downloaded. */
+const previewable = (contentType: string) => contentType === 'application/pdf' || contentType.startsWith('image/');
+
+function DownloadButton({ document, size = 'icon' }: { document: DocumentDto; size?: 'icon' | 'sm' }) {
+  const { t } = useTranslation();
+  const label = t('serviceRecordDocuments.downloadLabel', { name: document.name });
+  return (
+    <Button asChild variant={size === 'icon' ? 'ghost' : 'outline'} size={size}>
+      {/* The link is signed with Content-Disposition: attachment, so the browser saves the file. */}
+      <a href={document.downloadUrl} download aria-label={label} title={label}>
+        <Download aria-hidden />
+        {size === 'sm' && t('serviceRecordDocuments.download')}
+      </a>
+    </Button>
+  );
+}
+
+/** The document in the browser's own PDF viewer (or as a picture), without leaving the record. */
+function DocumentViewer({ document, onClose }: { document: DocumentDto; onClose: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="h-[calc(100dvh-2rem)] max-w-5xl">
+        <div className="flex items-center gap-3 pr-12">
+          <DialogTitle className="min-w-0 flex-1 truncate pr-0">{document.name}</DialogTitle>
+          <DownloadButton document={document} size="sm" />
+        </div>
+        <DialogDescription className="sr-only">{t('serviceRecordDocuments.viewerHint')}</DialogDescription>
+        {document.contentType === 'application/pdf' ? (
+          <iframe src={document.url} title={document.name} className="min-h-0 w-full flex-1 rounded-md border bg-background" />
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-md border bg-muted">
+            <img src={document.url} alt={document.name} className="max-h-full max-w-full object-contain" />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DocumentRow({
+  document,
+  canEdit,
+  onView,
+  onRename,
+  onDelete,
+}: {
+  document: DocumentDto;
+  canEdit: boolean;
+  /** Opens the viewer; left out where the browser's own tab is the better viewer (touch screens) or the type has none. */
+  onView: (() => void) | undefined;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
   const { t } = useTranslation();
   const meta = [t('serviceRecordDocuments.added', { date: formatTimestamp(document.createdAt) }), document.createdBy?.name, formatFileSize(document.size)];
   return (
-    <li className="flex items-center gap-3 p-4">
-      <FileIcon contentType={document.contentType} />
-      <div className="min-w-0 flex-1">
-        <a
-          href={document.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[15px] font-medium break-words underline-offset-2 hover:underline focus-visible:underline"
-        >
-          {document.name}
-        </a>
-        <p className="text-sm text-muted-foreground">{meta.filter(Boolean).join(' · ')}</p>
-      </div>
-      {canEdit && (
-        <div className="-my-2 -mr-2 flex shrink-0">
-          <Button variant="ghost" size="icon" aria-label={t('serviceRecordDocuments.renameLabel', { name: document.name })} onClick={onRename}>
-            <Pencil aria-hidden />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label={t('serviceRecordDocuments.deleteLabel', { name: document.name })} onClick={onDelete}>
-            <Trash2 aria-hidden />
-          </Button>
+    // The buttons wrap under the name on a narrow screen.
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 p-4">
+      <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
+        <FileIcon contentType={document.contentType} />
+        <div className="min-w-0 flex-1">
+          <a
+            href={document.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[15px] font-medium break-words underline-offset-2 hover:underline focus-visible:underline"
+          >
+            {document.name}
+          </a>
+          <p className="text-sm text-muted-foreground">{meta.filter(Boolean).join(' · ')}</p>
         </div>
-      )}
+      </div>
+      <div className="-my-2 -mr-2 ml-auto flex shrink-0">
+        {onView && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('serviceRecordDocuments.viewLabel', { name: document.name })}
+            title={t('serviceRecordDocuments.viewLabel', { name: document.name })}
+            onClick={onView}
+          >
+            <Eye aria-hidden />
+          </Button>
+        )}
+        <DownloadButton document={document} />
+        {canEdit && (
+          <>
+            <Button variant="ghost" size="icon" aria-label={t('serviceRecordDocuments.renameLabel', { name: document.name })} onClick={onRename}>
+              <Pencil aria-hidden />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label={t('serviceRecordDocuments.deleteLabel', { name: document.name })} onClick={onDelete}>
+              <Trash2 aria-hidden />
+            </Button>
+          </>
+        )}
+      </div>
     </li>
   );
 }
@@ -185,6 +255,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const [picked, setPicked] = useState<PickedFile[] | null>(null);
+  const [viewing, setViewing] = useState<DocumentDto | null>(null);
   const [renaming, setRenaming] = useState<DocumentDto | null>(null);
   const [deleting, setDeleting] = useState<DocumentDto | null>(null);
 
@@ -207,7 +278,15 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
       ) : (
         <ul className="divide-y">
           {documents.map((document) => (
-            <DocumentRow key={document.id} document={document} canEdit={canEdit} onRename={() => setRenaming(document)} onDelete={() => setDeleting(document)} />
+            <DocumentRow
+              key={document.id}
+              document={document}
+              canEdit={canEdit}
+              // On a phone the name link opens the file in the browser's own viewer, which pages and zooms better than a frame.
+              onView={!touchScreen && previewable(document.contentType) ? () => setViewing(document) : undefined}
+              onRename={() => setRenaming(document)}
+              onDelete={() => setDeleting(document)}
+            />
           ))}
         </ul>
       );
@@ -248,6 +327,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
       <div className="overflow-hidden rounded-lg border bg-card">{body}</div>
 
       {picked && <DocumentUploadDialog recordId={recordId} picked={picked} onClose={() => setPicked(null)} />}
+      {viewing && <DocumentViewer document={viewing} onClose={() => setViewing(null)} />}
       {renaming && <RenameDialog recordId={recordId} document={renaming} onClose={() => setRenaming(null)} />}
       {deleting && <DeleteDialog recordId={recordId} document={deleting} onClose={() => setDeleting(null)} />}
     </section>
