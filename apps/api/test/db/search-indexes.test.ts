@@ -13,6 +13,7 @@ const TRIGRAM_INDEXES: [table: string, column: string, index: string][] = [
   ['item_external_ids', 'value', 'item_external_ids_value_trgm_idx'],
   ['manufacturers', 'name', 'manufacturers_name_trgm_idx'],
   ['locations', 'name', 'locations_name_trgm_idx'],
+  ['service_records', 'title', 'service_records_title_trgm_idx'],
 ];
 
 // Uses the repositories' helper, so these tests prove its expression hits the trigram indexes.
