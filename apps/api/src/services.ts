@@ -10,17 +10,17 @@ import {
 } from './modules/locations/service.ts';
 import { createManufacturerService, manufacturerRepos } from './modules/manufacturers/service.ts';
 import { createPhotoService, photoRepos } from './modules/photos/service.ts';
-import type { PhotoStorage } from './modules/photos/storage.ts';
 import { createServiceProviderService, serviceProviderRepos } from './modules/service-providers/service.ts';
 import { createServiceRecordService, serviceRecordRepos } from './modules/service-records/service.ts';
 import { createUserService, type UserInvites, userRepos } from './modules/users/service.ts';
+import type { ObjectStorage } from './storage/storage.ts';
 
 /**
  * The composition root: every service, wired to one database. Routes receive this (through
  * `createApp`) instead of building services themselves, so tests can build the app against a
  * throwaway database.
  */
-export function createServices({ db, storage, invites }: { db: Db; storage: PhotoStorage; invites: UserInvites }) {
+export function createServices({ db, storage, invites }: { db: Db; storage: ObjectStorage; invites: UserInvites }) {
   return {
     locations: createLocationService({ repos: locationRepos(db), transact: transactor(db, locationRepos) }),
     locationTypes: createLocationTypeService({ repos: locationRepos(db), transact: transactor(db, locationRepos) }),

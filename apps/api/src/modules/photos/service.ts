@@ -2,16 +2,11 @@ import { type Actor, assertRole } from '../../auth/roles.ts';
 import type { DbExecutor } from '../../db/client.ts';
 import type { Transact } from '../../db/transaction.ts';
 import { DomainError } from '../../errors.ts';
+import type { ObjectStorage } from '../../storage/storage.ts';
 import { type AuditRepository, createAuditRepository } from '../audit/repository.ts';
 import { createItemRepository, type ItemRepository } from '../items/repository.ts';
 import { createPhotoRepository, type Photo, type PhotoRepository } from './repository.ts';
-import {
-  MAX_PHOTO_BYTES,
-  PHOTO_CONTENT_TYPES,
-  PHOTO_URL_TTL_SECONDS,
-  type PhotoContentType,
-  type PhotoStorage,
-} from './storage.ts';
+import { MAX_PHOTO_BYTES, PHOTO_CONTENT_TYPES, PHOTO_URL_TTL_SECONDS, type PhotoContentType } from './storage.ts';
 
 export type PhotoRepos = {
   photos: PhotoRepository;
@@ -29,7 +24,7 @@ export const photoRepos = (db: DbExecutor): PhotoRepos => ({
 export type PhotoDeps = {
   repos: PhotoRepos;
   transact: Transact<PhotoRepos>;
-  storage: PhotoStorage;
+  storage: ObjectStorage;
   /** Unique part of a new storage key (a UUID in production), injected to keep tests deterministic. */
   newId: () => string;
 };
