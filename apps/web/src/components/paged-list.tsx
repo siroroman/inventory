@@ -109,7 +109,7 @@ export function PagedList<T extends { id: string }>({
             </colgroup>
           )}
           <thead>
-            <tr className="border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
+            <tr className="divide-x border-b text-xs font-bold tracking-wide text-muted-foreground uppercase">
               {columns.map((column) => (
                 <th key={column.header} scope="col" className={cn('px-4 py-2', column.className)}>
                   {column.header}
@@ -119,7 +119,7 @@ export function PagedList<T extends { id: string }>({
           </thead>
           <tbody className="divide-y">
             {items.map((item) => (
-              <tr key={item.id}>
+              <tr key={item.id} className="divide-x">
                 {columns.map((column) => (
                   <td
                     key={column.header}
