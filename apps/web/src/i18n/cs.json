@@ -318,6 +318,7 @@
       "description": "Popis"
     },
     "edit": "Upravit",
+    "backToItem": "Zpět na položku",
     "archiveTitle": "Archivovat servisní záznam?",
     "archiveHint": "Záznam zmizí z historie servisu položky.",
     "notFoundTitle": "Servisní záznam nenalezen",
