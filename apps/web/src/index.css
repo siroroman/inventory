@@ -33,6 +33,9 @@
   --line: #c9c9d0;
   --input: #8a8a95;
   --ring: #2454c7;
+  --panel: #141417;
+  --panel-foreground: #ffffff;
+  --panel-muted: #c9c9cf;
 
   --danger-soft: #fbeae9;
   --warning: #9a5b00;
@@ -63,6 +66,9 @@
   --line: #55555f;
   --input: #6a6a75;
   --ring: #8ca9f0;
+  --panel: #1c1c21;
+  --panel-foreground: #f7f7f8;
+  --panel-muted: #c9c9cf;
 
   --danger-soft: #3a1614;
   --warning: #f0b95b;
@@ -99,6 +105,9 @@
   --color-line: var(--line);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-panel-muted: var(--panel-muted);
 
   --color-danger-soft: var(--danger-soft);
   --color-warning: var(--warning);

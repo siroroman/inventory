@@ -36,6 +36,12 @@ describe('login screen', () => {
     expect(screen.getByRole('button', { name: 'Přihlásit se' })).toBeEnabled();
   });
 
+  it('shows the tagline and the form heading used by the desktop layout', async () => {
+    renderApp('/login');
+    expect(await screen.findByText(/Přehled o lokalitách, vybavení a servisních dodavatelích/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Přihlášení' })).toBeInTheDocument();
+  });
+
   it('asks for the missing fields without sending anything', async () => {
     const calls = sessionApi();
     renderApp('/login');
