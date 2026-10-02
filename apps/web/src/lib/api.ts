@@ -3,13 +3,16 @@ import { type ClientResponse, hc } from 'hono/client';
 import type { AppType } from '../../../api/src/app.ts';
 
 /**
- * API error codes plus the ones the browser makes up: no response at all, an unreadable one, and
- * the two sign-in failures (Better Auth answers those in its own format, not problem+json).
+ * API error codes plus the ones the browser makes up: no response at all, an unreadable one, a
+ * refused file upload, a picture the browser cannot decode, and the two sign-in failures
+ * (Better Auth answers those in its own format, not problem+json).
  */
 export type ApiErrorCode =
   | ErrorCode
   | 'network'
   | 'unexpected'
+  | 'upload_failed'
+  | 'file_unreadable'
   | 'invalid_credentials'
   | 'no_access';
 

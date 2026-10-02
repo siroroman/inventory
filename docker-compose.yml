@@ -16,5 +16,16 @@ services:
       timeout: 5s
       retries: 30
 
+  # Cloud Storage emulator for photos and documents. Signatures are not checked; the API creates
+  # the bucket on start when STORAGE_API_ENDPOINT is set.
+  storage:
+    image: fsouza/fake-gcs-server:1.52.2
+    command: ["-scheme", "http", "-port", "4443", "-public-host", "localhost:4443", "-external-url", "http://localhost:4443", "-cors-headers", "Content-Type,x-goog-content-length-range"]
+    ports:
+      - "4443:4443"
+    volumes:
+      - storage-data:/data
+
 volumes:
   db-data:
+  storage-data:

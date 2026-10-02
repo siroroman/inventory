@@ -15,6 +15,7 @@ import { createItemRoutes } from './modules/items/routes.ts';
 import { createLocationRoutes, createLocationTypeRoutes } from './modules/locations/routes.ts';
 import { createManufacturerRoutes } from './modules/manufacturers/routes.ts';
 import { createPhotoRoutes } from './modules/photos/routes.ts';
+import { createRecordDocumentRoutes } from './modules/service-record-documents/routes.ts';
 import { createServiceProviderRoutes } from './modules/service-providers/routes.ts';
 import { createServiceRecordRoutes } from './modules/service-records/routes.ts';
 import { createUserRoutes } from './modules/users/routes.ts';
@@ -71,6 +72,7 @@ export function createApp({ auth, baseUrl, isProduction, log, services, staticRo
     .route('/api/v1', createLocationTypeRoutes(services.locationTypes))
     .route('/api/v1', createItemRoutes(services))
     .route('/api/v1', createPhotoRoutes(services.photos))
+    .route('/api/v1', createRecordDocumentRoutes(services.recordDocuments))
     .route('/api/v1', createManufacturerRoutes(services.manufacturers))
     .route('/api/v1', createServiceProviderRoutes(services.serviceProviders))
     .route('/api/v1', createServiceRecordRoutes(services.serviceRecords))

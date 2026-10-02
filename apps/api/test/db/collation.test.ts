@@ -16,7 +16,7 @@ describe('Czech collation', () => {
       SELECT table_name, collation_name FROM information_schema.columns
       WHERE table_schema = 'public' AND column_name = 'name' ORDER BY table_name`);
     expect(result.rows).toEqual(
-      ['items', 'location_types', 'locations', 'manufacturers', 'service_providers', 'user'].map(
+      ['items', 'location_types', 'locations', 'manufacturers', 'service_providers', 'service_record_documents', 'user'].map(
         (table_name) => ({ table_name, collation_name: 'cs_cz' }),
       ),
     );

@@ -31,3 +31,20 @@ export const createServiceRecord = (itemId: string, json: CreateServiceRecordBod
 
 export const updateServiceRecord = (id: string, json: UpdateServiceRecordBody) =>
   unwrap(api.api.v1['service-records'][':id'].$patch({ param: { id }, json }));
+
+/**
+ * A record's documents with their signed read links. The links last 15 minutes, so the list is
+ * refetched every 10 while the screen stays open; a link in the page is then never about to expire.
+ */
+export const serviceRecordDocumentsQueryOptions = (recordId: string) =>
+  queryOptions({
+    queryKey: ['service-records', 'documents', recordId],
+    queryFn: () => unwrap(api.api.v1['service-records'][':id'].documents.$get({ param: { id: recordId } })),
+    refetchInterval: 10 * 60_000,
+  });
+
+export const renameServiceRecordDocument = (recordId: string, documentId: string, json: { name: string; version: number }) =>
+  unwrap(api.api.v1['service-records'][':id'].documents[':documentId'].$patch({ param: { id: recordId, documentId }, json }));
+
+export const deleteServiceRecordDocument = (recordId: string, documentId: string) =>
+  unwrap(api.api.v1['service-records'][':id'].documents[':documentId'].$delete({ param: { id: recordId, documentId } }));

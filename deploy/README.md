@@ -5,7 +5,7 @@ migrations, Cloud SQL for PostgreSQL 17 (smallest tier), Secret Manager, region 
 Settings are in `config.sh`; the project is the one from `gcloud config`.
 
 Not production-ready yet: Cloud SQL uses a public IP without authorized networks (reachable only
-through the IAM-checked connector) instead of private IP + Direct VPC egress, and photos, invitations and password reset do not work (their adapters are not written).
+through the IAM-checked connector) instead of private IP + Direct VPC egress, and invitations and password reset do not work (their adapters are not written).
 
 ## Prerequisites
 
@@ -15,11 +15,18 @@ through the IAM-checked connector) instead of private IP + Direct VPC egress, an
 ## Once
 
 ```
-deploy/setup.sh      # APIs, Artifact Registry, Cloud SQL, DB users, secrets, service accounts
+deploy/setup.sh      # APIs, Artifact Registry, Cloud SQL, DB users, secrets, service accounts, file bucket
 ```
 
 Passwords are generated into Secret Manager and never printed. The API's database user
 `inventory_app` is created in SQL as a member of `app_runtime` only.
+
+Photos and service record documents live in a private bucket, `<project>-inventory-files`
+(`BUCKET` in `config.sh`): uniform access, public access prevention, soft delete, CORS for the
+app's URL. The service account may manage objects in that bucket only, and sign download and upload
+links through IAM (`roles/iam.serviceAccountTokenCreator` on itself), so there is no key file. A
+project set up before the bucket existed needs `deploy/setup.sh` run again (it skips what exists)
+before the first deploy that sets `STORAGE_BUCKET`; until then uploads fail.
 
 Then let GitHub Actions deploy (needs `gh` signed in as a repository admin):
 

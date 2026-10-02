@@ -43,7 +43,8 @@ describe('service record detail', () => {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: 'Kávovar Linea PB' })).toHaveAttribute('href', `/items/${itemId}`);
-    expect(screen.queryByRole('link', { name: /Zpět/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Zpět na položku: Kávovar Linea PB' })).toHaveAttribute('href', `/items/${itemId}`);
+    expect(screen.getByRole('link', { name: 'Zpět na položku: Kávovar Linea PB' })).toHaveTextContent('Kávovar Linea PB');
     expect(screen.getByRole('heading', { name: 'Popis', level: 2 })).toBeInTheDocument();
     expect(screen.getByText(/Vyměněn vodní filtr\./)).toHaveTextContent('Vyměněn vodní filtr. Tlak bojleru 9,2 bar.');
   });

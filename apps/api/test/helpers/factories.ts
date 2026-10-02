@@ -7,6 +7,7 @@ import {
   locationTypes,
   manufacturers,
   serviceProviders,
+  serviceRecordDocuments,
   serviceRecords,
   user,
 } from '../../src/db/schema/index.ts';
@@ -80,6 +81,25 @@ export async function insertServiceRecord(db: Db, overrides: Partial<typeof serv
   const [row] = await db
     .insert(serviceRecords)
     .values({ performedOn: '2026-04-15', title: 'Výměna filtru', ...overrides, itemId })
+    .returning();
+  return row!;
+}
+
+export async function insertServiceRecordDocument(
+  db: Db,
+  overrides: Partial<typeof serviceRecordDocuments.$inferInsert> = {},
+) {
+  const serviceRecordId = overrides.serviceRecordId ?? (await insertServiceRecord(db)).id;
+  const [row] = await db
+    .insert(serviceRecordDocuments)
+    .values({
+      name: 'Servisní protokol',
+      storageKey: `service-records/${serviceRecordId}/${randomUUID()}.pdf`,
+      contentType: 'application/pdf',
+      sizeBytes: 120_000,
+      ...overrides,
+      serviceRecordId,
+    })
     .returning();
   return row!;
 }

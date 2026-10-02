@@ -1,7 +1,7 @@
 import type { ServiceRecordDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
@@ -15,6 +15,7 @@ import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { archiveServiceRecord, restoreServiceRecord, serviceRecordQueryOptions } from './api';
+import { ServiceRecordDocuments } from './documents';
 
 function DetailSkeleton() {
   const { t } = useTranslation();
@@ -36,6 +37,18 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
 
   return (
     <>
+      {/* The item's name as a text button above the title; the accessible name also says where it leads. */}
+      <Button asChild variant="link" className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0 text-foreground">
+        <Link
+          to="/items/$id"
+          params={{ id: record.item.id }}
+          aria-label={t('serviceRecord.backToItem', { name: record.item.name })}
+        >
+          <ArrowLeft aria-hidden />
+          <span className="truncate">{record.item.name}</span>
+        </Link>
+      </Button>
+
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-2xl font-semibold">{t('serviceRecord.title')}</h1>
         {record.archivedAt && <ArchivedBadge />}
@@ -90,6 +103,9 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
           </div>
         )}
       </section>
+
+      {/* Documents can be added and changed while the record and its item are active, as the API requires. */}
+      <ServiceRecordDocuments recordId={record.id} canEdit={changeable && !record.archivedAt} />
     </>
   );
 }

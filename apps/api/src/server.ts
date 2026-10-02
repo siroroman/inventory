@@ -4,9 +4,10 @@ import { createAuth } from './auth/auth.ts';
 import { parseConfig } from './config.ts';
 import { createDb } from './db/client.ts';
 import { jsonLogger as log } from './http/logger.ts';
-import type { PhotoStorage } from './modules/photos/storage.ts';
 import type { UserInvites } from './modules/users/service.ts';
 import { createServices } from './services.ts';
+import { createCloudStorage, openBucket } from './storage/cloud-storage.ts';
+import type { ObjectStorage } from './storage/storage.ts';
 
 const config = parseConfig(process.env);
 const { db, pool } = createDb(config.databaseUrl);
@@ -17,15 +18,33 @@ const auth = createAuth({
   isProduction: config.isProduction,
   google: config.auth.google,
 });
-// The Cloud Storage adapter is not written yet. Until it is, every photo call that reaches the
-// bucket fails with a logged 500; reading items works, since a gallery stays empty without uploads.
-const notConfigured = () => Promise.reject(new Error('Photo storage is not configured'));
-const storage: PhotoStorage = {
+// Without STORAGE_BUCKET every call that reaches the bucket fails with a logged 500; reading items
+// works, since a gallery stays empty without uploads.
+const notConfigured = () => Promise.reject(new Error('File storage is not configured'));
+let storage: ObjectStorage = {
   createUploadUrl: notConfigured,
   createReadUrl: notConfigured,
   head: notConfigured,
   delete: notConfigured,
 };
+if (config.storage) {
+  const bucket = openBucket({ name: config.storage.bucket, apiEndpoint: config.storage.apiEndpoint });
+  // The emulator starts empty; the production bucket is created by deploy/setup.sh. The bucket is made in
+  // the background: an emulator that is not running (the client retries for minutes) must not hold the
+  // API back, since the rest of the app does not need it. Uploads fail until it is up.
+  if (config.storage.apiEndpoint) {
+    void (async () => {
+      if (!(await bucket.exists())[0]) await bucket.create();
+    })().catch(() =>
+      log({
+        severity: 'WARNING',
+        message: 'storage emulator not reachable: start it (docker compose up -d storage) and restart the API',
+        endpoint: config.storage?.apiEndpoint,
+      }),
+    );
+  }
+  storage = createCloudStorage(bucket);
+}
 // Likewise the invitation adapter (Better Auth account plus email): inviting fails with a logged 500
 // until it exists. Listing, role changes and deactivation do not need it.
 const invites: UserInvites = { invite: () => Promise.reject(new Error('User invitations are not configured')) };

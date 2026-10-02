@@ -33,7 +33,7 @@ QR-code inventory scanning, service/warranty reminders, offline mode, data impor
 - Tens of top-level locations, hundreds including sub-locations; hundreds to low thousands of items
 - Accounts are created by an admin; no self-registration
 - Records are never hard-deleted, only archived
-- Documents stay in Google Drive; the app only links to them
+- Item documents stay in Google Drive; the app only links to them. Files that belong to one maintenance event (a report, an invoice, a photo of a protocol) are uploaded to the service record itself (§3.4)
 
 ## 2. Users, roles and login
 
@@ -115,7 +115,9 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 
 #### Service record detail
 
-Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record of an active item offers Write and Admin Restore (no Edit until it is restored); a record of an archived item is shown without actions. Archived records are found with "Show archived" on the Maintenance tab.
+Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). A text button above the title, labelled with the item's name (long names are cut with an ellipsis), for every role and state, returns to the item. Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record of an active item offers Write and Admin Restore (no Edit until it is restored); a record of an archived item is shown without actions. Archived records are found with "Show archived" on the Maintenance tab.
+
+**Documents** (last section, "Documents (N)"): the files attached to the record, newest first, each with its name (a link that opens the file), the date it was added and who added it. Allowed: PDF, JPEG/PNG/WebP, Word (.doc, .docx) and Excel (.xls, .xlsx), up to 20 MB each. Write and Admin, on an active record of an active item, can "Upload file" (several at once; on a computer the file dialog, on a phone the system sheet with the gallery, the files app and the camera) and, on a touch screen, "Take photo" (straight to the camera). After picking, a dialog lists the files with an editable name each (the file name without its extension, "Foto 2. 10. 2026" for a camera shot); a file that fails stays in the dialog with the reason. Pictures of any format are shrunk in the browser to a JPEG of at most 2048 px, which also removes the GPS position. Every document has a download button (the file is saved under the document's name); PDFs and pictures also have a view button that opens them in a dialog with the browser's own PDF viewer (clicking the name does the same; on a touch screen a PDF opens in the browser's own viewer in a new tab instead, while a picture still opens in the dialog; Word and Excel files are only downloaded). A document can be renamed and deleted (asks first); archived records and records of archived items still list their documents but cannot change them.
 
 ### 3.5 Manufacturer detail
 
@@ -161,6 +163,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 | `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID; (source, value) is unique across all items, archived ones included, ignoring case |
 | `item_photos` | item_id, storage_key, content_type, width, height, sort_order | N:1 item; the file lives in Cloud Storage |
 | `service_records` | item_id, performed_on, title, performed_by, responsible_person, description | N:1 item; free text for who did it (no link to providers or users); archivable and versioned like the other records, never deleted |
+| `service_record_documents` | service_record_id, name, storage_key, content_type, size_bytes | N:1 service record; the file lives in Cloud Storage; `created_by` is the uploader; versioned (rename); deleted for real, with the file, and the audit log keeps the trace |
 | `manufacturers` | name (unique), note | M:N service providers |
 | `service_providers` | code, name, contact_person, phone, email, web, note | M:N manufacturers |
 | `manufacturer_service_providers` | manufacturer_id, service_provider_id, priority | unique pairs (manufacturer, provider) and (manufacturer, priority); the whole order is saved in one transaction |
@@ -244,7 +247,7 @@ One TypeScript monorepo, deployed as a single Docker container on Cloud Run (reg
 | Database | Cloud SQL for PostgreSQL 17+ | relational data, recursive queries over the location tree, backups + PITR |
 | DB access | Drizzle ORM + drizzle-kit | typed SQL, versioned migrations |
 | Login | Better Auth in the API (email+password, Google) | accounts and sessions in the same DB. Auth.js is now maintenance-only and its team recommends Better Auth ([source](https://better-auth.com/blog/authjs-joins-better-auth)) |
-| Files | Cloud Storage, private bucket | photos via short-lived signed URLs |
+| Files | Cloud Storage, private bucket | photos and service record documents via short-lived signed URLs |
 | Email | a transactional service (e.g. Resend, Postmark) or the company's Google Workspace SMTP | invitations and password resets |
 | Runtime | Docker image on Cloud Run | one container for API and SPA, scales to zero |
 | CI/CD | GitHub Actions + Workload Identity Federation | keyless deploys, tests before every deploy |
@@ -277,7 +280,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 - Lists: `?q=` for search, `?limit=50&cursor=` for pagination, filters as query parameters.
 - Updates via `PATCH` with a `version` field. If the record changed in the meantime, the API returns 409.
 - Archiving via `POST /…/{id}/archive` and `/restore`, never `DELETE`.
-- Photos in a detail response carry a read-signed URL valid for 15 minutes.
+- Photos in a detail response and documents in a document list carry a read-signed URL valid for 15 minutes.
 
 | Method & path | Purpose | Minimum role |
 | --- | --- | --- |
@@ -295,6 +298,9 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /items/{id}/archive`, `/restore` | archive, restore | Write |
 | `POST /items/{id}/photos/upload-url`, `POST /items/{id}/photos` | signed upload URL, confirm uploaded photo | Write |
 | `PATCH /items/{id}/photos/order`, `DELETE /items/{id}/photos/{photoId}` | reorder / remove a photo | Write |
+| `GET /service-records/{id}/documents` | the record's documents, newest first, with the uploader's name, a read URL (opens in the browser) and a download URL (saves the file); archived records too | Read |
+| `POST /service-records/{id}/documents/upload-url`, `POST /service-records/{id}/documents` | signed upload URL for one file of the declared type and size (PDF, image, Word, Excel; up to 20 MB), confirm the uploaded file under a name | Write |
+| `PATCH /service-records/{id}/documents/{documentId}`, `DELETE …` | rename (with `version`), delete a document and its file; only under an active record of an active item | Write |
 | `GET /service-records` | service records of all items, newest first, with the item and its location path; `?q=` (title, item name and ID, location names), `?archived=true` for the archived records | Read |
 | `GET /items/{id}/service-records` | the item's active service records, newest first (`performed_on` desc, paged by date + id); an archived item lists its records too | Read |
 | `POST /items/{id}/service-records` | add a record to an active item | Write |
@@ -324,7 +330,7 @@ Security rests on three rules: access only for invitees, permissions enforced so
 - No secret ever reaches the SPA. Only the API holds keys, kept in Secret Manager.
 - Cloud SQL with a private IP; Cloud Run reaches it via Direct VPC egress. The DB is not reachable from the internet, and there's no public IPv4 fee.
 - Cloud Run runs under its own service account with minimal permissions: connect to the DB, write to one bucket, read specific secrets.
-- The photo bucket is private. Uploads only via a signed URL scoped to one file, max 10 MB, images only. The SPA resizes a photo to max 2048 px before upload, which also strips EXIF/GPS location.
+- The bucket is private. Uploads only via a signed URL scoped to one file, type and size: photos max 10 MB, images only; service record documents max 20 MB, PDF, images, Word and Excel. The SPA resizes every picture to max 2048 px before upload, which also strips EXIF/GPS location.
 - Security headers set by Hono middleware: CSP, HSTS, X-Content-Type-Options, Referrer-Policy.
 - The audit log records every change with its author and time. Data stays in the EU region.
 
@@ -412,7 +418,7 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? ~~What should happen when archiving a location that still has sub-locations or items?~~ *Decided:* allowed, with a warning (see §4).
 7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.
 8. ~~**Categories:** Should an item have a category (machine, equipment, IT…) with a list filter?~~ *Decided:* later, not in v1.
-9. **Service:** ~~Are two dates enough, or do you want a full service history (date, provider, description, report)?~~ *Decided:* a history of records (date, title, who performed it and the responsible person as free text, description) on each item; the two item dates stay manual and are not derived from the records. Still open: attaching a report/file to a record, and whether the next check date should be computed from an interval.
+9. **Service:** ~~Are two dates enough, or do you want a full service history (date, provider, description, report)?~~ *Decided:* a history of records (date, title, who performed it and the responsible person as free text, description) on each item; the two item dates stay manual and are not derived from the records. *Decided:* a record can hold uploaded documents (§3.4). Still open: whether the next check date should be computed from an interval.
 10. **Reminders:** Do you want email alerts or a dashboard of items with service or warranty coming due?
 11. **Documents:** Is a Google Drive folder link enough, or should files be shown inside the app? The latter needs Drive API access and access to the company's Drive.
 12. **Photos:** Roughly how many photos per item?

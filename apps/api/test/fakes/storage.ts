@@ -1,19 +1,20 @@
-import type { PhotoContentType, PhotoStorage, StoredObject } from '../../src/modules/photos/storage.ts';
+import type { ObjectStorage, StoredObject } from '../../src/storage/storage.ts';
 
 /** In-memory bucket. `upload` plays the browser's PUT to a signed upload URL. */
 export function createFakeStorage() {
   const objects = new Map<string, StoredObject>();
   const deleted: string[] = [];
-  const uploadUrls: { key: string; contentType: PhotoContentType; maxBytes: number }[] = [];
+  const uploadUrls: { key: string; contentType: string; maxBytes: number }[] = [];
   const state = { failDelete: false };
 
-  const storage: PhotoStorage = {
+  const storage: ObjectStorage = {
     async createUploadUrl(key, contentType, maxBytes) {
       uploadUrls.push({ key, contentType, maxBytes });
       return `https://storage.test/upload/${key}`;
     },
-    async createReadUrl(key, ttlSeconds) {
-      return `https://storage.test/${key}?ttl=${ttlSeconds}`;
+    async createReadUrl(key, ttlSeconds, options) {
+      const name = options?.fileName ? `&name=${encodeURIComponent(options.fileName)}` : '';
+      return `https://storage.test/${key}?ttl=${ttlSeconds}${name}${options?.download ? '&download=1' : ''}`;
     },
     async head(key) {
       return objects.get(key) ?? null;

@@ -1,7 +1,8 @@
 import type { MiddlewareHandler } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
 
-// Photos are read from and uploaded to the private bucket through signed URLs.
+// Photos and documents are read from and uploaded to the private bucket through signed URLs; a
+// PDF is shown in a frame from it.
 const STORAGE = 'https://storage.googleapis.com';
 
 /**
@@ -17,6 +18,7 @@ export function securityHeaders({ isProduction }: { isProduction: boolean }): Mi
       styleSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'blob:', STORAGE],
       connectSrc: ["'self'", STORAGE],
+      frameSrc: [STORAGE],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],

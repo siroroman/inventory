@@ -46,6 +46,15 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ ...valid, PORT: '70000' })).toThrow(/PORT/);
   });
 
+  it('reads the bucket, and the emulator endpoint only outside production', () => {
+    expect(parseConfig(valid).storage).toBeUndefined();
+    expect(parseConfig({ ...valid, STORAGE_BUCKET: 'files' }).storage).toEqual({ bucket: 'files', apiEndpoint: undefined });
+    const local = { ...valid, STORAGE_BUCKET: 'files', STORAGE_API_ENDPOINT: 'http://localhost:4443' };
+    expect(parseConfig(local).storage).toEqual({ bucket: 'files', apiEndpoint: 'http://localhost:4443' });
+    expect(() => parseConfig({ ...valid, STORAGE_API_ENDPOINT: 'http://localhost:4443' })).toThrow(/needs STORAGE_BUCKET/);
+    expect(() => parseConfig({ ...local, NODE_ENV: 'production' })).toThrow(/not be used in production/);
+  });
+
   it('requires the Google credentials together', () => {
     expect(() => parseConfig({ ...valid, GOOGLE_CLIENT_ID: 'id' })).toThrow(/set together/);
     expect(() => parseConfig({ ...valid, GOOGLE_CLIENT_SECRET: 'secret' })).toThrow(/set together/);

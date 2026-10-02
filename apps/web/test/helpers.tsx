@@ -54,7 +54,9 @@ type Handler = (request: Request) => Response | Promise<Response>;
 export function stubApi(routes: Record<string, Handler>) {
   const calls: Request[] = [];
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = new Request(new URL(input instanceof Request ? input.url : String(input), 'http://localhost'), init);
+    // jsdom's Blob and File are not the ones Node's Request understands: hand over their bytes.
+    const body = init?.body instanceof Blob ? await init.body.arrayBuffer() : init?.body;
+    const request = new Request(new URL(input instanceof Request ? input.url : String(input), 'http://localhost'), { ...init, body });
     calls.push(request);
     const handler = routes[`${request.method} ${new URL(request.url).pathname}`];
     return handler ? handler(request) : new Response('unstubbed request', { status: 501 });
