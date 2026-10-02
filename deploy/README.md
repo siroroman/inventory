@@ -25,8 +25,9 @@ Photos and service record documents live in a private bucket, `<project>-invento
 (`BUCKET` in `config.sh`): uniform access, public access prevention, soft delete, CORS for the
 app's URL. The service account may manage objects in that bucket only, and sign download and upload
 links through IAM (`roles/iam.serviceAccountTokenCreator` on itself), so there is no key file. A
-project set up before the bucket existed needs `deploy/setup.sh` run again (it skips what exists)
-before the first deploy that sets `STORAGE_BUCKET`; until then uploads fail.
+project set up before the bucket existed needs `deploy/setup-storage.sh` (only `gcloud`; `setup.sh`
+calls it too, and both skip what exists) run before the first deploy that sets `STORAGE_BUCKET`;
+until then uploads fail with a 500 (`signBlob` denied).
 
 Then let GitHub Actions deploy (needs `gh` signed in as a repository admin):
 
