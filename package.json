@@ -11,7 +11,7 @@
     "lint": "biome lint --error-on-warnings .",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
-    "db:up": "docker compose up -d --wait db",
+    "db:up": "docker compose up -d --wait db storage",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:seed": "pnpm --filter api db:seed"
   },
