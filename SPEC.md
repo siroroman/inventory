@@ -68,7 +68,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 
 ### 3.1 Login
 
-- "SM" logo and the name "Správa majetku"; on desktop also a short tagline: "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě."
+- app icon (clipboard with a check mark) and the name "Správa majetku"; on desktop also a short tagline: "Přehled o lokalitách, vybavení a servisních dodavatelích na jednom místě."
 - Fields Email and Password, "Přihlásit se" button, an "nebo" divider, "Přihlásit se přes Google", a "Zapomenuté heslo?" link.
 - Errors: "Nesprávný e-mail nebo heslo." and "Tento účet nemá do aplikace přístup. Obraťte se na správce."
 - After login, return to the originally requested URL.

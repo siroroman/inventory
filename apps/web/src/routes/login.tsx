@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { AppLogo } from '@/components/app-logo';
 import { currentUser } from '@/features/auth/api';
 import { LoginForm } from '@/features/auth/login-form';
 import { safeRedirect } from '@/features/auth/redirect';
@@ -24,12 +25,7 @@ function LoginPage() {
     <div className="flex min-h-dvh items-center justify-center bg-background p-4">
       <div className="flex w-full max-w-sm flex-col gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div
-            aria-hidden
-            className="flex size-12 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground"
-          >
-            {t('app.logo')}
-          </div>
+          <AppLogo className="size-12 rounded-xl" />
           <h1 className="text-xl font-semibold">{t('app.name')}</h1>
           <p className="hidden text-sm text-muted-foreground lg:block">{t('auth.tagline')}</p>
         </div>

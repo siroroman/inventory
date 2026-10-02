@@ -1,7 +1,6 @@
 {
   "app": {
-    "name": "Správa majetku",
-    "logo": "SM"
+    "name": "Správa majetku"
   },
   "nav": {
     "main": "Hlavní navigace"
