@@ -7,6 +7,7 @@ import {
 } from '../../modules/locations/repository.ts';
 import { createManufacturerRepository } from '../../modules/manufacturers/repository.ts';
 import { createServiceProviderRepository } from '../../modules/service-providers/repository.ts';
+import { createServiceRecordRepository } from '../../modules/service-records/repository.ts';
 import type { Db, DbExecutor } from '../client.ts';
 import { account, items, locations, user } from '../schema/index.ts';
 import {
@@ -15,6 +16,7 @@ import {
   seedLocations,
   seedManufacturers,
   seedProviders,
+  seedServiceRecords,
   seedUsers,
 } from './data.ts';
 
@@ -40,6 +42,7 @@ export type SeedSummary = {
   serviceProviders: number;
   items: number;
   externalIds: number;
+  serviceRecords: number;
 };
 
 function addDays(isoDate: string, days: number | undefined): string | null {
@@ -111,6 +114,7 @@ export async function seed(db: Db, options: SeedOptions): Promise<SeedSummary> {
 
     const itemRepo = createItemRepository(tx);
     let externalIds = 0;
+    const itemIds = new Map<string, string>();
     for (const i of seedItems) {
       const locationId = locationIds.get(i.location);
       if (!locationId) throw new Error(`seed item ${i.name}: unknown location ${i.location}`);
@@ -129,8 +133,24 @@ export async function seed(db: Db, options: SeedOptions): Promise<SeedSummary> {
         note: i.note ?? null,
         createdBy: by,
       });
+      itemIds.set(i.name, row.id);
       const ids = (i.externalIds ?? []).map(([source, value]) => ({ source, value }));
       externalIds += (await itemRepo.replaceExternalIds(row.id, ids, by)).length;
+    }
+
+    const recordRepo = createServiceRecordRepository(tx);
+    for (const r of seedServiceRecords) {
+      const itemId = itemIds.get(r.item);
+      if (!itemId) throw new Error(`seed service record ${r.title}: unknown item ${r.item}`);
+      await recordRepo.insert({
+        itemId,
+        performedOn: addDays(options.today, r.performed)!,
+        title: r.title,
+        performedBy: r.performedBy ?? null,
+        responsiblePerson: r.responsiblePerson ?? null,
+        description: r.description ?? null,
+        createdBy: by,
+      });
     }
 
     return {
@@ -140,6 +160,7 @@ export async function seed(db: Db, options: SeedOptions): Promise<SeedSummary> {
       serviceProviders: providerIds.size,
       items: seedItems.length,
       externalIds,
+      serviceRecords: seedServiceRecords.length,
     };
   });
 }
