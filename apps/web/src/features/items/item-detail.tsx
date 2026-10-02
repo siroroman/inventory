@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
+import { ServiceHistory } from '@/features/service-records/service-history';
 import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
@@ -241,6 +242,23 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
         />
       </Section>
 
+      {item.documentsUrl && (
+        <Section title={t('item.sections.documents')}>
+          <Button asChild variant="outline">
+            <a href={item.documentsUrl} target="_blank" rel="noopener noreferrer">
+              {t('item.openDocuments')}
+              <ExternalLink aria-hidden />
+            </a>
+          </Button>
+        </Section>
+      )}
+
+      {item.note && (
+        <Section title={t('item.sections.note')}>
+          <p className="text-[15px] break-words whitespace-pre-line">{item.note}</p>
+        </Section>
+      )}
+
       <Section title={t('item.sections.service')}>
         <Fields
           rows={[
@@ -259,29 +277,13 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
             },
           ]}
         />
+        <ServiceHistory itemId={item.id} />
       </Section>
-
-      {item.documentsUrl && (
-        <Section title={t('item.sections.documents')}>
-          <Button asChild variant="outline">
-            <a href={item.documentsUrl} target="_blank" rel="noopener noreferrer">
-              {t('item.openDocuments')}
-              <ExternalLink aria-hidden />
-            </a>
-          </Button>
-        </Section>
-      )}
-
-      {item.note && (
-        <Section title={t('item.sections.note')}>
-          <p className="text-[15px] break-words whitespace-pre-line">{item.note}</p>
-        </Section>
-      )}
     </>
   );
 }
 
-/** Item detail screen: photos, basic info, warranty, service, documents and note. */
+/** Item detail screen: photos, basic info, warranty, documents, note and, last, the service dates and history. */
 export function ItemDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useQuery(itemDetailQueryOptions(id));

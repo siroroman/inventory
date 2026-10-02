@@ -18,6 +18,7 @@ import { Route as AppLocationsNewRouteImport } from './routes/_app/locations/new
 import { Route as AppItemsIdIndexRouteImport } from './routes/_app/items/$id/index'
 import { Route as AppItemsIdEditRouteImport } from './routes/_app/items/$id/edit'
 import { Route as AppLocationsIdEditRouteImport } from './routes/_app/locations/$id_.edit'
+import { Route as AppServiceRecordsIdIndexRouteImport } from './routes/_app/service-records/$id/index'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -63,6 +64,12 @@ const AppLocationsIdEditRoute = AppLocationsIdEditRouteImport.update({
   path: '/locations/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppServiceRecordsIdIndexRoute =
+  AppServiceRecordsIdIndexRouteImport.update({
+    id: '/service-records/$id/',
+    path: '/service-records/$id/',
+    getParentRoute: () => AppRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/items/$id/edit': typeof AppItemsIdEditRoute
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/items/$id/': typeof AppItemsIdIndexRoute
+  '/service-records/$id/': typeof AppServiceRecordsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -83,6 +91,7 @@ export interface FileRoutesByTo {
   '/items/$id/edit': typeof AppItemsIdEditRoute
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/items/$id': typeof AppItemsIdIndexRoute
+  '/service-records/$id': typeof AppServiceRecordsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,6 +104,7 @@ export interface FileRoutesById {
   '/_app/items/$id/edit': typeof AppItemsIdEditRoute
   '/_app/locations/$id_/edit': typeof AppLocationsIdEditRoute
   '/_app/items/$id/': typeof AppItemsIdIndexRoute
+  '/_app/service-records/$id/': typeof AppServiceRecordsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/items/$id/edit'
     | '/locations/$id/edit'
     | '/items/$id/'
+    | '/service-records/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/items/$id/edit'
     | '/locations/$id/edit'
     | '/items/$id'
+    | '/service-records/$id'
   id:
     | '__root__'
     | '/_app'
@@ -128,6 +140,7 @@ export interface FileRouteTypes {
     | '/_app/items/$id/edit'
     | '/_app/locations/$id_/edit'
     | '/_app/items/$id/'
+    | '/_app/service-records/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLocationsIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/service-records/$id/': {
+      id: '/_app/service-records/$id/'
+      path: '/service-records/$id'
+      fullPath: '/service-records/$id/'
+      preLoaderRoute: typeof AppServiceRecordsIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -211,6 +231,7 @@ interface AppRouteChildren {
   AppItemsIdEditRoute: typeof AppItemsIdEditRoute
   AppLocationsIdEditRoute: typeof AppLocationsIdEditRoute
   AppItemsIdIndexRoute: typeof AppItemsIdIndexRoute
+  AppServiceRecordsIdIndexRoute: typeof AppServiceRecordsIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -221,6 +242,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppItemsIdEditRoute: AppItemsIdEditRoute,
   AppLocationsIdEditRoute: AppLocationsIdEditRoute,
   AppItemsIdIndexRoute: AppItemsIdIndexRoute,
+  AppServiceRecordsIdIndexRoute: AppServiceRecordsIdIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
