@@ -80,6 +80,8 @@ describe('GET /items/{id}/service-records', () => {
     await expectProblem(await read.get('/items/nope/service-records'), 400, 'validation_error');
     await expectProblem(await read.get(`/items/${item.id}/service-records?limit=0`), 400, 'validation_error');
     await expectProblem(await read.get(`/items/${item.id}/service-records?cursor=garbage`), 400, 'invalid_cursor');
+    const badDate = Buffer.from(JSON.stringify({ on: '2026-13-45', id: MISSING })).toString('base64url');
+    await expectProblem(await read.get(`/items/${item.id}/service-records?cursor=${badDate}`), 400, 'invalid_cursor');
   });
 
   it('refuses an anonymous caller', async () => {

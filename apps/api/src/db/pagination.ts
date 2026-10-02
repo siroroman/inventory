@@ -50,8 +50,12 @@ export function decodePathCursor(cursor: string): PathKey {
 export type DateKey = { on: string; id: string };
 
 /** A real calendar day (2026-02-31 is not), so the cast to `date` cannot fail in SQL. */
-const isCalendarDate = (on: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(on) && new Date(`${on}T00:00:00Z`).toISOString().slice(0, 10) === on;
+const isCalendarDate = (on: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) return false;
+  const date = new Date(`${on}T00:00:00Z`);
+  // `2026-13-45` is an Invalid Date, whose toISOString() throws instead of returning something to compare.
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === on;
+};
 
 export function decodeDateCursor(cursor: string): DateKey {
   const key = decodeJson(cursor) as Partial<DateKey> | null;

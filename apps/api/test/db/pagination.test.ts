@@ -26,6 +26,7 @@ describe('cursors', () => {
 
   it.each([
     ['a date that does not exist', encodeCursor({ on: '2026-02-31', id: ID })],
+    ['a month and day out of range', encodeCursor({ on: '2026-13-45', id: ID })],
     ['text instead of a date', encodeCursor({ on: "x'; drop table items", id: ID })],
     ['an id that is not a uuid', encodeCursor({ on: '2026-04-15', id: 'nope' })],
     ['garbage', '%%%'],
