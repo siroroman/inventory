@@ -51,7 +51,7 @@ export function ServiceRecordsPanel({
     {
       header: t('home.maintenance.columns.item'),
       cell: (record) => (
-        <Link to="/items/$id" params={{ id: record.item.id }} className="text-primary hover:underline">
+        <Link to="/items/$id" params={{ id: record.item.id }} className="underline underline-offset-2">
           {record.item.name}
         </Link>
       ),
