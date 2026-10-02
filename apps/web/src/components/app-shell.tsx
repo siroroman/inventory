@@ -1,28 +1,42 @@
-import { Link, Outlet } from '@tanstack/react-router';
+import { Link, Outlet, useMatch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { AppLogo } from '@/components/app-logo';
+import { HomeSidebar } from '@/components/home-sidebar';
 import { UserMenu } from '@/features/auth/user-menu';
+import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 
-/** Frame around every screen: skip link, top bar (56 px, as designed) and the page content. */
+/**
+ * Frame around every screen: skip link, the page content, and the navigation: a top bar (56 px, as
+ * designed) everywhere, except on Home at desktop width, where the side menu replaces it.
+ */
 export function AppShell() {
   const { t } = useTranslation();
+  const desktop = useMediaQuery(desktopScreen);
+  const home = useMatch({ from: '/_app/', shouldThrow: false });
+  const sidebar = desktop && home !== undefined;
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className={sidebar ? 'flex min-h-dvh' : 'flex min-h-dvh flex-col'}>
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground"
       >
         {t('common.skipToContent')}
       </a>
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-3">
-        <Link
-          to="/"
-          className="-my-2 flex min-h-11 flex-1 items-center truncate rounded-sm text-[17px] font-semibold focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {t('app.name')}
-        </Link>
-        <UserMenu />
-      </header>
-      <main id="content" tabIndex={-1} className="flex-1 outline-none">
+      {sidebar ? (
+        <HomeSidebar tab={home.search.tab ?? 'locations'} />
+      ) : (
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-3">
+          <Link
+            to="/"
+            className="-my-2 flex min-h-11 flex-1 items-center gap-2.5 truncate rounded-sm text-[17px] font-semibold focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <AppLogo />
+            {t('app.name')}
+          </Link>
+          <UserMenu />
+        </header>
+      )}
+      <main id="content" tabIndex={-1} className="min-w-0 flex-1 outline-none">
         <Outlet />
       </main>
     </div>

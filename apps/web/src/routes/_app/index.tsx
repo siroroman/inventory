@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemsPanel } from '@/features/items/item-list';
 import { LocationsPanel } from '@/features/locations/location-list';
 import { ServiceRecordsPanel } from '@/features/service-records/service-record-list';
+import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 
 const tabs = ['locations', 'items', 'maintenance'] as const;
 type Tab = (typeof tabs)[number];
@@ -30,6 +31,8 @@ function Home() {
   const { t } = useTranslation();
   const { tab = 'locations', q = '', archived = false } = Route.useSearch();
   const navigate = Route.useNavigate();
+  // At desktop width the side menu (in `AppShell`) switches the list, so there are no tabs.
+  const sideMenu = useMediaQuery(desktopScreen);
 
   // Another tab starts with an empty search: what was typed for locations means little for items.
   const selectTab = (value: string) =>
@@ -46,25 +49,36 @@ function Home() {
     [navigate],
   );
 
+  const panels = {
+    locations: <LocationsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
+    items: <ItemsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
+    maintenance: <ServiceRecordsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
+  };
+
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div className="mx-auto w-full max-w-6xl lg:max-w-5xl">
       <h1 className="sr-only">{t('home.title')}</h1>
-      <Tabs value={tab} onValueChange={selectTab}>
-        <TabsList aria-label={t('home.title')} className="px-4">
-          <TabsTrigger value="locations">{t('home.locations.tab')}</TabsTrigger>
-          <TabsTrigger value="items">{t('home.items.tab')}</TabsTrigger>
-          <TabsTrigger value="maintenance">{t('home.maintenance.tab')}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="locations">
-          <LocationsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
-        </TabsContent>
-        <TabsContent value="items">
-          <ItemsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
-        </TabsContent>
-        <TabsContent value="maintenance">
-          <ServiceRecordsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
-        </TabsContent>
-      </Tabs>
+      {sideMenu ? (
+        panels[tab]
+      ) : (
+        <Tabs value={tab} onValueChange={selectTab}>
+          {/* Inset like the lists below, so the line and the underline start and end at their edges. */}
+          <TabsList aria-label={t('home.title')} className="mx-4 gap-6">
+            <TabsTrigger value="locations" className="px-0">
+              {t('home.locations.tab')}
+            </TabsTrigger>
+            <TabsTrigger value="items" className="px-0">
+              {t('home.items.tab')}
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="px-0">
+              {t('home.maintenance.tab')}
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="locations">{panels.locations}</TabsContent>
+          <TabsContent value="items">{panels.items}</TabsContent>
+          <TabsContent value="maintenance">{panels.maintenance}</TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

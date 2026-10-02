@@ -76,6 +76,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 ### 3.2 Home — Locations, Items and Maintenance tabs
 
 - Top bar with app name and avatar; below it, tabs Locations / Items / Maintenance. Active tab and search text live in the URL.
+- On desktop (from 1024 px) Home has a side menu instead of the top bar and the tabs: logo and name, links Locations / Items / Maintenance, and the signed-in user (name, role, sign-out menu) at the bottom. The heading, search and "Add" button share one row above the list. Other screens keep the top bar.
 - Heading with a record count, a search field, and an "Add location" / "Add item" button (Write and Admin only).
 - **Locations** shows only top-level locations. Mobile: name, type badge, a line like "Praha · 38 items · 4 sub-locations". Desktop: table with Name, Type, City, Item count, Sub-locations.
 - A location's item count includes items in all of its sub-locations.

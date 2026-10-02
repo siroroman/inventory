@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
-import { ListToolbar } from '@/components/list-toolbar';
+import { ListFrame, ListToolbar } from '@/components/list-toolbar';
 import { type Column, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -158,17 +158,19 @@ export function LocationsPanel({ q, onSearch, archived, onArchived }: PanelProps
           placeholder: t('home.locations.searchPlaceholder'),
         }}
       />
-      <PagedList
-        query={query}
-        searching={q !== ''}
-        empty={
-          archived
-            ? { title: t('home.locations.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
-            : { title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }
-        }
-        columns={columns}
-        card={card}
-      />
+      <ListFrame>
+        <PagedList
+          query={query}
+          searching={q !== ''}
+          empty={
+            archived
+              ? { title: t('home.locations.archivedEmptyTitle'), hint: t('home.archivedEmptyHint') }
+              : { title: t('home.locations.emptyTitle'), hint: t('home.locations.emptyHint') }
+          }
+          columns={columns}
+          card={card}
+        />
+      </ListFrame>
     </>
   );
 }

@@ -18,14 +18,22 @@ export function renderApp(path = '/') {
   return { queryClient, router };
 }
 
+/** Makes the window `width` px wide: a `(min-width: Npx)` query matches when `width >= N`. */
+export function stubScreenWidth(width: number) {
+  vi.stubGlobal('matchMedia', (query: string) => {
+    const min = /\(min-width:\s*(\d+)px\)/.exec(query);
+    return {
+      matches: min ? width >= Number(min[1]) : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+  });
+}
+
 /** Makes the window as wide as a desktop (true) or a phone (false, the default in tests). */
 export function stubWideScreen(wide: boolean) {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: wide && query.includes('min-width'),
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }));
+  stubScreenWidth(wide ? 1280 : 390);
 }
 
 /** A JSON `Response`, the way the API answers (`application/problem+json` for errors). */

@@ -3,6 +3,9 @@
     "name": "Evidence majetku",
     "logo": "EM"
   },
+  "nav": {
+    "main": "Hlavní navigace"
+  },
   "common": {
     "retry": "Zkusit znovu",
     "saved": "Uloženo",
@@ -95,10 +98,6 @@
         "code": "ID",
         "location": "Lokalita",
         "brand": "Výrobce a model"
-      },
-      "service": {
-        "overdue": "Servis po termínu",
-        "soon": "Servis do 30 dní"
       },
       "add": "Přidat položku"
     },
