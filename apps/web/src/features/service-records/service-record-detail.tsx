@@ -30,9 +30,9 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const canWrite = useCanWrite();
-  // Nothing about a record changes under an archived item, and an archived record is only viewed
-  // (restoring it comes with the archived view).
-  const editable = canWrite && !record.archivedAt && !record.item.archivedAt;
+  // Nothing about a record changes under an archived item. An archived record of an active item can
+  // be restored, but not edited until then.
+  const changeable = canWrite && !record.item.archivedAt;
 
   return (
     <>
@@ -48,16 +48,18 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <h1 className="text-xl font-semibold">{t('serviceRecord.title')}</h1>
           {record.archivedAt && <ArchivedBadge />}
-          {editable && (
+          {changeable && (
             <div className="ml-auto flex items-center gap-2">
-              <Button asChild size="sm">
-                <Link to="/service-records/$id/edit" params={{ id: record.id }}>
-                  <Pencil aria-hidden />
-                  {t('serviceRecord.edit')}
-                </Link>
-              </Button>
+              {!record.archivedAt && (
+                <Button asChild size="sm">
+                  <Link to="/service-records/$id/edit" params={{ id: record.id }}>
+                    <Pencil aria-hidden />
+                    {t('serviceRecord.edit')}
+                  </Link>
+                </Button>
+              )}
               <ArchiveControl
-                archived={false}
+                archived={record.archivedAt !== null}
                 archive={async () => {
                   await archiveServiceRecord(record.id, record.version);
                   // The record has left the item's history, so go back to it.
