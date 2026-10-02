@@ -15,6 +15,10 @@
     "itemCount_few": "{{count}} položky",
     "itemCount_many": "{{count}} položky",
     "itemCount_other": "{{count}} položek",
+    "recordCount_one": "{{count}} záznam",
+    "recordCount_few": "{{count}} záznamy",
+    "recordCount_many": "{{count}} záznamu",
+    "recordCount_other": "{{count}} záznamů",
     "loadMore": "Načíst další",
     "empty": "—",
     "locationCount_one": "{{count}} lokalita",
@@ -97,6 +101,21 @@
         "soon": "Servis do 30 dní"
       },
       "add": "Přidat položku"
+    },
+    "maintenance": {
+      "tab": "Údržba",
+      "searchLabel": "Hledat servisní záznamy",
+      "searchPlaceholder": "Hledat podle názvu, položky, lokality…",
+      "emptyTitle": "Zatím žádný servisní záznam",
+      "emptyHint": "Provedené servisy a prohlídky všech položek se zobrazí tady.",
+      "archivedEmptyTitle": "Žádné archivované záznamy",
+      "columns": {
+        "title": "Název",
+        "date": "Datum",
+        "item": "Položka",
+        "location": "Lokalita"
+      },
+      "add": "Přidat záznam"
     }
   },
   "locationDetail": {
@@ -297,7 +316,6 @@
     "archiveHint": "Záznam zmizí z historie servisu položky.",
     "notFoundTitle": "Servisní záznam nenalezen",
     "notFoundHint": "Záznam neexistuje nebo byl odstraněn.",
-    "backToItem": "Zpět na položku {{name}}",
     "add": "Přidat záznam"
   },
   "serviceRecordForm": {
@@ -310,10 +328,13 @@
     "errors": {
       "required": "Vyplňte toto pole.",
       "tooLong": "Text je příliš dlouhý.",
-      "date": "Zadejte platné datum."
+      "date": "Zadejte platné datum.",
+      "itemRequired": "Vyberte položku."
     },
     "reload": "Načíst aktuální údaje",
     "save": "Uložit",
-    "saving": "Ukládám…"
+    "saving": "Ukládám…",
+    "itemPlaceholder": "Hledat podle názvu, ID, sériového čísla, lokality…",
+    "noItems": "Žádná položka nenalezena."
   }
 }

@@ -3,14 +3,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { SearchPicker } from '@/components/search-picker';
 import { UnsavedChangesGuard } from '@/components/unsaved-changes-guard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { itemPickerOptions } from '@/features/items/api';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { invalidateAfterWrite } from '@/lib/query';
@@ -25,8 +27,8 @@ import {
 } from './service-record-form-values';
 
 type Props = {
-  /** The item the record belongs to. */
-  item: { id: string; name: string };
+  /** The item the record belongs to; missing on a new record, which then asks for the item (the Maintenance tab). */
+  item?: { id: string; name: string };
   /** The record being edited; missing = a new record. */
   record?: ServiceRecordDto;
   /** Called by "load current data" after a conflict; should refetch the record. */
@@ -47,16 +49,19 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
   );
 }
 
-/** Add a service record to an item, or edit one. The item cannot be changed. */
+/** Add a service record to an item, or edit one. The item is fixed, except on a new record without one. */
 export function ServiceRecordForm({ item, record, onReload }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const defaults = record ? recordToFormValues(record) : emptyServiceRecordForm();
+  const defaults = record
+    ? recordToFormValues(record)
+    : emptyServiceRecordForm(item ? { id: item.id, label: item.name } : null);
   const saved = useRef(false);
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isDirty },
   } = useForm<ServiceRecordFormValues>({ resolver: zodResolver(serviceRecordFormSchema), defaultValues: defaults });
@@ -66,7 +71,7 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
 
   const save = useMutation({
     mutationFn: async (values: ServiceRecordFormValues) => {
-      if (!record) return createServiceRecord(item.id, formValuesToBody(values));
+      if (!record) return createServiceRecord(values.item!.id, formValuesToBody(values));
       const changes = changedFields(defaults, values);
       // A change that trimming undoes (a trailing space) leaves nothing to send.
       if (Object.keys(changes).length === 0) return record;
@@ -93,7 +98,9 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
   const conflict = save.error instanceof ApiError && save.error.code === 'conflict';
   const cancelTo = record
     ? ({ to: '/service-records/$id', params: { id: record.id } } as const)
-    : ({ to: '/items/$id', params: { id: item.id } } as const);
+    : item
+      ? ({ to: '/items/$id', params: { id: item.id } } as const)
+      : ({ to: '/', search: { tab: 'maintenance' } } as const);
 
   return (
     <form
@@ -107,10 +114,35 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
       </h1>
 
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{t('serviceRecord.fields.item')}</p>
-          <p className="text-[15px]">{item.name}</p>
-        </div>
+        {item ? (
+          <div>
+            <p className="text-sm text-muted-foreground">{t('serviceRecord.fields.item')}</p>
+            <p className="text-[15px]">{item.name}</p>
+          </div>
+        ) : (
+          <Field
+            id="service-record-item"
+            label={t('serviceRecord.fields.item')}
+            error={fieldError(errors.item?.message)}
+          >
+            <Controller
+              control={control}
+              name="item"
+              render={({ field }) => (
+                <SearchPicker
+                  id="service-record-item"
+                  label={t('serviceRecord.fields.item')}
+                  value={field.value}
+                  onChange={field.onChange}
+                  search={itemPickerOptions}
+                  placeholder={t('serviceRecordForm.itemPlaceholder')}
+                  emptyText={t('serviceRecordForm.noItems')}
+                  error={fieldError(errors.item?.message)}
+                />
+              )}
+            />
+          </Field>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field

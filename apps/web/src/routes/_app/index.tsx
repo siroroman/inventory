@@ -5,8 +5,9 @@ import { z } from 'zod';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemsPanel } from '@/features/items/item-list';
 import { LocationsPanel } from '@/features/locations/location-list';
+import { ServiceRecordsPanel } from '@/features/service-records/service-record-list';
 
-const tabs = ['locations', 'items'] as const;
+const tabs = ['locations', 'items', 'maintenance'] as const;
 type Tab = (typeof tabs)[number];
 
 // The URL holds the active tab (missing = locations), the search text and whether the archived
@@ -52,12 +53,16 @@ function Home() {
         <TabsList aria-label={t('home.title')} className="px-4">
           <TabsTrigger value="locations">{t('home.locations.tab')}</TabsTrigger>
           <TabsTrigger value="items">{t('home.items.tab')}</TabsTrigger>
+          <TabsTrigger value="maintenance">{t('home.maintenance.tab')}</TabsTrigger>
         </TabsList>
         <TabsContent value="locations">
           <LocationsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
         </TabsContent>
         <TabsContent value="items">
           <ItemsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
+        </TabsContent>
+        <TabsContent value="maintenance">
+          <ServiceRecordsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />
         </TabsContent>
       </Tabs>
     </div>

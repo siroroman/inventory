@@ -4,6 +4,7 @@ import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
 import { containsText } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
+import { locationsMatching } from '../locations/repository.ts';
 
 export type Item = typeof items.$inferSelect;
 export type ExternalId = typeof itemExternalIds.$inferSelect;
@@ -48,23 +49,6 @@ function subtreeOf(locationId: string): SQL {
       SELECT l.id FROM locations l WHERE l.id = ${locationId}
       UNION ALL
       SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
-    )
-    SELECT id FROM sub`;
-}
-
-/**
- * Active locations whose name matches, and everything below them: a search hits the full path.
- * Looking for archived items, archived locations count too (the item may sit in one).
- */
-function locationsMatching(q: string, archived: boolean): SQL {
-  const active = archived ? sql`TRUE` : sql`${locations.archivedAt} IS NULL`;
-  const activeChild = archived ? sql`TRUE` : sql`c.archived_at IS NULL`;
-  return sql`
-    WITH RECURSIVE sub (id) AS (
-      SELECT ${locations.id} FROM ${locations}
-       WHERE ${active} AND ${containsText(locations.name, q)}
-      UNION ALL
-      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE ${activeChild}
     )
     SELECT id FROM sub`;
 }

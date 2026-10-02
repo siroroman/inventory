@@ -64,7 +64,7 @@ The UI design (link above) has screens 1–11 for both mobile (390 px) and deskt
 
 From the user menu (avatar with initials, top right) you can also reach: Manufacturers & service, Users (admin only), and Sign out. Every screen has its own URL, so browser back, bookmarks, and future QR links all work.
 
-**Navigation map:** Login → Home (2 tabs: Locations, Items) → Location detail (has sub-locations, loops back to itself for nested levels) → Item detail (links to Manufacturer detail, only if the manufacturer has service data) → Manufacturer detail (lists Service providers with priority order) → Service provider detail.
+**Navigation map:** Login → Home (3 tabs: Locations, Items, Maintenance) → Location detail (has sub-locations, loops back to itself for nested levels) → Item detail (links to Manufacturer detail, only if the manufacturer has service data) → Manufacturer detail (lists Service providers with priority order) → Service provider detail.
 
 ### 3.1 Login
 
@@ -73,17 +73,18 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - Errors: "Nesprávný e-mail nebo heslo." and "Tento účet nemá do aplikace přístup. Obraťte se na správce."
 - After login, return to the originally requested URL.
 
-### 3.2 Home — Locations and Items tabs
+### 3.2 Home — Locations, Items and Maintenance tabs
 
-- Top bar with app name and avatar; below it, tabs Locations / Items. Active tab and search text live in the URL.
+- Top bar with app name and avatar; below it, tabs Locations / Items / Maintenance. Active tab and search text live in the URL.
 - Heading with a record count, a search field, and an "Add location" / "Add item" button (Write and Admin only).
 - **Locations** shows only top-level locations. Mobile: name, type badge, a line like "Praha · 38 items · 4 sub-locations". Desktop: table with Name, Type, City, Item count, Sub-locations.
 - A location's item count includes items in all of its sub-locations.
 - **Items** search placeholder: "Search by name, ID, serial number, external ID…". Mobile: thumbnail, name, ID with the full location path, manufacturer and model. Desktop: table with Name, ID, Location, Manufacturer & model, Service.
 - Status badges: "Service overdue" and "Service due within 30 days".
 - Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path. Location search (the Locations tab and the location pickers) covers name and ID; several words may be spread over the path, each word in the location or one above it and at least one in the location itself ("zasedačka hradec" finds Zasedačka in Centrála Hradec Králové).
+- **Maintenance** lists the service records of all items, newest first. Search placeholder: "Hledat podle názvu, položky, lokality…"; it covers the record title, the item's name and ID, and the location names along the path (words are not split across fields). Mobile: title, "date · item", then the location path. Desktop: table with Title, Date, Item (a link to the item), Location. The "Add record" button (Write and Admin) opens the service record form with a required item search field; an item's own "Add record" keeps the item fixed.
 - Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
-- A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it.
+- A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it. On the Maintenance tab it lists the archived records (marked "Archived").
 
 ### 3.3 Location / sub-location detail
 
@@ -113,7 +114,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 
 #### Service record detail
 
-Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). "Back to item" link above the heading. Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record, or one of an archived item, is shown without actions. Viewing archived records and restoring them are a later iteration (the API has `restore` already).
+Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record of an active item offers Write and Admin Restore (no Edit until it is restored); a record of an archived item is shown without actions. Archived records are found with "Show archived" on the Maintenance tab.
 
 ### 3.5 Manufacturer detail
 
@@ -293,6 +294,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /items/{id}/archive`, `/restore` | archive, restore | Write |
 | `POST /items/{id}/photos/upload-url`, `POST /items/{id}/photos` | signed upload URL, confirm uploaded photo | Write |
 | `PATCH /items/{id}/photos/order`, `DELETE /items/{id}/photos/{photoId}` | reorder / remove a photo | Write |
+| `GET /service-records` | service records of all items, newest first, with the item and its location path; `?q=` (title, item name and ID, location names), `?archived=true` for the archived records | Read |
 | `GET /items/{id}/service-records` | the item's active service records, newest first (`performed_on` desc, paged by date + id); an archived item lists its records too | Read |
 | `POST /items/{id}/service-records` | add a record to an active item | Write |
 | `GET /service-records/{id}` | a record with its item (archived ones too) | Read |

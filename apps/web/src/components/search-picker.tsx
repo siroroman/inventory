@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { problemMessage } from '@/lib/problem';
 
-export type PickerOption = { id: string; label: string };
+/** `hint` is a second, muted line for what tells equal labels apart (an item's ID and location). */
+export type PickerOption = { id: string; label: string; hint?: string };
 
 type Props = {
   id: string;
@@ -112,7 +113,10 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
             }}
             className="flex min-h-11 min-w-0 flex-1 items-center rounded-md border border-input bg-card px-3.5 text-left text-base break-words hover:bg-accent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
-            {value.label}
+            <span>
+              {value.label}
+              {value.hint && <span className="block text-sm text-muted-foreground">{value.hint}</span>}
+            </span>
           </button>
           {clearable && (
             <Button
@@ -176,6 +180,7 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
                 className="min-h-11 w-full px-3.5 py-2 text-left text-[15px] hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
               >
                 {option.label}
+                {option.hint && <span className="block text-sm text-muted-foreground">{option.hint}</span>}
               </button>
             </li>
           ))}

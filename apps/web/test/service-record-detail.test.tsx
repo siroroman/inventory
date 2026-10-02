@@ -43,7 +43,7 @@ describe('service record detail', () => {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: 'Kávovar Linea PB' })).toHaveAttribute('href', `/items/${itemId}`);
-    expect(screen.getByRole('link', { name: /Zpět na položku Kávovar Linea PB/ })).toHaveAttribute('href', `/items/${itemId}`);
+    expect(screen.queryByRole('link', { name: /Zpět/ })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Popis', level: 2 })).toBeInTheDocument();
     expect(screen.getByText(/Vyměněn vodní filtr\./)).toHaveTextContent('Vyměněn vodní filtr. Tlak bojleru 9,2 bar.');
   });
@@ -136,19 +136,57 @@ describe('service record detail', () => {
     expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
   });
 
-  it('marks an archived record and offers no buttons for it', async () => {
+  it('marks an archived record and offers Restore, not Edit or Archive, to a writer', async () => {
     signedIn(() => jsonResponse(record({ archivedAt: '2026-05-01T00:00:00.000Z' })));
     renderApp(`/service-records/${id}`);
     expect(await screen.findByText('Archivováno')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Archivovat|Obnovit/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Obnovit' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archivovat' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
   });
 
+  it('restores an archived record with its current version, without asking, and shows it active again', async () => {
+    let restored = false;
+    const calls = stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      [`GET /api/v1/service-records/${id}`]: () =>
+        jsonResponse(restored ? record({ version: 5 }) : record({ version: 4, archivedAt: '2026-05-01T00:00:00.000Z' })),
+      [`POST /api/v1/service-records/${id}/restore`]: () => {
+        restored = true;
+        return jsonResponse(record({ version: 5 }));
+      },
+    });
+    renderApp(`/service-records/${id}`);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Obnovit' }));
+    expect(await screen.findByText('Uloženo')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Archivovat' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Upravit' })).toBeInTheDocument();
+    expect(screen.queryByText('Archivováno')).not.toBeInTheDocument();
+    const post = calls.find((call) => call.method === 'POST')!;
+    expect(new URL(post.url).pathname).toBe(`/api/v1/service-records/${id}/restore`);
+    expect(await post.clone().json()).toEqual({ version: 4 });
+  });
+
+  it('offers a reader no way to restore an archived record', async () => {
+    signedIn(() => jsonResponse(record({ archivedAt: '2026-05-01T00:00:00.000Z' })), 'read');
+    renderApp(`/service-records/${id}`);
+    expect(await screen.findByText('Archivováno')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Obnovit' })).not.toBeInTheDocument();
+  });
+
   it('offers no buttons for a record of an archived item', async () => {
-    signedIn(() => jsonResponse(record({ item: { id: itemId, code: 'INV-00042', name: 'Kávovar', archivedAt: '2026-05-01T00:00:00.000Z' } })));
+    signedIn(() =>
+      jsonResponse(
+        record({
+          archivedAt: '2026-05-01T00:00:00.000Z',
+          item: { id: itemId, code: 'INV-00042', name: 'Kávovar', archivedAt: '2026-05-01T00:00:00.000Z' },
+        }),
+      ),
+    );
     renderApp(`/service-records/${id}`);
     await screen.findByRole('heading', { name: 'Servisní záznam' });
-    expect(screen.queryByRole('button', { name: 'Archivovat' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Archivovat|Obnovit/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Upravit' })).not.toBeInTheDocument();
   });
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { hasChange, isoDate, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
-import { pageQuery, versionField } from './http.ts';
+import { codeRef, hasChange, isoDate, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
+import { archivedQuery, pageQuery, searchPageQuery, versionField } from './http.ts';
 
 const recordContent = {
   performedOn: isoDate,
@@ -20,6 +20,22 @@ export const serviceRecordSummarySchema = z.object({
 export type ServiceRecordSummaryDto = z.infer<typeof serviceRecordSummarySchema>;
 
 export const serviceRecordListSchema = pageOf(serviceRecordSummarySchema);
+
+/** A row of the list of all service records: the record, its item and the item's location path (empty without one). */
+export const serviceRecordListEntrySchema = z.object({
+  ...recordFields,
+  performedOn: recordContent.performedOn,
+  title: recordContent.title,
+  item: codeRef,
+  location: codeRef.nullable(),
+  path: z.array(codeRef),
+});
+export type ServiceRecordListEntryDto = z.infer<typeof serviceRecordListEntrySchema>;
+
+export const serviceRecordSearchListSchema = pageOf(serviceRecordListEntrySchema);
+
+/** `q` covers the title, the item's name and ID and the location names; `archived` lists the archived records instead. */
+export const serviceRecordSearchQuery = searchPageQuery.extend(archivedQuery.shape);
 
 /** The item a record belongs to; `archivedAt` tells the SPA to hide the buttons that change the record. */
 export const serviceRecordItemSchema = z.object({

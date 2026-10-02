@@ -187,4 +187,82 @@ describe('service record service', () => {
       await expectCode(service.listByItem(reader, '00000000-0000-4000-8000-000000000000', { limit: 50 }), 'not_found');
     });
   });
+
+  describe('listing all records', () => {
+    /** Kávovar in Centrála › Kuchyně, Myčka in Sklad, Židle nowhere yet. */
+    async function withHistory() {
+      const { store, service, item } = await setup();
+      const centrala = await store.itemStore.addLocation('Centrála Praha');
+      const kitchen = await store.itemStore.addLocation('Teplá kuchyně', centrala.id);
+      const coffee = await store.itemStore.repos.items.insert({ name: 'Kávovar Linea', locationId: kitchen.id, createdBy: 'setup' });
+      const dishwasher = await store.addItem('Myčka');
+      const chair = await store.itemStore.repos.items.insert({ name: 'Židle', createdBy: 'setup' });
+      const old = await store.addRecord(coffee.id, { performedOn: '2025-11-02', title: 'Roční prohlídka' });
+      const filter = await store.addRecord(coffee.id, { performedOn: '2026-04-15', title: 'Výměna filtru' });
+      const rinse = await store.addRecord(dishwasher.id, { performedOn: '2026-01-10', title: 'Oplach' });
+      const loose = await store.addRecord(chair.id, { performedOn: '2026-02-01', title: 'Oprava nohy' });
+      return { store, service, item, coffee, dishwasher, chair, old, filter, rinse, loose };
+    }
+    const titles = (page: { items: { title: string }[] }) => page.items.map((r) => r.title);
+
+    it('lists active records of all items newest first with the item, location and path', async () => {
+      const { service, coffee, filter } = await withHistory();
+      const page = await service.list(reader, {}, { limit: 50 });
+      expect(titles(page)).toEqual(['Výměna filtru', 'Oprava nohy', 'Oplach', 'Roční prohlídka']);
+      expect(page.total).toBe(4);
+      expect(page.items[0]).toMatchObject({
+        id: filter.id,
+        item: { id: coffee.id, name: 'Kávovar Linea' },
+        location: { name: 'Teplá kuchyně' },
+        path: [{ name: 'Centrála Praha' }, { name: 'Teplá kuchyně' }],
+      });
+    });
+
+    it('answers an item without a location with null and an empty path', async () => {
+      const { service, chair } = await withHistory();
+      const page = await service.list(reader, { q: 'nohy' }, { limit: 50 });
+      expect(page.items).toHaveLength(1);
+      expect(page.items[0]).toMatchObject({ item: { id: chair.id }, location: null, path: [] });
+    });
+
+    it('pages by date and reports the total of the whole list', async () => {
+      const { service } = await withHistory();
+      const first = await service.list(reader, {}, { limit: 3 });
+      expect(titles(first)).toEqual(['Výměna filtru', 'Oprava nohy', 'Oplach']);
+      expect(first.total).toBe(4);
+      const second = await service.list(reader, {}, { limit: 3, cursor: first.nextCursor! });
+      expect(titles(second)).toEqual(['Roční prohlídka']);
+      expect(second.nextCursor).toBeNull();
+    });
+
+    it('searches the title, the item name and code and the location names, ignoring diacritics and case', async () => {
+      const { service, coffee } = await withHistory();
+      const search = async (q: string) => titles(await service.list(reader, { q }, { limit: 50 }));
+      expect(await search('PROHLIDKA')).toEqual(['Roční prohlídka']);
+      expect(await search('kavovar')).toEqual(['Výměna filtru', 'Roční prohlídka']);
+      expect(await search(coffee.code.toLowerCase())).toEqual(['Výměna filtru', 'Roční prohlídka']);
+      // A name on the path, above the item's own location.
+      expect(await search('centrala')).toEqual(['Výměna filtru', 'Roční prohlídka']);
+      expect(await search('tepla')).toEqual(['Výměna filtru', 'Roční prohlídka']);
+      expect(await search('nic takového')).toEqual([]);
+    });
+
+    it('lists the archived records instead of the active ones', async () => {
+      const { service, filter } = await withHistory();
+      await service.archive(writer, filter.id, 1);
+      const active = await service.list(reader, {}, { limit: 50 });
+      expect(titles(active)).not.toContain('Výměna filtru');
+      expect(active.total).toBe(3);
+      const archived = await service.list(reader, { archived: true }, { limit: 50 });
+      expect(titles(archived)).toEqual(['Výměna filtru']);
+      expect(archived.total).toBe(1);
+      expect(titles(await service.list(reader, { archived: true, q: 'tepla' }, { limit: 50 }))).toEqual(['Výměna filtru']);
+    });
+
+    it('keeps the records of an archived item in the list', async () => {
+      const { store, service, dishwasher } = await withHistory();
+      await store.itemStore.repos.items.setArchived(dishwasher.id, 1, true, 'setup');
+      expect(titles(await service.list(reader, {}, { limit: 50 }))).toContain('Oplach');
+    });
+  });
 });

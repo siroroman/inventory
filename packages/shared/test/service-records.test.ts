@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createServiceRecordBody, serviceRecordListQuery, updateServiceRecordBody } from '../src/index.ts';
+import {
+  createServiceRecordBody,
+  serviceRecordListQuery,
+  serviceRecordSearchQuery,
+  updateServiceRecordBody,
+} from '../src/index.ts';
 
 describe('createServiceRecordBody', () => {
   it('needs a date and a title; the rest is optional', () => {
@@ -68,5 +73,18 @@ describe('serviceRecordListQuery', () => {
     expect(serviceRecordListQuery.parse({})).toEqual({ limit: 50 });
     expect(serviceRecordListQuery.parse({ limit: '20', cursor: 'abc' })).toEqual({ limit: 20, cursor: 'abc' });
     expect(serviceRecordListQuery.safeParse({ limit: '0' }).success).toBe(false);
+  });
+});
+
+describe('serviceRecordSearchQuery', () => {
+  it('adds a trimmed search and the archived flag to the paging', () => {
+    expect(serviceRecordSearchQuery.parse({})).toEqual({ limit: 50 });
+    expect(serviceRecordSearchQuery.parse({ q: '  filtr ', archived: 'true', limit: '20' })).toEqual({
+      q: 'filtr',
+      archived: 'true',
+      limit: 20,
+    });
+    expect(serviceRecordSearchQuery.parse({ q: '   ' })).toEqual({ limit: 50 });
+    expect(serviceRecordSearchQuery.safeParse({ archived: 'false' }).success).toBe(false);
   });
 });
