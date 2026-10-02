@@ -20,6 +20,7 @@ RUN_SA_NAME=inventory-run         # the service: app user's secret + session sec
 RUN_SA="${RUN_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 MIGRATE_SA_NAME=inventory-migrate # the migration job: owner's secret
 MIGRATE_SA="${MIGRATE_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+BUCKET="${PROJECT_ID}-inventory-files"  # private bucket: photos and service record documents
 SQL_CONNECTION="${PROJECT_ID}:${REGION}:${INSTANCE}"
 IMAGE_BASE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/app"
 
