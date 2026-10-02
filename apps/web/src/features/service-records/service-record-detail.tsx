@@ -1,7 +1,7 @@
 import type { ServiceRecordDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ChevronLeft, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
@@ -36,42 +36,32 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
 
   return (
     <>
-      <div>
-        <Link
-          to="/items/$id"
-          params={{ id: record.item.id }}
-          className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
-        >
-          <ChevronLeft className="size-4" aria-hidden />
-          {t('serviceRecord.backToItem', { name: record.item.name })}
-        </Link>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-xl font-semibold">{t('serviceRecord.title')}</h1>
-          {record.archivedAt && <ArchivedBadge />}
-          {changeable && (
-            <div className="ml-auto flex items-center gap-2">
-              {!record.archivedAt && (
-                <Button asChild size="sm">
-                  <Link to="/service-records/$id/edit" params={{ id: record.id }}>
-                    <Pencil aria-hidden />
-                    {t('serviceRecord.edit')}
-                  </Link>
-                </Button>
-              )}
-              <ArchiveControl
-                archived={record.archivedAt !== null}
-                archive={async () => {
-                  await archiveServiceRecord(record.id, record.version);
-                  // The record has left the item's history, so go back to it.
-                  await navigate({ to: '/items/$id', params: { id: record.item.id }, replace: true });
-                }}
-                restore={() => restoreServiceRecord(record.id, record.version)}
-                title={t('serviceRecord.archiveTitle')}
-                description={<p>{t('serviceRecord.archiveHint')}</p>}
-              />
-            </div>
-          )}
-        </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h1 className="text-xl font-semibold">{t('serviceRecord.title')}</h1>
+        {record.archivedAt && <ArchivedBadge />}
+        {changeable && (
+          <div className="ml-auto flex items-center gap-2">
+            {!record.archivedAt && (
+              <Button asChild size="sm">
+                <Link to="/service-records/$id/edit" params={{ id: record.id }}>
+                  <Pencil aria-hidden />
+                  {t('serviceRecord.edit')}
+                </Link>
+              </Button>
+            )}
+            <ArchiveControl
+              archived={record.archivedAt !== null}
+              archive={async () => {
+                await archiveServiceRecord(record.id, record.version);
+                // The record has left the item's history, so go back to it.
+                await navigate({ to: '/items/$id', params: { id: record.item.id }, replace: true });
+              }}
+              restore={() => restoreServiceRecord(record.id, record.version)}
+              title={t('serviceRecord.archiveTitle')}
+              description={<p>{t('serviceRecord.archiveHint')}</p>}
+            />
+          </div>
+        )}
       </div>
 
       <section className="rounded-lg border bg-card p-4">

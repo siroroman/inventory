@@ -114,7 +114,7 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 
 #### Service record detail
 
-Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). "Back to item" link above the heading. Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record of an active item offers Write and Admin Restore (no Edit until it is restored); a record of an archived item is shown without actions. Archived records are found with "Show archived" on the Maintenance tab.
+Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record of an active item offers Write and Admin Restore (no Edit until it is restored); a record of an archived item is shown without actions. Archived records are found with "Show archived" on the Maintenance tab.
 
 ### 3.5 Manufacturer detail
 
