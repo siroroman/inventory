@@ -113,7 +113,7 @@ export function PagedList<T extends { id: string }>({
                   {column.header}
                 </th>
               ))}
-              {fill && <th aria-hidden colSpan={fill} />}
+              {fill ? <td aria-hidden colSpan={fill} /> : null}
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -131,7 +131,7 @@ export function PagedList<T extends { id: string }>({
                     {column.cell(item)}
                   </td>
                 ))}
-                {fill && <td aria-hidden colSpan={fill} />}
+                {fill ? <td aria-hidden colSpan={fill} /> : null}
               </tr>
             ))}
           </tbody>

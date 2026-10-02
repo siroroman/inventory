@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { item, location, page, ref } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubScreenWidth, stubWideScreen } from './helpers.tsx';
 
 const hq = ref('LOC-001', 'Centrála Praha');
 const floor = ref('LOC-004', 'Přízemí');
@@ -181,6 +181,25 @@ describe('location detail: sub-locations and items', () => {
     expect(within(children).getByRole('columnheader', { name: 'Název' })).toHaveClass('w-80');
     expect(within(children).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-28');
     expect(within(items).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-28');
+    // The rest is shared evenly by the columns without a set width: the two counts and an empty
+    // column spanning two of them, as many as the items table has, so the divider after the counts
+    // lines up with the location column below and the row lines reach the edge.
+    const flexible = (table: HTMLElement) =>
+      within(table).getAllByRole('columnheader').filter((h) => !/\bw-/.test(h.className)).length;
+    expect(flexible(children)).toBe(2);
+    expect(flexible(items)).toBe(2);
+    for (const tr of children.querySelectorAll('tr')) {
+      expect(tr.lastElementChild).toHaveAttribute('colspan', '2');
+      expect(tr.lastElementChild).toBeEmptyDOMElement();
+    }
+  });
+
+  it('gives the counts the whole rest of the row below 1024 px, without the empty column', async () => {
+    stubScreenWidth(800);
+    api(sub, { children: () => page([location({ name: 'Lednice' })]), items: () => page([item()]) });
+    renderApp(`/locations/${sub.id}`);
+    const children = await within(await screen.findByRole('region', { name: 'Podlokality (2)' })).findByRole('table');
+    for (const tr of children.querySelectorAll('tr')) expect(tr.children).toHaveLength(4);
   });
 });
 
