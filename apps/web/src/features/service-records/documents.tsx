@@ -320,7 +320,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
           {documents ? t('serviceRecordDocuments.count', { count: documents.length }) : t('serviceRecordDocuments.title')}
         </h2>
         {canEdit && (
-          <div className="flex flex-wrap gap-2">
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
             <Button size="sm" onClick={() => fileInput.current?.click()}>
               <Upload aria-hidden />
               {t('serviceRecordDocuments.upload')}
