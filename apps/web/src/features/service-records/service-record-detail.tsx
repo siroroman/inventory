@@ -37,6 +37,18 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
 
   return (
     <>
+      {/* The item's name as a text button above the title; the accessible name also says where it leads. */}
+      <Button asChild variant="link" className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0">
+        <Link
+          to="/items/$id"
+          params={{ id: record.item.id }}
+          aria-label={t('serviceRecord.backToItem', { name: record.item.name })}
+        >
+          <ArrowLeft aria-hidden />
+          <span className="truncate">{record.item.name}</span>
+        </Link>
+      </Button>
+
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-2xl font-semibold">{t('serviceRecord.title')}</h1>
         {record.archivedAt && <ArchivedBadge />}
@@ -94,20 +106,6 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
 
       {/* Documents can be added and changed while the record and its item are active, as the API requires. */}
       <ServiceRecordDocuments recordId={record.id} canEdit={changeable && !record.archivedAt} />
-
-      <div className="flex justify-end">
-        {/* The button shows the item's name; the accessible name also says where it leads. */}
-        <Button asChild size="sm" className="max-w-full min-w-0">
-          <Link
-            to="/items/$id"
-            params={{ id: record.item.id }}
-            aria-label={t('serviceRecord.backToItem', { name: record.item.name })}
-          >
-            <ArrowLeft aria-hidden />
-            <span className="truncate">{record.item.name}</span>
-          </Link>
-        </Button>
-      </div>
     </>
   );
 }
