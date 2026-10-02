@@ -7,6 +7,7 @@ import {
   locationTypes,
   manufacturers,
   serviceProviders,
+  serviceRecords,
   user,
 } from '../../src/db/schema/index.ts';
 
@@ -70,6 +71,15 @@ export async function insertItem(db: Db, overrides: Partial<typeof items.$inferI
   const [row] = await db
     .insert(items)
     .values({ name: 'Konvektomat', ...overrides, locationId })
+    .returning();
+  return row!;
+}
+
+export async function insertServiceRecord(db: Db, overrides: Partial<typeof serviceRecords.$inferInsert> = {}) {
+  const itemId = overrides.itemId ?? (await insertItem(db)).id;
+  const [row] = await db
+    .insert(serviceRecords)
+    .values({ performedOn: '2026-04-15', title: 'Výměna filtru', ...overrides, itemId })
     .returning();
   return row!;
 }

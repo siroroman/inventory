@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import type { Db } from '../../src/db/client.ts';
 import { locationTypes } from '../../src/db/schema/index.ts';
 import { useTestDb } from '../helpers/db.ts';
-import { insertItem, insertLocation, insertManufacturer, insertProvider } from '../helpers/factories.ts';
+import {
+  insertItem,
+  insertLocation,
+  insertManufacturer,
+  insertProvider,
+  insertServiceRecord,
+} from '../helpers/factories.ts';
 
 type Row = { id: string };
 const TABLES: [string, (db: Db) => Promise<Row>][] = [
@@ -15,6 +21,7 @@ const TABLES: [string, (db: Db) => Promise<Row>][] = [
   ['items', (db) => insertItem(db)],
   ['manufacturers', (db) => insertManufacturer(db)],
   ['service_providers', (db) => insertProvider(db)],
+  ['service_records', (db) => insertServiceRecord(db)],
 ];
 
 type Meta = { version: number; created: bigint; updated: bigint; archived: boolean };

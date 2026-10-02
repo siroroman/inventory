@@ -6,7 +6,7 @@ import { createDb } from '../../src/db/client.ts';
 import { migrationsFolder, runMigrations } from '../../src/db/migrate.ts';
 import { createDatabase, dropDatabase, urlFor, useTestDb } from '../helpers/db.ts';
 
-const AUDITED_TABLES = ['location_types', 'locations', 'items', 'manufacturers', 'service_providers'];
+const AUDITED_TABLES = ['location_types', 'locations', 'items', 'manufacturers', 'service_providers', 'service_records'];
 const COMMON_COLUMNS = ['created_at', 'created_by', 'updated_at', 'updated_by', 'archived_at', 'version'];
 // Users are never deleted, so author references need no index for ON DELETE checks.
 const UNINDEXED_FK_ALLOWLIST = new Set(['created_by', 'updated_by', 'audit_log.user_id']);
@@ -32,7 +32,7 @@ describe('migrations', () => {
     );
     await pool.end();
     expect(applied.rows[0]).toEqual({ n: journal.entries.length });
-    expect(tables.rows[0]).toEqual({ n: 13 });
+    expect(tables.rows[0]).toEqual({ n: 14 });
   });
 });
 
