@@ -65,6 +65,23 @@ function matchesSearch(q: string): SQL | undefined {
   return and(or(...own), onPath);
 }
 
+/**
+ * Active locations whose name matches, and everything below them: a search hits the full path.
+ * Looking for archived items, archived locations count too (the item may sit in one).
+ */
+export function locationsMatching(q: string, archived: boolean): SQL {
+  const active = archived ? sql`TRUE` : sql`${locations.archivedAt} IS NULL`;
+  const activeChild = archived ? sql`TRUE` : sql`c.archived_at IS NULL`;
+  return sql`
+    WITH RECURSIVE sub (id) AS (
+      SELECT ${locations.id} FROM ${locations}
+       WHERE ${active} AND ${containsText(locations.name, q)}
+      UNION ALL
+      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE ${activeChild}
+    )
+    SELECT id FROM sub`;
+}
+
 /** The locations matching `match` and their active sub-locations at every level. */
 function andBelow(match: SQL): SQL {
   // The inner unaliased `locations` is the one `match` refers to.
