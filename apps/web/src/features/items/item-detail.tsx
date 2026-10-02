@@ -8,6 +8,7 @@ import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { DetailFields } from '@/components/detail-fields';
 import { ErrorState } from '@/components/error-state';
+import { Section } from '@/components/section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,16 +35,6 @@ function DetailSkeleton() {
       <Skeleton className="h-4 w-72 max-w-full" />
       <Skeleton className="h-4 w-64 max-w-full" />
     </div>
-  );
-}
-
-/** A labelled group of fields. */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border bg-card p-4">
-      <h2 className="mb-3 text-xs font-bold tracking-wide text-muted-foreground uppercase">{title}</h2>
-      {children}
-    </section>
   );
 }
 
@@ -121,7 +112,7 @@ function Breadcrumb({ item }: { item: ItemDetailDto }) {
   const { t } = useTranslation();
   return (
     <nav aria-label={t('item.breadcrumb')}>
-      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-foreground/80">
         <li>
           <Link to="/" className={crumbLink}>
             {t('home.locations.tab')}
@@ -137,7 +128,7 @@ function Breadcrumb({ item }: { item: ItemDetailDto }) {
         ))}
         <li className="flex items-center gap-x-1">
           <ChevronRight aria-hidden className="size-3.5" />
-          <span aria-current="page" className="text-foreground">
+          <span aria-current="page" className="font-bold text-foreground">
             {item.name}
           </span>
         </li>
@@ -156,7 +147,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
       <div>
         <Breadcrumb item={item} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className="text-xl font-semibold">{item.name}</h1>
+          <h1 className="text-2xl font-semibold">{item.name}</h1>
           {item.archivedAt && <ArchivedBadge />}
           {canWrite && (
             <div className="ml-auto flex items-center gap-2">
@@ -290,7 +281,7 @@ export function ItemDetail({ id }: { id: string }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
       {body}
     </div>
   );

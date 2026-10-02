@@ -37,7 +37,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h1 className="text-xl font-semibold">{t('serviceRecord.title')}</h1>
+        <h1 className="text-2xl font-semibold">{t('serviceRecord.title')}</h1>
         {record.archivedAt && <ArchivedBadge />}
         {changeable && (
           <div className="ml-auto flex items-center gap-2">
@@ -83,7 +83,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
         />
         {record.description && (
           <div className="mt-4">
-            <h2 className="mb-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">
+            <h2 className="mb-1 text-sm font-semibold text-foreground">
               {t('serviceRecord.fields.description')}
             </h2>
             <p className="text-[15px] break-words whitespace-pre-line">{record.description}</p>

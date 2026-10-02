@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { UnsavedChangesGuard } from '@/components/unsaved-changes-guard';
 import { SearchPicker } from '@/components/search-picker';
+import { Section } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,17 +40,6 @@ type Props = {
   /** Called by "load current data" after a conflict; should refetch the item. */
   onReload?: () => void;
 };
-
-function Section({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-4">
-      {title && (
-        <legend className="-mx-1 px-1 text-xs font-bold tracking-wide text-muted-foreground uppercase">{title}</legend>
-      )}
-      {children}
-    </fieldset>
-  );
-}
 
 function Field({ id, label, error, children }: { id: string; label: string; error?: string; children: ReactNode }) {
   return (
@@ -129,10 +119,10 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
     <form
       noValidate
       onSubmit={handleSubmit((values) => save.mutate(values))}
-      className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4"
+      className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4"
     >
       <UnsavedChangesGuard changed={unsaved} />
-      <h1 className="text-xl font-semibold">{item ? t('itemForm.editTitle') : t('itemForm.newTitle')}</h1>
+      <h1 className="pt-2 text-2xl font-semibold">{item ? t('itemForm.editTitle') : t('itemForm.newTitle')}</h1>
 
       <Section title={t('item.sections.basic')}>
         <div className="flex flex-col gap-1.5">
@@ -224,7 +214,11 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
           <Input {...props('manufactureYear')} inputMode="numeric" autoComplete="off" maxLength={4} />
         </Field>
 
-        <div className="flex flex-col gap-2">
+        <Field id="item-documentsUrl" label={t('itemForm.documentsUrl')} error={fieldError(errors.documentsUrl?.message)}>
+          <Input {...props('documentsUrl')} type="url" inputMode="url" autoComplete="off" placeholder="https://drive.google.com/…" />
+        </Field>
+
+        <div className="mt-4 flex flex-col gap-2">
           <Label id="item-externalIds-label">{t('item.fields.externalIds')}</Label>
           <ul aria-labelledby="item-externalIds-label" className="flex flex-col gap-3">
             {externalIds.fields.map((row, index) => {
@@ -281,10 +275,6 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
             </Button>
           )}
         </div>
-
-        <Field id="item-documentsUrl" label={t('itemForm.documentsUrl')} error={fieldError(errors.documentsUrl?.message)}>
-          <Input {...props('documentsUrl')} type="url" inputMode="url" autoComplete="off" placeholder="https://drive.google.com/…" />
-        </Field>
       </Section>
 
       <Section title={t('itemForm.sections.registration')}>

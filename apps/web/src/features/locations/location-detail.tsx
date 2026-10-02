@@ -8,6 +8,7 @@ import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ErrorState } from '@/components/error-state';
 import { EmptyState, PagedList } from '@/components/paged-list';
+import { sectionTitleClass } from '@/components/section';
 import { RouteNotFound, RoutePending } from '@/components/route-states';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -28,14 +29,13 @@ import { useLocationRows } from './location-list';
 /** A link in the detail's header or fields: at least 44 px tall to tap. */
 const crumbLink =
   'inline-flex min-h-11 items-center rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring';
-const sectionHeading = 'mx-4 pb-2 text-xs font-bold tracking-wide text-muted-foreground uppercase';
 
 /** The way up: every ancestor links to its own detail, the location itself is the current page. */
 function Breadcrumb({ path }: { path: LocationDto['path'] }) {
   const { t } = useTranslation();
   return (
     <nav aria-label={t('locationDetail.breadcrumb')} className="mb-1">
-      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-foreground/80">
         <li>
           <Link to="/" className={crumbLink}>
             {t('home.locations.tab')}
@@ -45,7 +45,7 @@ function Breadcrumb({ path }: { path: LocationDto['path'] }) {
           <li key={segment.id} className="flex items-center gap-x-1">
             <ChevronRight aria-hidden className="size-3.5" />
             {index === path.length - 1 ? (
-              <span aria-current="page" className="text-foreground">
+              <span aria-current="page" className="font-bold text-foreground">
                 {segment.name}
               </span>
             ) : (
@@ -68,7 +68,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
-      <dt className="text-sm text-muted-foreground sm:w-44 sm:shrink-0">{label}</dt>
+      <dt className="text-sm font-semibold text-foreground sm:w-44 sm:shrink-0">{label}</dt>
       <dd className="text-sm whitespace-pre-line">{children || t('common.empty')}</dd>
     </div>
   );
@@ -79,7 +79,7 @@ function Section({ id, title, action, children }: { id: string; title: string; a
   return (
     <section aria-labelledby={id} className="pt-8">
       <div className="mx-4 flex items-center justify-between gap-3 pb-4">
-        <h2 id={id} className={cn(sectionHeading, 'mx-0 pb-0')}>
+        <h2 id={id} className={sectionTitleClass}>
           {title}
         </h2>
         {action}
@@ -204,7 +204,7 @@ export function LocationDetail({ id }: { id: string }) {
         <Breadcrumb path={location.path} />
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-xl font-semibold">{location.name}</h1>
+            <h1 className="text-2xl font-semibold">{location.name}</h1>
             {location.archivedAt && <ArchivedBadge />}
           </div>
           {canWrite && (

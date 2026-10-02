@@ -21,7 +21,7 @@ export function ListToolbar({ title, count, search, action, archived }: Props) {
   const desktop = useMediaQuery(desktopScreen);
   const heading = (
     <div className="flex shrink-0 items-baseline gap-2">
-      <h2 className={desktop ? 'text-[22px] font-semibold' : 'text-xl font-semibold'}>{title}</h2>
+      <h2 className={desktop ? 'text-[28px] font-semibold' : 'text-2xl font-semibold'}>{title}</h2>
       {count && (
         <span role="status" className="text-sm whitespace-nowrap text-muted-foreground">
           {count}
@@ -68,5 +68,5 @@ export function ListToolbar({ title, count, search, action, archived }: Props) {
 
 /** The list under a `ListToolbar`: a white card with a rounded border, as the design has it on desktop. */
 export function ListFrame({ children }: { children: ReactNode }) {
-  return <div className="mx-4 mb-6 overflow-hidden rounded-xl border bg-card lg:mx-8 lg:mb-8">{children}</div>;
+  return <div className="mx-4 mb-6 overflow-hidden rounded-xl border border-line bg-card lg:mx-8 lg:mb-8">{children}</div>;
 }

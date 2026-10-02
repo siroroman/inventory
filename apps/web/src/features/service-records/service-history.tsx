@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { sectionTitleClass } from '@/components/section';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
 import { itemServiceRecordsQueryOptions } from './api';
@@ -42,7 +43,7 @@ export function ServiceHistory({ itemId, canAdd }: { itemId: string; canAdd: boo
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-3 pb-3">
-        <h3 className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+        <h3 className={sectionTitleClass}>
           {total === undefined ? t('serviceRecord.history') : t('serviceRecord.historyCount', { count: total })}
         </h3>
         {canAdd && (

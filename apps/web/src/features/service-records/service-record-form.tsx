@@ -106,17 +106,17 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
     <form
       noValidate
       onSubmit={handleSubmit((values) => save.mutate(values))}
-      className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4"
+      className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4"
     >
       <UnsavedChangesGuard changed={unsaved} />
-      <h1 className="text-xl font-semibold">
+      <h1 className="pt-2 text-2xl font-semibold">
         {record ? t('serviceRecordForm.editTitle') : t('serviceRecordForm.newTitle')}
       </h1>
 
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
         {item ? (
           <div>
-            <p className="text-sm text-muted-foreground">{t('serviceRecord.fields.item')}</p>
+            <p className="text-sm font-semibold text-foreground">{t('serviceRecord.fields.item')}</p>
             <p className="text-[15px]">{item.name}</p>
           </div>
         ) : (
