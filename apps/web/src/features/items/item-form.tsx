@@ -214,7 +214,11 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
           <Input {...props('manufactureYear')} inputMode="numeric" autoComplete="off" maxLength={4} />
         </Field>
 
-        <div className="flex flex-col gap-2">
+        <Field id="item-documentsUrl" label={t('itemForm.documentsUrl')} error={fieldError(errors.documentsUrl?.message)}>
+          <Input {...props('documentsUrl')} type="url" inputMode="url" autoComplete="off" placeholder="https://drive.google.com/…" />
+        </Field>
+
+        <div className="mt-4 flex flex-col gap-2">
           <Label id="item-externalIds-label">{t('item.fields.externalIds')}</Label>
           <ul aria-labelledby="item-externalIds-label" className="flex flex-col gap-3">
             {externalIds.fields.map((row, index) => {
@@ -271,10 +275,6 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
             </Button>
           )}
         </div>
-
-        <Field id="item-documentsUrl" label={t('itemForm.documentsUrl')} error={fieldError(errors.documentsUrl?.message)}>
-          <Input {...props('documentsUrl')} type="url" inputMode="url" autoComplete="off" placeholder="https://drive.google.com/…" />
-        </Field>
       </Section>
 
       <Section title={t('itemForm.sections.registration')}>
