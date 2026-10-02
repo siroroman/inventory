@@ -6,11 +6,13 @@ import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
+import { DetailFields } from '@/components/detail-fields';
 import { ErrorState } from '@/components/error-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
+import { ServiceHistory } from '@/features/service-records/service-history';
 import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
@@ -42,23 +44,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h2 className="mb-3 text-xs font-bold tracking-wide text-muted-foreground uppercase">{title}</h2>
       {children}
     </section>
-  );
-}
-
-/** Label and value pairs; an empty value shows as "—". */
-function Fields({ rows }: { rows: { label: string; value: ReactNode }[] }) {
-  const { t } = useTranslation();
-  return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      {rows.map(({ label, value }) => (
-        <div key={label}>
-          <dt className="text-sm text-muted-foreground">{label}</dt>
-          <dd className="text-[15px] break-words">
-            {value === null || value === undefined || value === '' ? t('item.empty') : value}
-          </dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
@@ -198,7 +183,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
       <Gallery key={item.id} name={item.name} photos={item.photos} />
 
       <Section title={t('item.sections.basic')}>
-        <Fields
+        <DetailFields
           rows={[
             { label: t('item.fields.code'), value: item.code },
             {
@@ -223,7 +208,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
       </Section>
 
       <Section title={t('item.sections.warranty')}>
-        <Fields
+        <DetailFields
           rows={[
             { label: t('item.fields.registeredOn'), value: date(item.registeredOn) },
             {
@@ -234,26 +219,6 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
                   {warrantyExpired(item.warrantyUntil) && (
                     <Badge variant="danger">{t('item.warrantyExpired')}</Badge>
                   )}
-                </span>
-              ),
-            },
-          ]}
-        />
-      </Section>
-
-      <Section title={t('item.sections.service')}>
-        <Fields
-          rows={[
-            { label: t('item.fields.lastServiceOn'), value: date(item.lastServiceOn) },
-            {
-              label: t('item.fields.nextServiceOn'),
-              value: item.nextServiceOn && (
-                <span className="flex flex-wrap items-center gap-2">
-                  {formatDate(item.nextServiceOn)}
-                  <ServiceBadge
-                    nextServiceOn={item.nextServiceOn}
-                    labels={{ overdue: t('item.service.overdue'), soon: t('item.service.soon') }}
-                  />
                 </span>
               ),
             },
@@ -277,11 +242,32 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
           <p className="text-[15px] break-words whitespace-pre-line">{item.note}</p>
         </Section>
       )}
+
+      <Section title={t('item.sections.service')}>
+        <DetailFields
+          rows={[
+            { label: t('item.fields.lastServiceOn'), value: date(item.lastServiceOn) },
+            {
+              label: t('item.fields.nextServiceOn'),
+              value: item.nextServiceOn && (
+                <span className="flex flex-wrap items-center gap-2">
+                  {formatDate(item.nextServiceOn)}
+                  <ServiceBadge
+                    nextServiceOn={item.nextServiceOn}
+                    labels={{ overdue: t('item.service.overdue'), soon: t('item.service.soon') }}
+                  />
+                </span>
+              ),
+            },
+          ]}
+        />
+        <ServiceHistory itemId={item.id} canAdd={canWrite && !item.archivedAt} />
+      </Section>
     </>
   );
 }
 
-/** Item detail screen: photos, basic info, warranty, service, documents and note. */
+/** Item detail screen: photos, basic info, warranty, documents, note and, last, the service dates and history. */
 export function ItemDetail({ id }: { id: string }) {
   const { t } = useTranslation();
   const query = useQuery(itemDetailQueryOptions(id));

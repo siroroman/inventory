@@ -273,5 +273,47 @@
     "codeHint": "Nepovinné. Když pole necháte prázdné, ID se přidělí automaticky. Později ho nelze změnit.",
     "codeTaken": "Položka s tímto ID už existuje.",
     "codeAutoClash": "ID se nepodařilo přidělit automaticky, protože už existuje položka se stejným. Zkuste to prosím znovu."
+  },
+  "serviceRecord": {
+    "title": "Servisní záznam",
+    "history": "Historie servisu",
+    "historyCount": "Historie servisu ({{count}})",
+    "columns": {
+      "title": "Název",
+      "date": "Datum"
+    },
+    "emptyTitle": "Zatím žádný servisní záznam",
+    "emptyHint": "Provedené servisy a prohlídky se zobrazí tady.",
+    "fields": {
+      "item": "Položka",
+      "date": "Datum",
+      "title": "Název",
+      "performedBy": "Servis provedl",
+      "responsiblePerson": "Zodpovědná osoba",
+      "description": "Popis"
+    },
+    "edit": "Upravit",
+    "archiveTitle": "Archivovat servisní záznam?",
+    "archiveHint": "Záznam zmizí z historie servisu položky.",
+    "notFoundTitle": "Servisní záznam nenalezen",
+    "notFoundHint": "Záznam neexistuje nebo byl odstraněn.",
+    "backToItem": "Zpět na položku {{name}}",
+    "add": "Přidat záznam"
+  },
+  "serviceRecordForm": {
+    "newTitle": "Nový servisní záznam",
+    "editTitle": "Upravit servisní záznam",
+    "titlePlaceholder": "Např. Výměna filtru",
+    "performedByPlaceholder": "Např. Servis Novák s.r.o.",
+    "responsiblePersonPlaceholder": "Jméno a příjmení",
+    "descriptionPlaceholder": "Co bylo provedeno, naměřené hodnoty, doporučení…",
+    "errors": {
+      "required": "Vyplňte toto pole.",
+      "tooLong": "Text je příliš dlouhý.",
+      "date": "Zadejte platné datum."
+    },
+    "reload": "Načíst aktuální údaje",
+    "save": "Uložit",
+    "saving": "Ukládám…"
   }
 }

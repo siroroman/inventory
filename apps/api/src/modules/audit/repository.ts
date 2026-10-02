@@ -11,6 +11,7 @@ export type AuditEntityType =
   | 'photo'
   | 'manufacturer'
   | 'service_provider'
+  | 'service_record'
   | 'user';
 
 export type AuditEntry = typeof auditLog.$inferSelect;

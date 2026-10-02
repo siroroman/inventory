@@ -41,8 +41,14 @@ function detail(over: Record<string, unknown> = {}) {
   };
 }
 
-const signedIn = (item: () => Response) =>
-  stubApi({ 'GET /api/v1/me': () => jsonResponse(me), [`GET /api/v1/items/${id}`]: item });
+/** An item's service history as the API answers it: newest first, with the total. */
+const history = (rows: { id: string; performedOn: string; title: string }[], extra: { nextCursor?: string | null; total?: number } = {}) =>
+  jsonResponse({ items: rows, nextCursor: extra.nextCursor ?? null, total: extra.total ?? rows.length });
+
+const recordsPath = `GET /api/v1/items/${id}/service-records`;
+
+const signedIn = (item: () => Response, records: (request: Request) => Response = () => history([])) =>
+  stubApi({ 'GET /api/v1/me': () => jsonResponse(me), [`GET /api/v1/items/${id}`]: item, [recordsPath]: records });
 
 describe('item detail', () => {
   it('opens an item without a location, the breadcrumb going straight from Lokality to the item', async () => {
@@ -176,6 +182,7 @@ describe('item detail', () => {
       'GET /api/v1/me': () => jsonResponse(me),
       'GET /api/v1/items': () => jsonResponse({ items: [summary], nextCursor: null, total: 1 }),
       [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
+      [recordsPath]: () => history([]),
     });
     const { router } = renderApp('/?tab=items');
     await userEvent.click(await screen.findByRole('link', { name: /Konvektomat/ }));
@@ -184,6 +191,119 @@ describe('item detail', () => {
 
     router.history.back();
     expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+  });
+});
+
+describe('item detail: service history', () => {
+  const rows = [
+    { id: crypto.randomUUID(), performedOn: '2026-04-15', title: 'Výměna filtru a kontrola tlaku' },
+    { id: crypto.randomUUID(), performedOn: '2025-11-02', title: 'Pravidelná roční prohlídka' },
+  ];
+
+  it('is the last section, after the note, with the dates above the history', async () => {
+    signedIn(() => jsonResponse(detail()), () => history(rows));
+    renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Servis', level: 2 });
+    const sections = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(sections.at(-1)).toBe('Servis');
+    expect(sections.indexOf('Poznámka')).toBeLessThan(sections.indexOf('Servis'));
+  });
+
+  it('lists the records newest first with their date, each linking to its detail', async () => {
+    signedIn(() => jsonResponse(detail()), () => history(rows));
+    renderApp(`/items/${id}`);
+
+    expect(await screen.findByRole('heading', { name: 'Historie servisu (2)', level: 3 })).toBeInTheDocument();
+    const links = screen.getAllByRole('link', { name: /Výměna filtru|Pravidelná roční/ });
+    expect(links.map((link) => link.textContent)).toEqual([
+      expect.stringContaining('Výměna filtru a kontrola tlaku'),
+      expect.stringContaining('Pravidelná roční prohlídka'),
+    ]);
+    expect(links[0]).toHaveAttribute('href', `/service-records/${rows[0]!.id}`);
+    expect(screen.getByText('15. 4. 2026')).toBeInTheDocument();
+    expect(screen.getByText('2. 11. 2025')).toBeInTheDocument();
+  });
+
+  it('shows the records as a table with headings on a wide screen', async () => {
+    stubWideScreen(true);
+    signedIn(() => jsonResponse(detail()), () => history(rows));
+    renderApp(`/items/${id}`);
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Název', 'Datum']);
+    expect(within(table).getByRole('link', { name: 'Výměna filtru a kontrola tlaku' })).toBeInTheDocument();
+  });
+
+  it('says there is no history yet, also to a reader', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse({ ...me, role: 'read' }),
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
+      [recordsPath]: () => history([]),
+    });
+    renderApp(`/items/${id}`);
+    expect(await screen.findByText('Zatím žádný servisní záznam')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Historie servisu (0)', level: 3 })).toBeInTheDocument();
+  });
+
+  it('offers writers "Přidat záznam", leading to the form of this item', async () => {
+    signedIn(() => jsonResponse(detail()), () => history(rows));
+    renderApp(`/items/${id}`);
+    const add = await screen.findByRole('link', { name: 'Přidat záznam' });
+    expect(add).toHaveAttribute('href', `/items/${id}/service-records/new`);
+  });
+
+  it('offers no "Přidat záznam" to a reader', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse({ ...me, role: 'read' }),
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail()),
+      [recordsPath]: () => history(rows),
+    });
+    renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Historie servisu (2)', level: 3 });
+    expect(screen.queryByRole('link', { name: 'Přidat záznam' })).not.toBeInTheDocument();
+  });
+
+  it('offers no "Přidat záznam" on an archived item, not even to a writer', async () => {
+    signedIn(() => jsonResponse(detail({ archivedAt: '2026-02-01T00:00:00.000Z' })), () => history(rows));
+    renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Historie servisu (2)', level: 3 });
+    expect(screen.queryByRole('link', { name: 'Přidat záznam' })).not.toBeInTheDocument();
+  });
+
+  it('loads the next page on request and then offers no more', async () => {
+    const more = { id: crypto.randomUUID(), performedOn: '2025-06-20', title: 'Oprava netěsnícího ventilu' };
+    const calls = signedIn(
+      () => jsonResponse(detail()),
+      (request) =>
+        new URL(request.url).searchParams.get('cursor') === 'next-page'
+          ? history([more], { total: 3 })
+          : history(rows, { nextCursor: 'next-page', total: 3 }),
+    );
+    renderApp(`/items/${id}`);
+    expect(await screen.findByRole('heading', { name: 'Historie servisu (3)', level: 3 })).toBeInTheDocument();
+    expect(screen.queryByText('Oprava netěsnícího ventilu')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Načíst další' }));
+    expect(await screen.findByText('Oprava netěsnícího ventilu')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Načíst další' })).not.toBeInTheDocument();
+    const listCalls = calls.filter((call) => new URL(call.url).pathname.endsWith('/service-records'));
+    expect(listCalls.map((call) => new URL(call.url).searchParams.get('cursor'))).toEqual([null, 'next-page']);
+  });
+
+  it('shows an error with retry in the section while the rest of the item stays', async () => {
+    let fail = true;
+    signedIn(
+      () => jsonResponse(detail()),
+      () =>
+        fail
+          ? jsonResponse({ type: 'about:blank', title: 'x', status: 500, code: 'internal_error' }, { status: 500, problem: true })
+          : history(rows),
+    );
+    renderApp(`/items/${id}`);
+    expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
+    const retry = await screen.findByRole('button', { name: 'Zkusit znovu' });
+    fail = false;
+    await userEvent.click(retry);
+    expect(await screen.findByText('Výměna filtru a kontrola tlaku')).toBeInTheDocument();
   });
 });
 
@@ -196,6 +316,7 @@ describe('item detail: archive and restore', () => {
     return stubApi({
       'GET /api/v1/me': () => jsonResponse({ ...me, role }),
       [`GET /api/v1/items/${id}`]: () => jsonResponse(current),
+      [recordsPath]: () => history([]),
       // Like the API: the item without its photos, not the detail.
       [`POST /api/v1/items/${id}/archive`]: () => {
         if (refuse) return refuse;

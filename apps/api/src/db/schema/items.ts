@@ -98,3 +98,24 @@ export const itemPhotos = pgTable(
     check('item_photos_dimensions_positive', sql`${t.width} > 0 and ${t.height} > 0`),
   ],
 );
+
+export const serviceRecords = pgTable(
+  'service_records',
+  {
+    id: id(),
+    itemId: uuid()
+      .notNull()
+      .references(() => items.id, { onDelete: 'restrict' }),
+    performedOn: date({ mode: 'string' }).notNull(),
+    title: text().notNull(),
+    performedBy: text(),
+    responsiblePerson: text(),
+    description: text(),
+    ...auditColumns(),
+  },
+  (t) => [
+    // Also serves the item's history: newest first, id as the tie-break for the cursor.
+    index('service_records_item_id_performed_on_idx').on(t.itemId, t.performedOn, t.id),
+    check('service_records_title_not_blank', sql`btrim(${t.title}) <> ''`),
+  ],
+);

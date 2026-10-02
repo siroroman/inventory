@@ -26,7 +26,7 @@ Priorities, in order: **simplicity, reliability, security, user friendliness**.
 
 ### Out of scope for v1, but the architecture accounts for it
 
-QR-code inventory scanning, service history, service/warranty reminders, offline mode, data import/export.
+QR-code inventory scanning, service/warranty reminders, offline mode, data import/export. (Service history is in: see §3.4 and `service_records`.)
 
 ### Working assumptions (confirm in Open Questions)
 
@@ -60,7 +60,7 @@ Only invited users get access, and each has exactly one role. **Permissions are 
 
 ## 3. Screens and behavior
 
-The UI design (link above) has screens 1–9 for both mobile (390 px) and desktop (1280 px). This section describes intended behavior; the design is the visual source of truth.
+The UI design (link above) has screens 1–11 for both mobile (390 px) and desktop (1280 px). This section describes intended behavior; the design is the visual source of truth.
 
 From the user menu (avatar with initials, top right) you can also reach: Manufacturers & service, Users (admin only), and Sign out. Every screen has its own URL, so browser back, bookmarks, and future QR links all work.
 
@@ -104,12 +104,16 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 | Basic info | Manufacturer | links to manufacturer detail only if it has service providers |
 | Basic info | Model, Serial number, Manufacture year | text; year 1950 to current |
 | Registration & warranty | Registered on, Warranty until | "Expired" badge after the warranty date |
-| Service | Last service, Next service due | "Due within 30 days" or "Overdue" badge |
 | Documents | "Open folder in Google Drive" | opens in a new tab |
 | Note | free text | |
+| Service (last section) | Last service, Next service due, then **Service history (N)** | the two dates stay manual fields of the item; the history lists its service records newest first (title + date, each opens the record), "Add record" for Write and Admin on an active item |
 
 - Photo gallery: horizontally scrollable strip on mobile; main photo + thumbnails side by side on desktop.
 - Actions for Write and Admin: Edit, Archive. Photos are added in the edit form, not on the detail screen.
+
+#### Service record detail
+
+Item (link), Date, Title, Service performed by, Responsible person, Description (empty fields show "—"). "Back to item" link above the heading. Actions for Write and Admin on an active record of an active item: Edit, Archive (asks first, then returns to the item). An archived record, or one of an archived item, is shown without actions. Viewing archived records and restoring them are a later iteration (the API has `restore` already).
 
 ### 3.5 Manufacturer detail
 
@@ -126,6 +130,7 @@ ID (e.g. SUP-001), Name, Contact person, Phone, Email, Web, Note, and the brands
 - **Location:** Parent location (optional; empty = top level), Name, Location type (top level only: Centrála/HQ, Prodejna/Store, Provozovna/Site, Sklad/Warehouse; extensible list), Address (single line), Note.
 - **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is optional (an item can be added before anyone knows where it is) and is chosen via search, including sub-locations shown with their full path; each match is followed by the sub-locations below it; tapping the chosen location searches again. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
 - **To add beyond the current design:** a Documents field (Google Drive folder link) in the item form's Basic info section.
+- **Service record:** the item (read-only), Date (default today), Title (required), Service performed by and Responsible person (both free text, not links to registered providers or users), Description. Opened from the item's "Add record" button and from the record's Edit.
 - **Service provider:** Name, Contact person, Phone, Email, Web, Brands serviced (addable tags), Note. Per-brand priority is set from the manufacturer detail screen.
 - **Manufacturer:** no standalone form in the current design. Proposal: a new manufacturer is created by typing a new name in the Manufacturer or Brands field; its note is edited from its detail page.
 - Field-level errors (e.g. "Enter a valid email."), Cancel and Save buttons. Warn on leaving an unsaved form; on a concurrent edit, show a conflict message instead of silently overwriting.
@@ -153,6 +158,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 | `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, warranty_until, last_service_on, next_service_on, documents_url, note | N:1 location at any level (optional), N:1 manufacturer (optional) |
 | `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID; (source, value) is unique across all items, archived ones included, ignoring case |
 | `item_photos` | item_id, storage_key, content_type, width, height, sort_order | N:1 item; the file lives in Cloud Storage |
+| `service_records` | item_id, performed_on, title, performed_by, responsible_person, description | N:1 item; free text for who did it (no link to providers or users); archivable and versioned like the other records, never deleted |
 | `manufacturers` | name (unique), note | M:N service providers |
 | `service_providers` | code, name, contact_person, phone, email, web, note | M:N manufacturers |
 | `manufacturer_service_providers` | manufacturer_id, service_provider_id, priority | unique pairs (manufacturer, provider) and (manufacturer, priority); the whole order is saved in one transaction |
@@ -189,7 +195,7 @@ The browser loads a React SPA and calls a REST API on the same domain. **One Doc
 
 ### 5.1 API: modular monolith
 
-- One module per domain: `locations`, `items`, `photos`, `manufacturers`, `service-providers`, `users`, `audit`; later `inventory`.
+- One module per domain: `locations`, `items`, `photos`, `service-records`, `manufacturers`, `service-providers`, `users`, `audit`; later `inventory`.
 - Each module has three layers, with dependencies pointing down only:
   - **routes** — Hono + `@hono/zod-openapi`: input validation, OpenAPI description, error mapping
   - **service** — business rules, role checks, audit, transactions; knows nothing about HTTP
@@ -287,6 +293,11 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /items/{id}/archive`, `/restore` | archive, restore | Write |
 | `POST /items/{id}/photos/upload-url`, `POST /items/{id}/photos` | signed upload URL, confirm uploaded photo | Write |
 | `PATCH /items/{id}/photos/order`, `DELETE /items/{id}/photos/{photoId}` | reorder / remove a photo | Write |
+| `GET /items/{id}/service-records` | the item's active service records, newest first (`performed_on` desc, paged by date + id); an archived item lists its records too | Read |
+| `POST /items/{id}/service-records` | add a record to an active item | Write |
+| `GET /service-records/{id}` | a record with its item (archived ones too) | Read |
+| `PATCH /service-records/{id}` | edit a record of an active item | Write |
+| `POST /service-records/{id}/archive`, `/restore` | archive, restore | Write |
 | `GET /manufacturers`, `GET /manufacturers/{id}` | list, detail with ranked providers | Read |
 | `POST /manufacturers`, `PATCH /manufacturers/{id}` | create, edit | Write |
 | `PUT /manufacturers/{id}/service-providers` | send the whole new order at once, on every arrow click | Write |
@@ -360,11 +371,11 @@ Build the API first, with tests, then the SPA on top of finished modules. The UI
 3. **SPA:** scaffold with tokens from the UI design, login, Home, detail screens, forms, Users, screen states, PWA. Starts with locations once that API module is ready.
    - Done when the main-flow E2E tests pass on both mobile and desktop.
 4. **Go-live:** import existing inventory data (if any), invite users, test a backup restore.
-5. **Future versions:** QR inventory, service history, service/warranty reminders.
+5. **Future versions:** QR inventory, service/warranty reminders. (Service history is done; viewing and restoring archived records comes next.)
 
 ## 11. UI design summary
 
-The finished design ([Evidence majetku — UI design](https://claude.ai/artifact/348Z5z5RWitYajoUzqSoDP)) is the source of truth for visuals. It has 22 frames: screens 1–9 for mobile and desktop, service-provider detail, users, states, and a components/tokens overview for React, Tailwind and shadcn/ui.
+The finished design ([Evidence majetku — UI design](https://claude.ai/artifact/348Z5z5RWitYajoUzqSoDP)) is the source of truth for visuals. It has 26 frames: screens 1–9 for mobile and desktop, service-provider detail, service record detail and form (10, 11), users, states, and a components/tokens overview for React, Tailwind and shadcn/ui.
 
 | Token | Value |
 | --- | --- |
@@ -398,7 +409,7 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? ~~What should happen when archiving a location that still has sub-locations or items?~~ *Decided:* allowed, with a warning (see §4).
 7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.
 8. ~~**Categories:** Should an item have a category (machine, equipment, IT…) with a list filter?~~ *Decided:* later, not in v1.
-9. **Service:** Are two dates enough, or do you want a full service history (date, provider, description, report)? Should the next check date be computed from an interval?
+9. **Service:** ~~Are two dates enough, or do you want a full service history (date, provider, description, report)?~~ *Decided:* a history of records (date, title, who performed it and the responsible person as free text, description) on each item; the two item dates stay manual and are not derived from the records. Still open: attaching a report/file to a record, and whether the next check date should be computed from an interval.
 10. **Reminders:** Do you want email alerts or a dashboard of items with service or warranty coming due?
 11. **Documents:** Is a Google Drive folder link enough, or should files be shown inside the app? The latter needs Drive API access and access to the company's Drive.
 12. **Photos:** Roughly how many photos per item?

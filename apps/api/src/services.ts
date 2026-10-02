@@ -12,6 +12,7 @@ import { createManufacturerService, manufacturerRepos } from './modules/manufact
 import { createPhotoService, photoRepos } from './modules/photos/service.ts';
 import type { PhotoStorage } from './modules/photos/storage.ts';
 import { createServiceProviderService, serviceProviderRepos } from './modules/service-providers/service.ts';
+import { createServiceRecordService, serviceRecordRepos } from './modules/service-records/service.ts';
 import { createUserService, type UserInvites, userRepos } from './modules/users/service.ts';
 
 /**
@@ -31,6 +32,10 @@ export function createServices({ db, storage, invites }: { db: Db; storage: Phot
     serviceProviders: createServiceProviderService({
       repos: serviceProviderRepos(db),
       transact: transactor(db, serviceProviderRepos),
+    }),
+    serviceRecords: createServiceRecordService({
+      repos: serviceRecordRepos(db),
+      transact: transactor(db, serviceRecordRepos),
     }),
     photos: createPhotoService({
       repos: photoRepos(db),

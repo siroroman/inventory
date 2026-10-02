@@ -1,8 +1,8 @@
 import { verifyPassword } from 'better-auth/crypto';
 import { and, count, eq, gte, isNotNull, lt, lte } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { account, items, user } from '../../src/db/schema/index.ts';
-import { seedItems, seedLocations } from '../../src/db/seed/data.ts';
+import { account, items, serviceRecords, user } from '../../src/db/schema/index.ts';
+import { seedItems, seedLocations, seedServiceRecords } from '../../src/db/seed/data.ts';
 import { seed, SeedRefusedError } from '../../src/db/seed/seed.ts';
 import { createItemRepository } from '../../src/modules/items/repository.ts';
 import { createLocationRepository } from '../../src/modules/locations/repository.ts';
@@ -24,11 +24,29 @@ describe('dev seed', () => {
       serviceProviders: 5,
       items: seedItems.length,
       externalIds: seedItems.reduce((sum, i) => sum + (i.externalIds?.length ?? 0), 0),
+      serviceRecords: seedServiceRecords.length,
     });
     const top = await createLocationRepository(t().app).list({ parentId: null }, { limit: 50 });
     expect(top.items.map((l) => [l.name, l.type?.code])).toEqual(
       seedLocations.map((l) => [l.name, l.type]).sort(([a], [b]) => a!.localeCompare(b!, 'cs')),
     );
+  });
+
+  it('gives some items a service history, dated from today', async () => {
+    await seed(t().app, options);
+    const rows = await t()
+      .app.select({ item: items.name, title: serviceRecords.title, on: serviceRecords.performedOn })
+      .from(serviceRecords)
+      .innerJoin(items, eq(items.id, serviceRecords.itemId))
+      .where(eq(items.name, 'Konvektomat 10 GN'))
+      .orderBy(serviceRecords.performedOn);
+    expect(rows.map((r) => r.title)).toEqual([
+      'Oprava netěsnícího ventilu',
+      'Výměna filtru a kontrola tlaku',
+      'Pravidelná roční prohlídka',
+    ]);
+    // 200 days before 2026-09-28, the same day as the item's last service.
+    expect(rows.at(-1)!.on).toBe('2026-03-12');
   });
 
   it('creates one user per role who can sign in with the seed password', async () => {

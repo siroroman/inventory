@@ -2,6 +2,7 @@ import { asc } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import {
   afterName,
+  decodeDateCursor,
   decodeIdCursor,
   decodeNameCursor,
   encodeCursor,
@@ -17,6 +18,20 @@ const ID = '0b8f7a8e-2f4c-4d6e-9a1b-3c5d7e9f1a2b';
 describe('cursors', () => {
   it('round-trip a name key', () => {
     expect(decodeNameCursor(encodeCursor({ name: 'Čistička', id: ID }))).toEqual({ name: 'Čistička', id: ID });
+  });
+
+  it('round-trip a date key', () => {
+    expect(decodeDateCursor(encodeCursor({ on: '2026-04-15', id: ID }))).toEqual({ on: '2026-04-15', id: ID });
+  });
+
+  it.each([
+    ['a date that does not exist', encodeCursor({ on: '2026-02-31', id: ID })],
+    ['a month and day out of range', encodeCursor({ on: '2026-13-45', id: ID })],
+    ['text instead of a date', encodeCursor({ on: "x'; drop table items", id: ID })],
+    ['an id that is not a uuid', encodeCursor({ on: '2026-04-15', id: 'nope' })],
+    ['garbage', '%%%'],
+  ])('reject a date cursor with %s', (_, cursor) => {
+    expect(() => decodeDateCursor(cursor)).toThrow(InvalidCursorError);
   });
 
   it('round-trip an id key', () => {

@@ -19,6 +19,7 @@ const EXPECTED_GRANTS: Record<string, string[]> = {
   manufacturer_service_providers: READ_WRITE_DELETE,
   manufacturers: READ_WRITE,
   service_providers: READ_WRITE,
+  service_records: READ_WRITE,
   session: READ_WRITE_DELETE,
   user: READ_WRITE,
   verification: READ_WRITE_DELETE,

@@ -132,3 +132,24 @@ export const seedItems: SeedItem[] = [
   { name: 'Průmyslová myčka podlah', location: 'Regál B', manufacturer: 'Kärcher', model: 'B 50 W', serialNumber: 'KA-B50-10077', manufactureYear: 2023, registered: -420, warranty: 310, lastService: -120, nextService: 60 },
   { name: 'Hasicí přístroj práškový 6 kg', location: 'Regál B', manufactureYear: 2022, registered: -700, lastService: -300, nextService: 65, externalIds: [['Hasiči', 'HP-0301']] },
 ];
+
+export type SeedServiceRecord = {
+  /** Name of the item; item names used here are unique within this data set. */
+  item: string;
+  /** Day offset from today (negative: in the past). */
+  performed: number;
+  title: string;
+  performedBy?: string;
+  responsiblePerson?: string;
+  description?: string;
+};
+
+/** A few histories, newest dates matching the items' `lastService`. */
+export const seedServiceRecords: SeedServiceRecord[] = [
+  { item: 'Konvektomat 10 GN', performed: -200, title: 'Pravidelná roční prohlídka', performedBy: 'Gastro Servis Novák s.r.o.', responsiblePerson: 'Jan Novák', description: 'Odvápněn parogenerátor, vyměněno těsnění dveří. Bez dalších závad.' },
+  { item: 'Konvektomat 10 GN', performed: -380, title: 'Výměna filtru a kontrola tlaku', performedBy: 'Gastro Servis Novák s.r.o.', responsiblePerson: 'Jan Novák', description: 'Vyměněn vodní filtr, tlak v normě. Doporučena další kontrola za 6 měsíců.' },
+  { item: 'Konvektomat 10 GN', performed: -700, title: 'Oprava netěsnícího ventilu', performedBy: 'Gastro Servis Novák s.r.o.' },
+  { item: 'Průchozí myčka nádobí', performed: -95, title: 'Servisní prohlídka', performedBy: 'Technoservis Brno', responsiblePerson: 'Petr Svoboda' },
+  { item: 'Klimatizace serverovna', performed: -170, title: 'Čištění filtrů a doplnění chladiva', performedBy: 'Klima Praha s.r.o.', responsiblePerson: 'Marek Dvořák', description: 'Vyčištěny vnitřní i venkovní jednotky, tlak chladiva doplněn.' },
+  { item: 'Hasicí přístroj práškový 6 kg', performed: -380, title: 'Revize hasicího přístroje', performedBy: 'Hasiči servis s.r.o.' },
+];

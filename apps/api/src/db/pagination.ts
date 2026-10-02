@@ -46,6 +46,24 @@ export function decodePathCursor(cursor: string): PathKey {
   return { path, id: key.id };
 }
 
+/** Sort key for lists ordered by a date, newest first, with the id as a tie-breaker. */
+export type DateKey = { on: string; id: string };
+
+/** A real calendar day (2026-02-31 is not), so the cast to `date` cannot fail in SQL. */
+const isCalendarDate = (on: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(on)) return false;
+  const date = new Date(`${on}T00:00:00Z`);
+  // `2026-13-45` is an Invalid Date, whose toISOString() throws instead of returning something to compare.
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === on;
+};
+
+export function decodeDateCursor(cursor: string): DateKey {
+  const key = decodeJson(cursor) as Partial<DateKey> | null;
+  const valid = typeof key?.on === 'string' && isCalendarDate(key.on);
+  if (!valid || typeof key?.id !== 'string' || !UUID.test(key.id)) throw new InvalidCursorError();
+  return { on: key.on!, id: key.id };
+}
+
 export function decodeIdCursor(cursor: string): number {
   const key = decodeJson(cursor) as { id?: unknown } | null;
   if (!Number.isSafeInteger(key?.id) || (key!.id as number) < 1) throw new InvalidCursorError();
@@ -60,6 +78,13 @@ export function afterName(name: AnyColumn, id: AnyColumn, cursor: string | undef
   if (!cursor) return undefined;
   const key = decodeNameCursor(cursor);
   return sql`(${name}, ${id}) > (${key.name}, ${key.id}::uuid)`;
+}
+
+/** Rows after the cursor in `ORDER BY date DESC, id DESC` order (the next ones are older). */
+export function beforeDate(on: AnyColumn, id: AnyColumn, cursor: string | undefined): SQL | undefined {
+  if (!cursor) return undefined;
+  const key = decodeDateCursor(cursor);
+  return sql`(${on}, ${id}) < (${key.on}::date, ${key.id}::uuid)`;
 }
 
 /** Rows after the cursor in `ORDER BY path, id` order; `path` is a cs_cz `text[]` expression. */

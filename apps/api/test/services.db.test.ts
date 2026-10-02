@@ -33,6 +33,8 @@ describe('createServices', () => {
     expect((await services.items.get(actor, item.id)).path.map((p) => p.name)).toEqual(['Centrála Praha']);
     expect((await services.locationTypes.list(actor)).map((type) => type.code)).toContain('HQ');
     expect((await services.serviceProviders.get(actor, provider.id)).name).toBe('Elektrikář s.r.o.');
+    const record = await services.serviceRecords.create(actor, item.id, { performedOn: '2026-04-15', title: 'Výměna filtru' });
+    expect((await services.serviceRecords.listByItem(actor, item.id, { limit: 10 })).items.map((r) => r.id)).toEqual([record.id]);
     const { key } = await services.photos.requestUpload(actor, item.id, { contentType: 'image/png' });
     bucket.upload(key, { contentType: 'image/png' });
     const photo = await services.photos.confirm(actor, item.id, { key, width: 800, height: 600 });

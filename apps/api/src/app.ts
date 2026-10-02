@@ -16,6 +16,7 @@ import { createLocationRoutes, createLocationTypeRoutes } from './modules/locati
 import { createManufacturerRoutes } from './modules/manufacturers/routes.ts';
 import { createPhotoRoutes } from './modules/photos/routes.ts';
 import { createServiceProviderRoutes } from './modules/service-providers/routes.ts';
+import { createServiceRecordRoutes } from './modules/service-records/routes.ts';
 import { createUserRoutes } from './modules/users/routes.ts';
 import { createSystemRoutes } from './routes/system.ts';
 import type { Services } from './services.ts';
@@ -72,6 +73,7 @@ export function createApp({ auth, baseUrl, isProduction, log, services, staticRo
     .route('/api/v1', createPhotoRoutes(services.photos))
     .route('/api/v1', createManufacturerRoutes(services.manufacturers))
     .route('/api/v1', createServiceProviderRoutes(services.serviceProviders))
+    .route('/api/v1', createServiceRecordRoutes(services.serviceRecords))
     .route('/api/v1', createUserRoutes(services.users));
 
   routes.openAPIRegistry.registerComponent('securitySchemes', 'cookieAuth', {
