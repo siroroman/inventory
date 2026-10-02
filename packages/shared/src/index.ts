@@ -11,3 +11,4 @@ export * from './manufacturers.ts';
 export * from './service-providers.ts';
 export * from './service-records.ts';
 export * from './users.ts';
+export * from './service-record-documents.ts';

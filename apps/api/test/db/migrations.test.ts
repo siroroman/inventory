@@ -7,6 +7,8 @@ import { migrationsFolder, runMigrations } from '../../src/db/migrate.ts';
 import { createDatabase, dropDatabase, urlFor, useTestDb } from '../helpers/db.ts';
 
 const AUDITED_TABLES = ['location_types', 'locations', 'items', 'manufacturers', 'service_providers', 'service_records'];
+// Documents are versioned (rename) but deleted for real: no archived_at.
+const VERSIONED_TABLES = [...AUDITED_TABLES, 'service_record_documents'];
 const COMMON_COLUMNS = ['created_at', 'created_by', 'updated_at', 'updated_by', 'archived_at', 'version'];
 // Users are never deleted, so author references need no index for ON DELETE checks.
 const UNINDEXED_FK_ALLOWLIST = new Set(['created_by', 'updated_by', 'audit_log.user_id']);
@@ -32,7 +34,7 @@ describe('migrations', () => {
     );
     await pool.end();
     expect(applied.rows[0]).toEqual({ n: journal.entries.length });
-    expect(tables.rows[0]).toEqual({ n: 14 });
+    expect(tables.rows[0]).toEqual({ n: 15 });
   });
 });
 
@@ -43,13 +45,14 @@ describe('schema', () => {
     const versioned = await t().owner.execute(sql`
       SELECT table_name FROM information_schema.columns
       WHERE table_schema = 'public' AND column_name = 'version' ORDER BY table_name`);
-    expect(versioned.rows.map((r) => r.table_name)).toEqual([...AUDITED_TABLES].sort());
+    expect(versioned.rows.map((r) => r.table_name)).toEqual([...VERSIONED_TABLES].sort());
 
-    for (const table of AUDITED_TABLES) {
+    for (const table of VERSIONED_TABLES) {
+      const common = table === 'service_record_documents' ? COMMON_COLUMNS.filter((c) => c !== 'archived_at') : COMMON_COLUMNS;
       const cols = await t().owner.execute(sql`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = ${table}`);
-      expect(cols.rows.map((r) => r.column_name), table).toEqual(expect.arrayContaining(COMMON_COLUMNS));
+      expect(cols.rows.map((r) => r.column_name), table).toEqual(expect.arrayContaining(common));
 
       const trigger = await t().owner.execute(sql`
         SELECT 1 FROM pg_trigger tg JOIN pg_proc p ON p.oid = tg.tgfoid

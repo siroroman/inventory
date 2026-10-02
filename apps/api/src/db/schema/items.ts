@@ -2,18 +2,21 @@ import { sql } from 'drizzle-orm';
 import {
   check,
   date,
+  foreignKey,
   index,
   integer,
   pgSequence,
   pgTable,
   smallint,
   text,
+  timestamp,
   unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { manufacturers } from './catalog.ts';
 import { auditColumns, createdColumns, id } from './common.ts';
+import { user } from './auth.ts';
 import { locations } from './locations.ts';
 
 export const itemCodeSeq = pgSequence('item_code_seq');
@@ -117,5 +120,39 @@ export const serviceRecords = pgTable(
     // Also serves the item's history: newest first, id as the tie-break for the cursor.
     index('service_records_item_id_performed_on_idx').on(t.itemId, t.performedOn, t.id),
     check('service_records_title_not_blank', sql`btrim(${t.title}) <> ''`),
+  ],
+);
+
+// A file attached to a service record, stored in the bucket under `storage_key`. Documents are
+// deleted for real (the row and the file), so there is no archived_at; renaming is versioned.
+export const serviceRecordDocuments = pgTable(
+  'service_record_documents',
+  {
+    id: id(),
+    serviceRecordId: uuid().notNull(),
+    name: text().notNull(),
+    storageKey: text().notNull(),
+    contentType: text().notNull(),
+    sizeBytes: integer().notNull(),
+    ...createdColumns(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid().references(() => user.id, { onDelete: 'restrict' }),
+    version: integer().notNull().default(1),
+  },
+  (t) => [
+    // Named explicitly: the generated name is longer than the 63 characters Postgres keeps.
+    foreignKey({
+      name: 'service_record_documents_record_id_fk',
+      columns: [t.serviceRecordId],
+      foreignColumns: [serviceRecords.id],
+    }).onDelete('restrict'),
+    unique('service_record_documents_storage_key_key').on(t.storageKey),
+    index('service_record_documents_record_id_created_at_idx').on(t.serviceRecordId, t.createdAt, t.id),
+    check('service_record_documents_name_not_blank', sql`btrim(${t.name}) <> ''`),
+    check(
+      'service_record_documents_content_type_allowed',
+      sql`${t.contentType} in ('application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')`,
+    ),
+    check('service_record_documents_size_range', sql`${t.sizeBytes} > 0 and ${t.sizeBytes} <= 20971520`),
   ],
 );
