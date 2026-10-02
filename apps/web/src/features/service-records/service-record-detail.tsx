@@ -96,10 +96,15 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
       <ServiceRecordDocuments recordId={record.id} canEdit={changeable && !record.archivedAt} />
 
       <div className="flex justify-end">
-        <Button asChild>
-          <Link to="/items/$id" params={{ id: record.item.id }}>
+        {/* The button shows the item's name; the accessible name also says where it leads. */}
+        <Button asChild className="max-w-full min-w-0">
+          <Link
+            to="/items/$id"
+            params={{ id: record.item.id }}
+            aria-label={t('serviceRecord.backToItem', { name: record.item.name })}
+          >
             <ArrowLeft aria-hidden />
-            {t('serviceRecord.backToItem')}
+            <span className="truncate">{record.item.name}</span>
           </Link>
         </Button>
       </div>
