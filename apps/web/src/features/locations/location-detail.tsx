@@ -35,7 +35,7 @@ function Breadcrumb({ path }: { path: LocationDto['path'] }) {
   const { t } = useTranslation();
   return (
     <nav aria-label={t('locationDetail.breadcrumb')} className="mb-1">
-      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+      <ol className="flex flex-wrap items-center gap-x-1 text-sm text-foreground/80">
         <li>
           <Link to="/" className={crumbLink}>
             {t('home.locations.tab')}
@@ -45,7 +45,7 @@ function Breadcrumb({ path }: { path: LocationDto['path'] }) {
           <li key={segment.id} className="flex items-center gap-x-1">
             <ChevronRight aria-hidden className="size-3.5" />
             {index === path.length - 1 ? (
-              <span aria-current="page" className="text-foreground">
+              <span aria-current="page" className="font-bold text-foreground">
                 {segment.name}
               </span>
             ) : (
