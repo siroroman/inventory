@@ -119,9 +119,9 @@ describe('home: desktop table', () => {
 
     const table = await screen.findByRole('table');
     const headings = within(table).getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headings).toEqual(['Název', 'Typ', 'Adresa', 'Podlokality', 'Položky']);
+    expect(headings).toEqual(['Název', 'ID', 'Typ', 'Adresa', 'Podlokality', 'Položky']);
     const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
-    expect(cells).toEqual(['Centrála Praha', 'Centrála', 'Vinohradská 12, Praha', '4 podlokality', '38 položek']);
+    expect(cells).toEqual(['Centrála Praha', 'LOC-001', 'Centrála', 'Vinohradská 12, Praha', '4 podlokality', '38 položek']);
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
