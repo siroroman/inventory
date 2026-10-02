@@ -97,7 +97,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
 
       <div className="flex justify-end">
         {/* The button shows the item's name; the accessible name also says where it leads. */}
-        <Button asChild className="max-w-full min-w-0">
+        <Button asChild size="sm" className="max-w-full min-w-0">
           <Link
             to="/items/$id"
             params={{ id: record.item.id }}
