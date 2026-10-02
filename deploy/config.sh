@@ -1,4 +1,4 @@
-# Shared settings for setup.sh, deploy.sh and db-proxy.sh. Sourced, not run.
+# Shared settings for setup.sh, setup-storage.sh, deploy.sh and db-proxy.sh. Sourced, not run.
 # The project comes from `gcloud config set project <id>` unless PROJECT_ID is set.
 
 PROJECT_ID="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null)}"
