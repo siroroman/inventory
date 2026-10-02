@@ -5,7 +5,14 @@ import { z } from 'zod';
 // schemas, so these only need to catch what the user can fix before sending.
 const optionalText = (max: number) => z.string().trim().max(max, 'serviceRecordForm.errors.tooLong');
 
+/** The item the record belongs to: picked on a new record from the Maintenance tab, fixed otherwise. */
+const pickedItem = z
+  .object({ id: z.string(), label: z.string(), hint: z.string().optional() })
+  .nullable()
+  .refine((item) => item !== null, 'serviceRecordForm.errors.itemRequired');
+
 export const serviceRecordFormSchema = z.object({
+  item: pickedItem,
   performedOn: z
     .string()
     .min(1, 'serviceRecordForm.errors.required')
@@ -26,7 +33,8 @@ export function today(now = new Date()): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
-export const emptyServiceRecordForm = (): ServiceRecordFormValues => ({
+export const emptyServiceRecordForm = (item: ServiceRecordFormValues['item'] = null): ServiceRecordFormValues => ({
+  item,
   performedOn: today(),
   title: '',
   performedBy: '',
@@ -36,6 +44,7 @@ export const emptyServiceRecordForm = (): ServiceRecordFormValues => ({
 
 export function recordToFormValues(record: ServiceRecordDto): ServiceRecordFormValues {
   return {
+    item: { id: record.item.id, label: record.item.name },
     performedOn: record.performedOn,
     title: record.title,
     performedBy: record.performedBy ?? '',
@@ -46,7 +55,7 @@ export function recordToFormValues(record: ServiceRecordDto): ServiceRecordFormV
 
 const orNull = (text: string) => text.trim() || null;
 
-/** The API body for validated form values; an empty optional field becomes `null` (clears it on an edit). */
+/** The API body for validated form values (the item is the path of the request, not part of the body); an empty optional field becomes `null` (clears it on an edit). */
 export function formValuesToBody(values: ServiceRecordFormValues): Required<CreateServiceRecordBody> {
   return {
     performedOn: values.performedOn,

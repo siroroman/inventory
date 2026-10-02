@@ -12,14 +12,18 @@ import { ServiceRecordForm } from './service-record-form';
 const isMissing = (error: unknown) =>
   error instanceof ApiError && (error.code === 'not_found' || error.code === 'validation_error');
 
-/** New service record screen: loads the item the record is added to, then the empty form. */
-export function ServiceRecordCreate({ itemId }: { itemId: string }) {
+/**
+ * New service record screen: loads the item the record is added to, then the empty form. Without
+ * an `itemId` (from the Maintenance tab) the form asks for the item instead.
+ */
+export function ServiceRecordCreate({ itemId }: { itemId?: string }) {
   const { t } = useTranslation();
   const canWrite = useCanWrite();
-  const query = useQuery({ ...itemDetailQueryOptions(itemId), enabled: canWrite });
+  const query = useQuery({ ...itemDetailQueryOptions(itemId ?? ''), enabled: canWrite && itemId !== undefined });
 
   // The route guard has loaded the session, so the role is known by now.
   if (!canWrite) return <NoWriteAccess />;
+  if (itemId === undefined) return <ServiceRecordForm />;
   if (query.data?.archivedAt) return <ErrorState title={t('errors.archived')} />;
   if (query.data) return <ServiceRecordForm item={{ id: query.data.id, name: query.data.name }} />;
   if (query.isError) {

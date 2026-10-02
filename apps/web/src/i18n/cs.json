@@ -329,10 +329,13 @@
     "errors": {
       "required": "Vyplňte toto pole.",
       "tooLong": "Text je příliš dlouhý.",
-      "date": "Zadejte platné datum."
+      "date": "Zadejte platné datum.",
+      "itemRequired": "Vyberte položku."
     },
     "reload": "Načíst aktuální údaje",
     "save": "Uložit",
-    "saving": "Ukládám…"
+    "saving": "Ukládám…",
+    "itemPlaceholder": "Hledat podle názvu, ID, sériového čísla, lokality…",
+    "noItems": "Žádná položka nenalezena."
   }
 }

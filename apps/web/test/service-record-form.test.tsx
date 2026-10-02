@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { today } from '../src/features/service-records/service-record-form-values.ts';
+import { item as listedItem, page } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
 
 const itemId = '5b1c6d2e-3f4a-4b5c-8d9e-0a1b2c3d4e5f';
@@ -160,6 +161,84 @@ describe('new service record', () => {
     await user.click(screen.getByRole('link', { name: 'Zrušit' }));
     expect(await screen.findByRole('heading', { name: 'Kávovar Linea PB', level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('new service record from the maintenance tab', () => {
+  const kavovar = () => listedItem({ id: itemId, name: 'Kávovar Linea PB', code: 'INV-00042' });
+
+  it('asks for the item with a search, shows the ID and location of each match and creates the record under it', async () => {
+    const created = record({ id: crypto.randomUUID(), version: 1, title: 'Roční prohlídka' });
+    const calls = api({
+      'GET /api/v1/items': (request) =>
+        new URL(request.url).searchParams.get('q') === 'kav' ? page([kavovar()]) : page([kavovar(), listedItem({ name: 'Myčka' })]),
+      [`POST /api/v1/items/${itemId}/service-records`]: () => jsonResponse(created, { status: 201 }),
+      [`GET /api/v1/service-records/${created.id}`]: () => jsonResponse(created),
+    });
+    const user = userEvent.setup();
+    const { router } = renderApp('/service-records/new');
+
+    expect(await screen.findByRole('heading', { name: 'Nový servisní záznam' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Datum')).toHaveValue(today());
+    await user.type(screen.getByLabelText('Položka'), 'kav');
+    // The whole list shows until the search settles 300 ms after the last keystroke.
+    const results = await screen.findByRole('list', { name: 'Výsledky: Položka' });
+    await waitFor(() => expect(within(results).getAllByRole('button')).toHaveLength(1));
+    const options = within(results).getAllByRole('button');
+    expect(options[0]).toHaveTextContent('Kávovar Linea PB');
+    expect(options[0]).toHaveTextContent('INV-00042 · Centrála Praha › Přízemí › Teplá kuchyně');
+    await user.click(options[0]!);
+    // The chosen item is a field of its own now, showing the name and the hint.
+    expect(screen.getByLabelText('Položka')).toHaveTextContent('Kávovar Linea PB');
+    expect(screen.getByLabelText('Položka')).toHaveTextContent('INV-00042');
+
+    await user.type(screen.getByLabelText('Název'), 'Roční prohlídka');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/service-records/${created.id}`));
+    expect(await screen.findByText('Uloženo')).toBeInTheDocument();
+    expect(await bodyOf(calls, 'POST', `/api/v1/items/${itemId}/service-records`)).toEqual({
+      performedOn: today(),
+      title: 'Roční prohlídka',
+      performedBy: null,
+      responsiblePerson: null,
+      description: null,
+    });
+  });
+
+  it('wants an item and sends nothing until one is picked', async () => {
+    const calls = api({ 'GET /api/v1/items': () => page([kavovar()]) });
+    const user = userEvent.setup();
+    renderApp('/service-records/new');
+    await user.type(await screen.findByLabelText('Název'), 'Prohlídka');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    expect(await screen.findByText('Vyberte položku.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Položka')).toHaveAttribute('aria-invalid', 'true');
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
+  it('says so when no item matches', async () => {
+    api({ 'GET /api/v1/items': () => page([]) });
+    const user = userEvent.setup();
+    renderApp('/service-records/new');
+    await user.type(await screen.findByLabelText('Položka'), 'nic');
+    expect(await screen.findByText('Žádná položka nenalezena.')).toBeInTheDocument();
+  });
+
+  it('goes back to the Maintenance tab on Cancel', async () => {
+    api();
+    const user = userEvent.setup();
+    const { router } = renderApp('/service-records/new');
+    await user.click(await screen.findByRole('link', { name: 'Zrušit' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'maintenance' }));
+    expect(router.state.location.pathname).toBe('/');
+  });
+
+  it('refuses a reader', async () => {
+    api({}, 'read');
+    renderApp('/service-records/new');
+    expect(await screen.findByText('K této akci nemáte oprávnění.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Položka')).not.toBeInTheDocument();
   });
 });
 

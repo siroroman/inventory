@@ -1,10 +1,13 @@
 import type { ServiceRecordListEntryDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { pathLabel } from '@/features/locations/path';
 import { formatDate } from '@/lib/format';
 import { serviceRecordListQueryOptions } from './api';
@@ -25,6 +28,7 @@ export function ServiceRecordsPanel({
   const { t } = useTranslation();
   const query = useInfiniteQuery(serviceRecordListQueryOptions(q, archived));
   const total = pagedTotal(query.data);
+  const canWrite = useCanWrite();
 
   const columns: Column<ServiceRecordListEntryDto>[] = [
     {
@@ -82,6 +86,16 @@ export function ServiceRecordsPanel({
         title={t('home.maintenance.tab')}
         count={total === undefined ? undefined : t('common.recordCount', { count: total })}
         archived={{ checked: archived, onChange: onArchived, label: t('home.showArchived') }}
+        action={
+          canWrite && (
+            <Button asChild>
+              <Link to="/service-records/new">
+                <Plus aria-hidden />
+                {t('home.maintenance.add')}
+              </Link>
+            </Button>
+          )
+        }
         search={{
           value: q,
           onSearch,

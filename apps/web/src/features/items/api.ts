@@ -1,5 +1,6 @@
 import type { CreateItemBody, UpdateItemBody } from '@inventory/shared';
 import { queryOptions } from '@tanstack/react-query';
+import { pathLabel } from '@/features/locations/path';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
 
@@ -24,6 +25,19 @@ export const locationPickerOptions = (q: string) => ({
     const query = q ? { q, withSubLocations: 'true' as const, limit: '20' } : { limit: '20' };
     const page = await unwrap(api.api.v1.locations.$get({ query }));
     return page.items.map((location) => ({ id: location.id, label: location.path.map((p) => p.name).join(' › ') }));
+  },
+});
+
+/** Active items matching `q` (the first ones by name without `q`), with their ID and location path to tell equal names apart. */
+export const itemPickerOptions = (q: string) => ({
+  queryKey: ['items', 'record-picker', q] as const,
+  queryFn: async () => {
+    const page = await unwrap(api.api.v1.items.$get({ query: q ? { q, limit: '20' } : { limit: '20' } }));
+    return page.items.map((item) => ({
+      id: item.id,
+      label: item.name,
+      hint: [item.code, pathLabel(item.path)].filter(Boolean).join(' · '),
+    }));
   },
 });
 

@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { page, recordListEntry } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
-function api(list: (request: Request) => Response = () => page([])) {
+function api(list: (request: Request) => Response = () => page([]), role = 'write') {
   return stubApi({
-    'GET /api/v1/me': () => jsonResponse(me),
+    'GET /api/v1/me': () => jsonResponse({ ...me, role }),
     'GET /api/v1/service-records': list,
   });
 }
@@ -57,6 +57,20 @@ describe('home: maintenance tab', () => {
     const row = await screen.findByRole('listitem');
     expect(row).toHaveTextContent('15. 4. 2026 · Kávovar Linea PB');
     expect(row).not.toHaveTextContent('›');
+  });
+
+  it('offers "Přidat záznam" to a writer, not to a reader, and it opens the form with the item search', async () => {
+    api();
+    const { router } = renderApp('/?tab=maintenance');
+    await userEvent.click(await screen.findByRole('link', { name: 'Přidat záznam' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/service-records/new'));
+  });
+
+  it('hides "Přidat záznam" from a reader', async () => {
+    api(() => page([]), 'read');
+    renderApp('/?tab=maintenance');
+    await screen.findByText('Zatím žádný servisní záznam');
+    expect(screen.queryByRole('link', { name: 'Přidat záznam' })).not.toBeInTheDocument();
   });
 
   it('says there is nothing yet when the list is empty', async () => {

@@ -15,6 +15,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppItemsNewRouteImport } from './routes/_app/items/new'
 import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
 import { Route as AppLocationsNewRouteImport } from './routes/_app/locations/new'
+import { Route as AppServiceRecordsNewRouteImport } from './routes/_app/service-records/new'
 import { Route as AppItemsIdIndexRouteImport } from './routes/_app/items/$id/index'
 import { Route as AppItemsIdEditRouteImport } from './routes/_app/items/$id/edit'
 import { Route as AppLocationsIdEditRouteImport } from './routes/_app/locations/$id_.edit'
@@ -49,6 +50,11 @@ const AppLocationsIdRoute = AppLocationsIdRouteImport.update({
 const AppLocationsNewRoute = AppLocationsNewRouteImport.update({
   id: '/locations/new',
   path: '/locations/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServiceRecordsNewRoute = AppServiceRecordsNewRouteImport.update({
+  id: '/service-records/new',
+  path: '/service-records/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppItemsIdIndexRoute = AppItemsIdIndexRouteImport.update({
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
   '/locations/new': typeof AppLocationsNewRoute
+  '/service-records/new': typeof AppServiceRecordsNewRoute
   '/items/$id/edit': typeof AppItemsIdEditRoute
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/service-records/$id/edit': typeof AppServiceRecordsIdEditRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
   '/locations/new': typeof AppLocationsNewRoute
+  '/service-records/new': typeof AppServiceRecordsNewRoute
   '/items/$id/edit': typeof AppItemsIdEditRoute
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/service-records/$id/edit': typeof AppServiceRecordsIdEditRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/_app/items/new': typeof AppItemsNewRoute
   '/_app/locations/$id': typeof AppLocationsIdRoute
   '/_app/locations/new': typeof AppLocationsNewRoute
+  '/_app/service-records/new': typeof AppServiceRecordsNewRoute
   '/_app/items/$id/edit': typeof AppItemsIdEditRoute
   '/_app/locations/$id_/edit': typeof AppLocationsIdEditRoute
   '/_app/service-records/$id/edit': typeof AppServiceRecordsIdEditRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/items/new'
     | '/locations/$id'
     | '/locations/new'
+    | '/service-records/new'
     | '/items/$id/edit'
     | '/locations/$id/edit'
     | '/service-records/$id/edit'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/items/new'
     | '/locations/$id'
     | '/locations/new'
+    | '/service-records/new'
     | '/items/$id/edit'
     | '/locations/$id/edit'
     | '/service-records/$id/edit'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/_app/items/new'
     | '/_app/locations/$id'
     | '/_app/locations/new'
+    | '/_app/service-records/new'
     | '/_app/items/$id/edit'
     | '/_app/locations/$id_/edit'
     | '/_app/service-records/$id/edit'
@@ -217,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLocationsNewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/service-records/new': {
+      id: '/_app/service-records/new'
+      path: '/service-records/new'
+      fullPath: '/service-records/new'
+      preLoaderRoute: typeof AppServiceRecordsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/items/$id/': {
       id: '/_app/items/$id/'
       path: '/items/$id'
@@ -267,6 +286,7 @@ interface AppRouteChildren {
   AppItemsNewRoute: typeof AppItemsNewRoute
   AppLocationsIdRoute: typeof AppLocationsIdRoute
   AppLocationsNewRoute: typeof AppLocationsNewRoute
+  AppServiceRecordsNewRoute: typeof AppServiceRecordsNewRoute
   AppItemsIdEditRoute: typeof AppItemsIdEditRoute
   AppLocationsIdEditRoute: typeof AppLocationsIdEditRoute
   AppServiceRecordsIdEditRoute: typeof AppServiceRecordsIdEditRoute
@@ -280,6 +300,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppItemsNewRoute: AppItemsNewRoute,
   AppLocationsIdRoute: AppLocationsIdRoute,
   AppLocationsNewRoute: AppLocationsNewRoute,
+  AppServiceRecordsNewRoute: AppServiceRecordsNewRoute,
   AppItemsIdEditRoute: AppItemsIdEditRoute,
   AppLocationsIdEditRoute: AppLocationsIdEditRoute,
   AppServiceRecordsIdEditRoute: AppServiceRecordsIdEditRoute,
