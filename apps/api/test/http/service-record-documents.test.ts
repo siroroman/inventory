@@ -71,6 +71,7 @@ describe('adding a document', () => {
     );
     expect(document).toMatchObject({ name: 'Revizní zpráva', contentType: PDF, size: 123_456, version: 1 });
     expect(document.url).toBe(`https://storage.test/${target.key}?ttl=900&name=${encodeURIComponent('Revizní zpráva.pdf')}`);
+    expect(document.downloadUrl).toBe(`${document.url}&download=1`);
     expect(document).not.toHaveProperty('storageKey');
 
     const [author] = await db().app.select().from(user).where(eq(user.id, document.createdBy!.id));

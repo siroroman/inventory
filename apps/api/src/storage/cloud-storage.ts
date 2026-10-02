@@ -20,9 +20,18 @@ export type StorageFile = {
 };
 export type StorageBucket = { file(name: string): StorageFile };
 
-/** `inline; filename*=UTF-8''...`: the browser opens the file and keeps a readable name for saving. */
-export const contentDisposition = (fileName: string) =>
-  `inline; filename*=UTF-8''${encodeURIComponent(fileName).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
+/**
+ * `inline; filename*=UTF-8''...`: the browser opens the file and keeps a readable name for saving.
+ * `attachment` makes it save the file straight away.
+ */
+export const contentDisposition = (fileName: string, kind: 'inline' | 'attachment' = 'inline') =>
+  `${kind}; filename*=UTF-8''${encodeURIComponent(fileName).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
+
+function disposition(options?: { fileName?: string; download?: boolean }): string | undefined {
+  const kind = options?.download ? 'attachment' : 'inline';
+  if (options?.fileName) return contentDisposition(options.fileName, kind);
+  return options?.download ? kind : undefined;
+}
 
 const isNotFound = (error: unknown) => (error as { code?: number } | null)?.code === 404;
 
@@ -49,7 +58,7 @@ export function createCloudStorage(bucket: StorageBucket, now: () => number = Da
         version: 'v4',
         action: 'read',
         expires: expiry(ttlSeconds),
-        responseDisposition: options?.fileName ? contentDisposition(options.fileName) : undefined,
+        responseDisposition: disposition(options),
       });
       return url;
     },

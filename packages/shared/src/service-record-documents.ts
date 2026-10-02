@@ -27,7 +27,10 @@ export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 /** Who added a document; `null` for one without a recorded author. */
 const documentAuthor = z.object({ id: z.uuid(), name: z.string() }).nullable();
 
-/** A document of a service record; `url` is a read link that expires after 15 minutes and downloads under `name`. */
+/**
+ * A document of a service record. `url` opens the file in the browser and `downloadUrl` saves it;
+ * both expire after 15 minutes and carry `name` (with the extension) as the file name.
+ */
 export const documentSchema = z.object({
   id: z.uuid(),
   version: versionField,
@@ -35,6 +38,7 @@ export const documentSchema = z.object({
   contentType: z.string(),
   size: z.number().int().min(1),
   url: z.string(),
+  downloadUrl: z.string(),
   createdAt: timestamp,
   createdBy: documentAuthor,
 });

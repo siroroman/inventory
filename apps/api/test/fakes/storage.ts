@@ -14,7 +14,7 @@ export function createFakeStorage() {
     },
     async createReadUrl(key, ttlSeconds, options) {
       const name = options?.fileName ? `&name=${encodeURIComponent(options.fileName)}` : '';
-      return `https://storage.test/${key}?ttl=${ttlSeconds}${name}`;
+      return `https://storage.test/${key}?ttl=${ttlSeconds}${name}${options?.download ? '&download=1' : ''}`;
     },
     async head(key) {
       return objects.get(key) ?? null;

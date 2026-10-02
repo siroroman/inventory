@@ -44,7 +44,8 @@ export type RecordDocumentDeps = {
 /** Read links in API responses stay valid this long. */
 export const DOCUMENT_URL_TTL_SECONDS = 15 * 60;
 
-export type RecordDocumentWithUrl = RecordDocumentWithAuthor & { url: string };
+/** `url` opens the file in the browser, `downloadUrl` saves it; both carry the document's name. */
+export type RecordDocumentWithUrl = RecordDocumentWithAuthor & { url: string; downloadUrl: string };
 export type DocumentUploadTarget = { key: string; uploadUrl: string };
 
 const extensions = Object.values(DOCUMENT_TYPES).join('|');
@@ -79,12 +80,14 @@ async function loadDocument(r: RecordDocumentRepos, recordId: string, documentId
  * there. Documents are deleted for real (the row, then the file); the audit log keeps the trace.
  */
 export function createRecordDocumentService({ repos, transact, storage, newId }: RecordDocumentDeps) {
-  const withUrl = async (document: RecordDocumentWithAuthor): Promise<RecordDocumentWithUrl> => ({
-    ...document,
-    url: await storage.createReadUrl(document.storageKey, DOCUMENT_URL_TTL_SECONDS, {
-      fileName: downloadName(document.name, document.contentType),
-    }),
-  });
+  const withUrl = async (document: RecordDocumentWithAuthor): Promise<RecordDocumentWithUrl> => {
+    const fileName = downloadName(document.name, document.contentType);
+    const [url, downloadUrl] = await Promise.all([
+      storage.createReadUrl(document.storageKey, DOCUMENT_URL_TTL_SECONDS, { fileName }),
+      storage.createReadUrl(document.storageKey, DOCUMENT_URL_TTL_SECONDS, { fileName, download: true }),
+    ]);
+    return { ...document, url, downloadUrl };
+  };
 
   return {
     /** Newest first, each with a read URL valid for 15 minutes. Archived records and items included. */

@@ -10,6 +10,7 @@ export function toDocumentDto(document: RecordDocumentWithUrl): DocumentDto {
     contentType: document.contentType,
     size: document.sizeBytes,
     url: document.url,
+    downloadUrl: document.downloadUrl,
     createdAt: document.createdAt.toISOString(),
     createdBy: document.createdBy ? { id: document.createdBy, name: document.createdByName ?? '' } : null,
   };

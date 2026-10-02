@@ -51,6 +51,14 @@ describe('createCloudStorage', () => {
     expect(signed[1]?.responseDisposition).toBe("inline; filename*=UTF-8''Revizn%C3%AD%20zpr%C3%A1va.pdf");
   });
 
+  it('signs a download link that saves the file instead of opening it', async () => {
+    const { storage, signed } = setup();
+    await storage.createReadUrl('k.pdf', 900, { fileName: 'Zpráva.pdf', download: true });
+    await storage.createReadUrl('k.pdf', 900, { download: true });
+    expect(signed[0]?.responseDisposition).toBe("attachment; filename*=UTF-8''Zpr%C3%A1va.pdf");
+    expect(signed[1]?.responseDisposition).toBe('attachment');
+  });
+
   it('reports size and type of a stored object, and null when it is missing', async () => {
     expect(await setup().storage.head('k')).toEqual({ size: 1234, contentType: 'application/pdf' });
     const missing = setup({ getMetadata: () => Promise.reject(Object.assign(new Error('No such object'), { code: 404 })) });
@@ -73,5 +81,6 @@ describe('createCloudStorage', () => {
 describe('contentDisposition', () => {
   it('escapes quotes, parentheses and other characters a header could trip on', () => {
     expect(contentDisposition(`a"b (1)'*.pdf`)).toBe("inline; filename*=UTF-8''a%22b%20%281%29%27%2A.pdf");
+    expect(contentDisposition('a.pdf', 'attachment')).toBe("attachment; filename*=UTF-8''a.pdf");
   });
 });

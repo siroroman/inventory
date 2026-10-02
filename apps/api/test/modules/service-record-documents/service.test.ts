@@ -116,6 +116,7 @@ describe('record document service', () => {
         createdByName: 'Jana Nováková',
         version: 1,
         url: `https://storage.test/${document.storageKey}?ttl=900&name=${encodeURIComponent('Revizní zpráva.pdf')}`,
+        downloadUrl: `https://storage.test/${document.storageKey}?ttl=900&name=${encodeURIComponent('Revizní zpráva.pdf')}&download=1`,
       });
       expect(store.state.audit.at(-1)).toMatchObject({
         userId: writer.id,
@@ -199,6 +200,8 @@ describe('record document service', () => {
       expect(list[0]).toMatchObject({ id: second.id, createdByName: 'Jana Nováková' });
       expect(list[0]?.url).toContain('ttl=900');
       expect(list[0]?.url).toContain(encodeURIComponent('Druhý.xlsx'));
+      expect(list[0]?.url).not.toContain('download');
+      expect(list[0]?.downloadUrl).toContain('&download=1');
     });
 
     it('lists the documents of an archived record and item, and refuses an unknown record', async () => {
