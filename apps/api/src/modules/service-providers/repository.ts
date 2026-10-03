@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { manufacturers, manufacturerServiceProviders, serviceProviders } from '../../db/schema/index.ts';
@@ -19,8 +19,9 @@ export type ServiceProviderPatch = Partial<ServiceProviderFields> & { updatedBy:
 export type ServiceProviderFilter = { q?: string; archived?: boolean };
 
 // Tens of providers: the search needs no trigram index. A number is found with or without the
-// spaces it is written with ("+420 601 123 456" and "+420601").
-function listWhere(filter: ServiceProviderFilter): SQL[] {
+// spaces it is written with ("+420 601 123 456" and "+420601"); a brand name finds the providers
+// that service it, archived brands included.
+function listWhere(db: DbExecutor, filter: ServiceProviderFilter): SQL[] {
   const conditions: SQL[] = [filter.archived ? isNotNull(serviceProviders.archivedAt) : isNull(serviceProviders.archivedAt)];
   if (filter.q) {
     const digits = filter.q.replace(/\s+/g, '');
@@ -29,6 +30,14 @@ function listWhere(filter: ServiceProviderFilter): SQL[] {
         containsText(serviceProviders.name, filter.q),
         containsText(serviceProviders.code, filter.q),
         containsText(sql`replace(${serviceProviders.phone}, ' ', '')`, digits),
+        inArray(
+          serviceProviders.id,
+          db
+            .select({ id: manufacturerServiceProviders.serviceProviderId })
+            .from(manufacturerServiceProviders)
+            .innerJoin(manufacturers, eq(manufacturers.id, manufacturerServiceProviders.manufacturerId))
+            .where(containsText(manufacturers.name, filter.q)),
+        ),
       )!,
     );
   }
@@ -49,14 +58,14 @@ export function createServiceProviderRepository(db: DbExecutor) {
       const rows = await db
         .select()
         .from(serviceProviders)
-        .where(and(...listWhere(filter), afterName(serviceProviders.name, serviceProviders.id, page.cursor)))
+        .where(and(...listWhere(db, filter), afterName(serviceProviders.name, serviceProviders.id, page.cursor)))
         .orderBy(asc(serviceProviders.name), asc(serviceProviders.id))
         .limit(page.limit + 1);
       return toPage(rows, page.limit, (r) => ({ name: r.name, id: r.id }));
     },
 
     async count(filter: ServiceProviderFilter): Promise<number> {
-      const [row] = await db.select({ n: count() }).from(serviceProviders).where(and(...listWhere(filter)));
+      const [row] = await db.select({ n: count() }).from(serviceProviders).where(and(...listWhere(db, filter)));
       return row!.n;
     },
 

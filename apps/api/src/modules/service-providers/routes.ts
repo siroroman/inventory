@@ -20,7 +20,7 @@ const list = defineRoute({
   minRole: 'read',
   tags: ['service-providers'],
   summary:
-    'List and search active service providers by name (`archived=true`: the archived ones); the search covers name, code and phone',
+    'List and search active service providers by name (`archived=true`: the archived ones); the search covers name, code, phone and the brands serviced',
   request: { query: serviceProviderListQuery },
   responses: { 200: { description: 'One page of service providers', content: jsonContent(serviceProviderListSchema) } },
 });

@@ -61,7 +61,7 @@ describe('home: suppliers tab', () => {
     await screen.findByText('Zatím žádný dodavatel');
 
     const box = screen.getByRole('searchbox', { name: 'Hledat dodavatele' });
-    expect(box).toHaveAttribute('placeholder', 'Hledat podle názvu, ID, telefonu…');
+    expect(box).toHaveAttribute('placeholder', 'Hledat podle názvu, ID, telefonu, značky…');
     await userEvent.type(box, 'novak');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'suppliers', q: 'novak' }));
     await screen.findByText('Nic jsme nenašli');

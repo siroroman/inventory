@@ -93,7 +93,8 @@ export function createFakeCatalogStore() {
         !filter.q ||
         fakeContains(p.name, filter.q) ||
         fakeContains(p.code, filter.q) ||
-        fakeContains(p.phone?.replace(/\s+/g, ''), digits!);
+        fakeContains(p.phone?.replace(/\s+/g, ''), digits!) ||
+        state.links.some((l) => l.providerId === p.id && fakeContains(manufacturerById(l.manufacturerId)?.name, filter.q!));
       const rows = state.providers.filter((p) => Boolean(p.archivedAt) === Boolean(filter.archived) && matches(p));
       return fakePageByName(rows, page);
     },

@@ -124,7 +124,7 @@
     "suppliers": {
       "tab": "Dodavatelé",
       "searchLabel": "Hledat dodavatele",
-      "searchPlaceholder": "Hledat podle názvu, ID, telefonu…",
+      "searchPlaceholder": "Hledat podle názvu, ID, telefonu, značky…",
       "emptyTitle": "Zatím žádný dodavatel",
       "emptyHint": "Servisní dodavatelé se tu zobrazí, jakmile je někdo přidá.",
       "archivedEmptyTitle": "Žádní archivovaní dodavatelé",

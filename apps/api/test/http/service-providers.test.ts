@@ -94,6 +94,29 @@ describe('GET /service-providers', () => {
     expect(await names('999')).toEqual([]);
   });
 
+  it('searches by the name of a brand the provider services, archived brands included', async () => {
+    const { read, write } = await setup();
+    const alfa = await insertProvider(db().app, { name: 'Alfa servis' });
+    const beta = await insertProvider(db().app, { name: 'Beta servis' });
+    await insertProvider(db().app, { name: 'Gama servis' });
+    const marzocco = await insertManufacturer(db().app, { name: 'La Marzocco' });
+    const daikin = await insertManufacturer(db().app, { name: 'Daikin' });
+    await write.put(`/service-providers/${alfa.id}/manufacturers`, { version: 1, manufacturerIds: [marzocco.id, daikin.id] });
+    await write.put(`/service-providers/${beta.id}/manufacturers`, { version: 1, manufacturerIds: [daikin.id] });
+    await archiveManufacturerRow(daikin.id);
+    const names = async (q: string) =>
+      (await expectJson(await read.get(`/service-providers?q=${encodeURIComponent(q)}`), 200, serviceProviderListSchema)).items.map(
+        (p) => p.name,
+      );
+
+    expect(await names('marzocco')).toEqual(['Alfa servis']);
+    expect(await names('LA MARZ')).toEqual(['Alfa servis']);
+    expect(await names('daikin')).toEqual(['Alfa servis', 'Beta servis']);
+    expect(await names('liebherr')).toEqual([]);
+    const counted = await expectJson(await read.get('/service-providers?q=daikin'), 200, serviceProviderListSchema);
+    expect(counted.total).toBe(2);
+  });
+
   it('lists the archived providers instead with ?archived=true', async () => {
     const { read, write } = await setup();
     const alfa = await insertProvider(db().app, { name: 'Alfa servis' });

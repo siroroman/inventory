@@ -62,6 +62,24 @@ describe('service provider repository', () => {
     expect(await repo().count({ archived: true })).toBe(1);
   });
 
+  it('finds a provider by the name of a brand it services, once, whatever else matches', async () => {
+    const { user, add } = await setup();
+    const first = await add('Rational servis');
+    const second = await add('Druhý');
+    await add('Třetí');
+    const rational = await insertManufacturer(t().app, { name: 'Rational' });
+    const unox = await insertManufacturer(t().app, { name: 'Unox' });
+    const manufacturers = createManufacturerRepository(t().app);
+    await manufacturers.replaceProviders(rational.id, [first.id, second.id], user.id);
+    await manufacturers.replaceProviders(unox.id, [second.id], user.id);
+
+    const names = async (q: string) => (await repo().list({ q }, { limit: 50 })).items.map((p) => p.name);
+    // "Rational servis" matches by its name and by its brand: listed once.
+    expect(await names('rational')).toEqual(['Druhý', 'Rational servis']);
+    expect(await names('uno')).toEqual(['Druhý']);
+    expect(await repo().count({ q: 'rational' })).toBe(2);
+  });
+
   it('lists the brands it services with its priority for each', async () => {
     const { user, add } = await setup();
     const first = await add('První');

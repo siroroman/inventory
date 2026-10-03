@@ -3,7 +3,7 @@ import { queryOptions } from '@tanstack/react-query';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
 
-/** Pages of the service providers by name (the archived ones with `archived`); `q` searches name, ID and phone. */
+/** Pages of the service providers by name (the archived ones with `archived`); `q` searches name, ID, phone and the brands serviced. */
 export const providerListQueryOptions = (q: string, archived = false) =>
   pagedListQueryOptions('service-providers', q, (query) => unwrap(api.api.v1['service-providers'].$get({ query })), archived);
 
