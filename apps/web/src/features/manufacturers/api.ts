@@ -5,9 +5,12 @@ import { api, unwrap } from '@/lib/api';
 export const manufacturerPickerOptions = (q: string, exclude: readonly string[] = []) => ({
   queryKey: ['manufacturers', 'picker', q, exclude.join(',')] as const,
   queryFn: async () => {
-    const page = await unwrap(api.api.v1.manufacturers.$get({ query: { q: q || undefined, limit: '20' } }));
+    // The left-out ones would take places of the page: ask for that many more.
+    const limit = String(Math.min(100, 20 + exclude.length));
+    const page = await unwrap(api.api.v1.manufacturers.$get({ query: { q: q || undefined, limit } }));
     return page.items
       .filter((manufacturer) => !exclude.includes(manufacturer.id))
+      .slice(0, 20)
       .map((manufacturer) => ({ id: manufacturer.id, label: manufacturer.name }));
   },
 });

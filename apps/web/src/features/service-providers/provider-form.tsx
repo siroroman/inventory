@@ -168,6 +168,7 @@ export function ProviderForm({ provider, onReload }: Props) {
                   emptyText={t('providerForm.noBrands')}
                   create={{
                     label: (name) => t('providerForm.createBrand', { name }),
+                    exists: (name) => chosen.some((c) => c.label.toLowerCase() === name.toLowerCase()),
                     run: async (name) => {
                       const created = await createManufacturer(name);
                       void queryClient.invalidateQueries({ queryKey: ['manufacturers'] });

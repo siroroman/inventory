@@ -124,6 +124,28 @@ describe('new supplier', () => {
     expect(screen.queryByRole('list', { name: 'Značky, které servisuje' })).not.toBeInTheDocument();
   });
 
+  it('does not offer to create a brand that is already chosen, and asks for more to fill the page', async () => {
+    const calls = api({
+      'GET /api/v1/manufacturers': (request) => {
+        const q = new URL(request.url).searchParams.get('q')?.toLowerCase() ?? '';
+        return page([brand(marzoccoId, 'La Marzocco'), brand(daikinId, 'Daikin')].filter((b) => b.name.toLowerCase().includes(q)));
+      },
+    });
+    const user = userEvent.setup();
+    renderApp('/service-providers/new');
+
+    await user.click(await screen.findByPlaceholderText('Přidat značku…'));
+    await user.click(await screen.findByRole('button', { name: 'Daikin' }));
+    await user.type(screen.getByPlaceholderText('Přidat značku…'), 'daikin');
+    await waitFor(() =>
+      expect(calls.some((c) => new URL(c.url).searchParams.get('q') === 'daikin')).toBe(true),
+    );
+    expect(await screen.findByText('Zatím žádná značka. Napište název a vytvořte ji.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Vytvořit značku/ })).not.toBeInTheDocument();
+    const last = calls.filter((c) => new URL(c.url).pathname === '/api/v1/manufacturers').at(-1)!;
+    expect(new URL(last.url).searchParams.get('limit')).toBe('21');
+  });
+
   it('creates a brand that does not exist yet and adds it', async () => {
     const created = providerDetail({ id: crypto.randomUUID(), name: 'Servis' });
     const calls = api({

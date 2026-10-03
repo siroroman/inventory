@@ -25,8 +25,11 @@ type Props = {
   error?: string;
   /** Adds a button that empties the choice; for optional fields. */
   clearable?: boolean;
-  /** Offers to make a new record from the typed text; resolves to the option to select. */
-  create?: { label: (text: string) => string; run: (text: string) => Promise<PickerOption> };
+  /**
+   * Offers to make a new record from the typed text; resolves to the option to select. `exists`
+   * tells of a record the results leave out (an already chosen one), so it is not offered again.
+   */
+  create?: { label: (text: string) => string; run: (text: string) => Promise<PickerOption>; exists?: (text: string) => boolean };
 };
 
 const debounceMs = 300;
@@ -63,6 +66,7 @@ export function SearchPicker({ id, label, value, onChange, search, placeholder, 
     typed !== '' &&
     query.data !== undefined &&
     q === typed &&
+    !create.exists?.(typed) &&
     !query.data.some((option) => option.label.toLowerCase() === typed.toLowerCase());
 
   const describedBy = error ? `${id}-error` : undefined;
