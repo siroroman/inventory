@@ -314,7 +314,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `GET /manufacturers`, `GET /manufacturers/{id}` | list, detail with ranked providers | Read |
 | `POST /manufacturers`, `PATCH /manufacturers/{id}` | create, edit | Write |
 | `PUT /manufacturers/{id}/service-providers` | send the whole new order at once, after every drop | Write |
-| `GET /service-providers`, `GET /service-providers/{id}` | list (search covers name, code, phone and the brands serviced; `archived=true` = the archived providers), detail with brands | Read |
+| `GET /service-providers`, `GET /service-providers/{id}` | list (search covers name, code, phone and the brands serviced; `archived=true` = the archived providers), detail with brands; list rows carry their brands too | Read |
 | `POST /service-providers`, `PATCH /service-providers/{id}` | create, edit; an optional `manufacturerIds` sets the brands in the same transaction (a new brand ranks the provider last, a dropped one closes the gap) and the answer is the provider with its brands | Write |
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
 | `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |

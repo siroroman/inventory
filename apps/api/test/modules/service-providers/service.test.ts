@@ -152,6 +152,30 @@ describe('service provider service', () => {
     });
   });
 
+  describe('list', () => {
+    it('carries the brands each provider services and an empty list for one without', async () => {
+      const { store, service } = setup();
+      const novak = await service.create(writer, { name: 'Servis Novák' });
+      await service.create(writer, { name: 'Zeta servis' });
+      const rational = await store.addManufacturer('Rational');
+      const unox = await store.addManufacturer('Unox');
+      await setBrands(service, novak.id, [rational.id, unox.id]);
+
+      const { items } = await service.list(reader, {}, { limit: 50 });
+
+      expect(items.map((p) => [p.name, p.manufacturers.map((b) => [b.name, b.priority])])).toEqual([
+        [
+          'Servis Novák',
+          [
+            ['Rational', 1],
+            ['Unox', 1],
+          ],
+        ],
+        ['Zeta servis', []],
+      ]);
+    });
+  });
+
   describe('archive and restore', () => {
     it('archives and restores with audit entries and hides archived rows from the list', async () => {
       const { store, service } = setup();

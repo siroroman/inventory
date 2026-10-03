@@ -99,6 +99,26 @@ export function createServiceProviderRepository(db: DbExecutor) {
         .where(eq(manufacturerServiceProviders.serviceProviderId, providerId))
         .orderBy(asc(manufacturers.name));
     },
+
+    /** The same for several providers at once, one entry per id (an empty list for a provider without brands). */
+    async listManufacturersOf(providerIds: string[]): Promise<Map<string, ServicedBrand[]>> {
+      const brands = new Map<string, ServicedBrand[]>(providerIds.map((id) => [id, []]));
+      if (providerIds.length === 0) return brands;
+      const rows = await db
+        .select({
+          providerId: manufacturerServiceProviders.serviceProviderId,
+          id: manufacturers.id,
+          name: manufacturers.name,
+          archivedAt: manufacturers.archivedAt,
+          priority: manufacturerServiceProviders.priority,
+        })
+        .from(manufacturerServiceProviders)
+        .innerJoin(manufacturers, eq(manufacturers.id, manufacturerServiceProviders.manufacturerId))
+        .where(inArray(manufacturerServiceProviders.serviceProviderId, providerIds))
+        .orderBy(asc(manufacturers.name));
+      for (const { providerId, ...brand } of rows) brands.get(providerId)?.push(brand);
+      return brands;
+    },
   };
 }
 

@@ -99,4 +99,25 @@ describe('service provider repository', () => {
       { id: rational.id, name: 'Rational', archivedAt: null, priority: 2 },
     ]);
   });
+
+  it('lists the brands of several providers at once, an empty list for one without', async () => {
+    const { user, add } = await setup();
+    const first = await add('První');
+    const second = await add('Druhý');
+    const third = await add('Třetí');
+    const rational = await insertManufacturer(t().app, { name: 'Rational' });
+    const daikin = await insertManufacturer(t().app, { name: 'Daikin' });
+    const manufacturers = createManufacturerRepository(t().app);
+    await manufacturers.replaceProviders(rational.id, [first.id, second.id], user.id);
+    await manufacturers.replaceProviders(daikin.id, [second.id], user.id);
+
+    const brands = await repo().listManufacturersOf([first.id, second.id, third.id]);
+    expect(brands.get(first.id)).toEqual([{ id: rational.id, name: 'Rational', archivedAt: null, priority: 1 }]);
+    expect(brands.get(second.id)).toEqual([
+      { id: daikin.id, name: 'Daikin', archivedAt: null, priority: 1 },
+      { id: rational.id, name: 'Rational', archivedAt: null, priority: 2 },
+    ]);
+    expect(brands.get(third.id)).toEqual([]);
+    expect((await repo().listManufacturersOf([])).size).toBe(0);
+  });
 });
