@@ -43,6 +43,7 @@ export function ServiceRecordsPanel({
         </>
       ),
     },
+    { header: t('home.maintenance.columns.code'), className: 'w-32', cell: (record) => record.item.code },
     {
       header: t('home.maintenance.columns.date'),
       className: 'w-32',
@@ -72,7 +73,7 @@ export function ServiceRecordsPanel({
         {record.archivedAt && <ArchivedBadge className="ml-2 align-middle" />}
       </p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {formatDate(record.performedOn)} · {record.item.name}
+        {formatDate(record.performedOn)} · {record.item.name} · {record.item.code}
       </p>
       {record.path.length > 0 && (
         <p className="truncate text-sm text-muted-foreground">{pathLabel(record.path)}</p>

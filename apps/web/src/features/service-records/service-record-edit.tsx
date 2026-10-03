@@ -23,7 +23,7 @@ export function ServiceRecordCreate({ itemId }: { itemId: string }) {
 
   if (!canWrite) return <NoWriteAccess />;
   if (query.data?.archivedAt) return <ErrorState title={t('errors.archived')} />;
-  if (query.data) return <ServiceRecordForm item={{ id: query.data.id, name: query.data.name }} />;
+  if (query.data) return <ServiceRecordForm item={{ id: query.data.id, code: query.data.code, name: query.data.name }} />;
   if (query.isError) {
     return isMissingRecord(query.error) ? (
       <ErrorState title={t('item.notFoundTitle')} message={t('item.notFoundHint')} />

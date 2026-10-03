@@ -39,7 +39,7 @@ describe('service record detail', () => {
     renderApp(`/service-records/${id}`);
 
     expect(await screen.findByRole('heading', { name: 'Servisní záznam', level: 1 })).toBeInTheDocument();
-    for (const text of ['15. 4. 2026', 'Výměna filtru a kontrola tlaku', 'Servis Novák s.r.o.', 'Jan Novák']) {
+    for (const text of ['INV-00042', '15. 4. 2026', 'Výměna filtru a kontrola tlaku', 'Servis Novák s.r.o.', 'Jan Novák']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: 'Kávovar Linea PB' })).toHaveAttribute('href', `/items/${itemId}`);

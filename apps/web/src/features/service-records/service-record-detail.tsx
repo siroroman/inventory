@@ -88,6 +88,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
                 </Link>
               ),
             },
+            { label: t('serviceRecord.fields.itemCode'), value: record.item.code },
             { label: t('serviceRecord.fields.date'), value: formatDate(record.performedOn) },
             { label: t('serviceRecord.fields.title'), value: record.title },
             { label: t('serviceRecord.fields.performedBy'), value: record.performedBy },

@@ -28,7 +28,7 @@ import {
 
 type Props = {
   /** The item the record belongs to; missing on a new record, which then asks for the item (the Maintenance tab). */
-  item?: { id: string; name: string };
+  item?: { id: string; code: string; name: string };
   /** The record being edited; missing = a new record. */
   record?: ServiceRecordDto;
   /** Called by "load current data" after a conflict; should refetch the record. */
@@ -115,9 +115,15 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
 
       <div className="flex flex-col gap-4 rounded-lg border bg-card p-4">
         {item ? (
-          <div>
-            <p className="text-sm font-semibold text-foreground">{t('serviceRecord.fields.item')}</p>
-            <p className="text-[15px]">{item.name}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{t('serviceRecord.fields.item')}</p>
+              <p className="text-[15px]">{item.name}</p>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{t('serviceRecord.fields.itemCode')}</p>
+              <p className="text-[15px]">{item.code}</p>
+            </div>
           </div>
         ) : (
           <Field

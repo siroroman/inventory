@@ -117,6 +117,7 @@
         "title": "Název",
         "date": "Datum",
         "item": "Položka",
+        "code": "ID",
         "location": "Lokalita"
       },
       "add": "Přidat záznam"
@@ -330,6 +331,7 @@
     "emptyHint": "Provedené servisy a prohlídky se zobrazí tady.",
     "fields": {
       "item": "Položka",
+      "itemCode": "ID položky",
       "date": "Datum",
       "title": "Název",
       "performedBy": "Servis provedl",

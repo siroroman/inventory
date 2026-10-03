@@ -83,6 +83,8 @@ describe('new service record', () => {
 
     expect(await screen.findByRole('heading', { name: 'Nový servisní záznam' })).toBeInTheDocument();
     expect(screen.getByText('Kávovar Linea PB')).toBeInTheDocument();
+    expect(screen.getByText('ID položky')).toBeInTheDocument();
+    expect(screen.getByText('INV-00042')).toBeInTheDocument();
     expect(screen.getByLabelText('Datum')).toHaveValue(today());
 
     await user.clear(screen.getByLabelText('Datum'));
@@ -252,6 +254,8 @@ describe('edit service record', () => {
     const { router } = renderApp(`/service-records/${id}/edit`);
 
     expect(await screen.findByRole('heading', { name: 'Upravit servisní záznam' })).toBeInTheDocument();
+    expect(screen.getByText('Kávovar Linea PB')).toBeInTheDocument();
+    expect(screen.getByText('INV-00042')).toBeInTheDocument();
     expect(screen.getByLabelText('Datum')).toHaveValue('2026-04-15');
     expect(screen.getByLabelText('Název')).toHaveValue('Výměna filtru');
     expect(screen.getByLabelText('Servis provedl')).toHaveValue('Servis Novák s.r.o.');
