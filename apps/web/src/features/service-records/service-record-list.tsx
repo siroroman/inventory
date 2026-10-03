@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ListFrame, ListToolbar } from '@/components/list-toolbar';
-import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { type Column, codeColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { pathLabel } from '@/features/locations/path';
@@ -43,7 +43,7 @@ export function ServiceRecordsPanel({
         </>
       ),
     },
-    { header: t('home.maintenance.columns.code'), className: 'w-32', cell: (record) => record.item.code },
+    { header: t('home.maintenance.columns.code'), className: codeColumnWidth, cell: (record) => record.item.code },
     {
       header: t('home.maintenance.columns.date'),
       className: 'w-32',

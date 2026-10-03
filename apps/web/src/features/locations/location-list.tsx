@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ListFrame, ListToolbar } from '@/components/list-toolbar';
-import { type Column, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
+import { type Column, codeColumnWidth, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -62,7 +62,7 @@ export function useLocationRows({ nested }: { nested: boolean }) {
 
   const codeColumn: Column<LocationDto> = {
     header: t('home.locations.columns.code'),
-    className: 'w-28',
+    className: codeColumnWidth,
     cell: (location) => location.code,
   };
 
