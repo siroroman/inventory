@@ -56,6 +56,10 @@ describe('service provider repository', () => {
     expect(await names({ q: 'sup-001' })).toEqual(['Alfa']);
     expect(await names({ q: '601123' })).toEqual(['Alfa']);
     expect(await names({ q: '601 123' })).toEqual(['Alfa']);
+    // A number pasted from a web page often has non-breaking spaces, which go the same way.
+    const gama = await add('Gama');
+    await repo().update(gama.id, 1, { phone: '+420\u00a0777\u00a0234\u00a0111', updatedBy: user.id });
+    expect(await names({ q: '777234' })).toEqual(['Gama']);
     expect(await names({ q: 'sup-002' })).toEqual([]);
     expect(await names({ archived: true })).toEqual(['Beta']);
     expect(await names({ archived: true, q: 'sup-002' })).toEqual(['Beta']);

@@ -29,7 +29,7 @@ function listWhere(db: DbExecutor, filter: ServiceProviderFilter): SQL[] {
       or(
         containsText(serviceProviders.name, filter.q),
         containsText(serviceProviders.code, filter.q),
-        containsText(sql`replace(${serviceProviders.phone}, ' ', '')`, digits),
+        containsText(sql`regexp_replace(${serviceProviders.phone}, '[\\s\\u00a0]', '', 'g')`, digits),
         inArray(
           serviceProviders.id,
           db
