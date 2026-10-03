@@ -19,7 +19,8 @@ const list = defineRoute({
   path: '/service-providers',
   minRole: 'read',
   tags: ['service-providers'],
-  summary: 'List active service providers by name',
+  summary:
+    'List and search active service providers by name (`archived=true`: the archived ones); the search covers name, code, phone and the brands serviced',
   request: { query: serviceProviderListQuery },
   responses: { 200: { description: 'One page of service providers', content: jsonContent(serviceProviderListSchema) } },
 });
@@ -40,9 +41,12 @@ const create = defineRoute({
   path: '/service-providers',
   minRole: 'write',
   tags: ['service-providers'],
-  summary: 'Create a service provider; the database assigns its SUP code',
+  summary: 'Create a service provider, optionally with the brands it services; the database assigns its SUP code',
   request: { body: { required: true, content: jsonContent(createServiceProviderBody) } },
-  responses: { 201: { description: 'The new service provider', content: jsonContent(serviceProviderSchema) } },
+  errors: [409, 422],
+  responses: {
+    201: { description: 'The new service provider with its brands', content: jsonContent(serviceProviderDetailSchema) },
+  },
 });
 
 const update = defineRoute({
@@ -50,10 +54,12 @@ const update = defineRoute({
   path: '/service-providers/{id}',
   minRole: 'write',
   tags: ['service-providers'],
-  summary: 'Edit a service provider; the brands it services have their own route',
+  summary: 'Edit a service provider and, when `manufacturerIds` is sent, the brands it services, in one save',
   request: { params: idParam, body: { required: true, content: jsonContent(updateServiceProviderBody) } },
-  errors: [404, 409],
-  responses: { 200: { description: 'The updated service provider', content: jsonContent(serviceProviderSchema) } },
+  errors: [404, 409, 422],
+  responses: {
+    200: { description: 'The updated service provider with its brands', content: jsonContent(serviceProviderDetailSchema) },
+  },
 });
 
 const archive = defineRoute({
@@ -96,8 +102,8 @@ const setManufacturers = defineRoute({
 export function createServiceProviderRoutes(serviceProviders: ServiceProviderService) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { q, limit, cursor } = c.req.valid('query');
-      const page = await serviceProviders.list(c.get('actor'), { q }, { limit, cursor });
+      const { q, archived, limit, cursor } = c.req.valid('query');
+      const page = await serviceProviders.list(c.get('actor'), { q, archived: archived === 'true' }, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toServiceProviderDto) }, 200);
     })
     .openapi(get, async (c) => {
@@ -106,11 +112,11 @@ export function createServiceProviderRoutes(serviceProviders: ServiceProviderSer
     })
     .openapi(create, async (c) => {
       const row = await serviceProviders.create(c.get('actor'), c.req.valid('json'));
-      return c.json(toServiceProviderDto(row), 201);
+      return c.json(toServiceProviderDetailDto(row), 201);
     })
     .openapi(update, async (c) => {
       const row = await serviceProviders.update(c.get('actor'), c.req.valid('param').id, c.req.valid('json'));
-      return c.json(toServiceProviderDto(row), 200);
+      return c.json(toServiceProviderDetailDto(row), 200);
     })
     .openapi(archive, async (c) => {
       const row = await serviceProviders.archive(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);

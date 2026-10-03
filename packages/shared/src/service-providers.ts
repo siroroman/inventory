@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
-import { searchPageQuery, versionField } from './http.ts';
+import { archivedQuery, searchPageQuery, versionField } from './http.ts';
 
 /** A valid address, internationalised ones included (`servis@příklad.cz`). */
 const email = z.string().trim().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
@@ -19,6 +19,9 @@ const web = z
     const url = URL.canParse(link) ? new URL(link) : undefined;
     return !url?.username && !url?.password;
   });
+
+/** The same rules, for a form to check before it sends. */
+export { email as serviceProviderEmail, web as serviceProviderWeb };
 
 const providerFields = {
   name: requiredText(120),
@@ -53,27 +56,31 @@ export const serviceProviderDetailSchema = serviceProviderSchema.extend({
 });
 export type ServiceProviderDetailDto = z.infer<typeof serviceProviderDetailSchema>;
 
-const optionalFields = { contactPerson: true, phone: true, email: true, web: true, note: true } as const;
+/** The whole set of brands a provider services; saving it with the provider makes a form one request. */
+const manufacturerIds = z.array(z.uuid()).max(100);
 
-export const createServiceProviderBody = z.strictObject(providerFields).partial(optionalFields);
+const optionalFields = { contactPerson: true, phone: true, email: true, web: true, note: true, manufacturerIds: true } as const;
+
+export const createServiceProviderBody = z.strictObject({ ...providerFields, manufacturerIds }).partial(optionalFields);
 export type CreateServiceProviderBody = z.infer<typeof createServiceProviderBody>;
 
-/** Only the fields present change; `null` clears a contact field or the note. */
+/**
+ * Only the fields present change; `null` clears a contact field or the note. `manufacturerIds`, when
+ * present, replaces the brands the provider services (see `setManufacturersBody`).
+ */
 export const updateServiceProviderBody = z
-  .strictObject({ ...providerFields, version: versionField })
+  .strictObject({ ...providerFields, manufacturerIds, version: versionField })
   .partial({ name: true, ...optionalFields })
   .refine(hasChange, { message: 'Nothing to change' });
 export type UpdateServiceProviderBody = z.infer<typeof updateServiceProviderBody>;
 
-export const serviceProviderListQuery = searchPageQuery;
+/** `archived=true` lists the archived providers instead of the active ones. */
+export const serviceProviderListQuery = searchPageQuery.extend(archivedQuery.shape);
 
 /**
  * The whole set of brands at once, based on the provider's `version`. A new brand ranks the
  * provider last for it; the order per brand is changed on the manufacturer. An empty list drops
  * the provider from every brand.
  */
-export const setManufacturersBody = z.strictObject({
-  version: versionField,
-  manufacturerIds: z.array(z.uuid()).max(100),
-});
+export const setManufacturersBody = z.strictObject({ version: versionField, manufacturerIds });
 export type SetManufacturersBody = z.infer<typeof setManufacturersBody>;

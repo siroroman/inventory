@@ -31,6 +31,10 @@ export class ApiError extends Error {
   }
 }
 
+/** A record that is not there, or an id that is no id at all: it will not appear on a retry. */
+export const isMissingRecord = (error: unknown) =>
+  error instanceof ApiError && (error.code === 'not_found' || error.code === 'validation_error');
+
 /**
  * The typed Hono RPC client. `fetchImpl` is for tests; browsers use the global `fetch`, which
  * sends the session cookie because the SPA and the API share one origin.

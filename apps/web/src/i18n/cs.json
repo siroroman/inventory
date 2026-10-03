@@ -31,7 +31,11 @@
     "subLocationCount_one": "{{count}} podlokalita",
     "subLocationCount_few": "{{count}} podlokality",
     "subLocationCount_many": "{{count}} podlokality",
-    "subLocationCount_other": "{{count}} podlokalit"
+    "subLocationCount_other": "{{count}} podlokalit",
+    "providerCount_one": "{{count}} dodavatel",
+    "providerCount_few": "{{count}} dodavatelé",
+    "providerCount_many": "{{count}} dodavatele",
+    "providerCount_other": "{{count}} dodavatelů"
   },
   "states": {
     "loading": "Načítání",
@@ -116,6 +120,20 @@
         "location": "Lokalita"
       },
       "add": "Přidat záznam"
+    },
+    "suppliers": {
+      "tab": "Dodavatelé",
+      "searchLabel": "Hledat dodavatele",
+      "searchPlaceholder": "Hledat podle názvu, ID, telefonu, značky…",
+      "emptyTitle": "Zatím žádný dodavatel",
+      "emptyHint": "Servisní dodavatelé se tu zobrazí, jakmile je někdo přidá.",
+      "archivedEmptyTitle": "Žádní archivovaní dodavatelé",
+      "columns": {
+        "name": "Název",
+        "code": "ID",
+        "phone": "Telefon"
+      },
+      "add": "Přidat dodavatele"
     }
   },
   "locationDetail": {
@@ -377,5 +395,80 @@
     "saving": "Ukládám…",
     "itemPlaceholder": "Hledat podle názvu, ID, sériového čísla, lokality…",
     "noItems": "Žádná položka nenalezena."
+  },
+  "provider": {
+    "edit": "Upravit",
+    "fields": {
+      "code": "ID",
+      "contactPerson": "Kontaktní osoba",
+      "phone": "Telefon",
+      "email": "E-mail",
+      "web": "Web",
+      "note": "Poznámka"
+    },
+    "brands": {
+      "title": "Značky, které servisuje",
+      "empty": "Dodavatel zatím neservisuje žádnou značku.",
+      "priority": "Pořadí {{priority}}"
+    },
+    "archiveTitle": "Archivovat dodavatele?",
+    "archiveHint": "Dodavatel zmizí ze seznamu, ale zůstane v pořadí dodavatelů u značek, označený jako archivovaný. Archivaci můžete vrátit.",
+    "notFoundTitle": "Dodavatel nenalezen",
+    "notFoundHint": "Dodavatel neexistuje nebo byl odstraněn."
+  },
+  "providerForm": {
+    "newTitle": "Nový dodavatel",
+    "editTitle": "Upravit dodavatele",
+    "fields": {
+      "name": "Název",
+      "contactPerson": "Kontaktní osoba",
+      "phone": "Telefon",
+      "email": "E-mail",
+      "web": "Web",
+      "brands": "Značky, které servisuje",
+      "note": "Poznámka"
+    },
+    "namePlaceholder": "Např. Servis Novák s.r.o.",
+    "phonePlaceholder": "+420",
+    "webPlaceholder": "https://",
+    "notePlaceholder": "Volitelná poznámka",
+    "brandPlaceholder": "Přidat značku…",
+    "noBrands": "Zatím žádná značka. Napište název a vytvořte ji.",
+    "createBrand": "Vytvořit značku „{{name}}“",
+    "removeBrand": "Odebrat značku {{name}}",
+    "brandsHint": "Pořadí dodavatelů u značky se nastavuje v detailu výrobce.",
+    "errors": {
+      "required": "Vyplňte toto pole.",
+      "tooLong": "Text je příliš dlouhý.",
+      "email": "Zadejte platný e-mail.",
+      "web": "Zadejte platnou webovou adresu."
+    },
+    "reload": "Načíst aktuální údaje",
+    "cancel": "Zrušit",
+    "save": "Uložit",
+    "saving": "Ukládám…"
+  },
+  "manufacturer": {
+    "notFoundTitle": "Výrobce nenalezen",
+    "notFoundHint": "Výrobce neexistuje nebo byl odstraněn.",
+    "back": "Zpět",
+    "note": "Poznámka",
+    "providers": {
+      "title": "Servis zajišťují",
+      "hint": "Kontaktujte dodavatele v tomto pořadí. Pokud servis nezajistí, pokračujte dalším.",
+      "empty": "Tuto značku zatím neservisuje žádný dodavatel.",
+      "emptyHint": "Dodavatele ke značce přidáte v jeho formuláři, v části „Značky, které servisuje“."
+    },
+    "drag": {
+      "handle": "Přesunout: {{name}}",
+      "role": "položka k přesunutí",
+      "instructions": "Dodavatele přesunete přetažením. Na klávesnici ho mezerníkem zvednete, šipkami nahoru a dolů posunete a mezerníkem pustíte; klávesa Escape přesun zruší.",
+      "start": "Zvednuto: {{name}}, pořadí {{position}} z {{total}}",
+      "cancel": "Přesun zrušen: {{name}} zůstává na pořadí {{position}} z {{total}}"
+    },
+    "moved": "{{name}}: pořadí {{position}} z {{total}}",
+    "call": "Zavolat: {{name}}",
+    "email": "Napsat e-mail: {{name}}",
+    "web": "Otevřít web: {{name}}"
   }
 }

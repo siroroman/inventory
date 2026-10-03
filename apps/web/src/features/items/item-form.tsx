@@ -16,13 +16,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
-import {
-  createItem,
-  createManufacturer,
-  locationPickerOptions,
-  manufacturerPickerOptions,
-  updateItem,
-} from './api';
+import { createManufacturer, manufacturerPickerOptions } from '@/features/manufacturers/api';
+import { createItem, locationPickerOptions, updateItem } from './api';
 import {
   changedFields,
   emptyItemForm,

@@ -1,20 +1,21 @@
 import { Link } from '@tanstack/react-router';
-import { Building2, Image, type LucideIcon, Wrench } from 'lucide-react';
+import { Building2, BriefcaseBusiness, Image, type LucideIcon, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppLogo } from '@/components/app-logo';
 import { UserMenu } from '@/features/auth/user-menu';
 import { cn } from '@/lib/utils';
 
-export type HomeTab = 'locations' | 'items' | 'maintenance';
+export type HomeTab = 'locations' | 'items' | 'maintenance' | 'suppliers';
 
-const entries: { tab: HomeTab; icon: LucideIcon; label: 'home.locations.tab' | 'home.items.tab' | 'home.maintenance.tab' }[] = [
+const entries: { tab: HomeTab; icon: LucideIcon; label: `home.${HomeTab}.tab` }[] = [
   { tab: 'locations', icon: Building2, label: 'home.locations.tab' },
   { tab: 'items', icon: Image, label: 'home.items.tab' },
   { tab: 'maintenance', icon: Wrench, label: 'home.maintenance.tab' },
+  { tab: 'suppliers', icon: BriefcaseBusiness, label: 'home.suppliers.tab' },
 ];
 
 /**
- * Side menu of the Home screens on desktop (designed 240 px): the logo, the three lists the tabs
+ * Side menu of the Home screens on desktop (designed 240 px): the logo, the lists the tabs
  * switch between on a phone, and the signed-in user at the bottom. Another list starts without
  * search text, as with the tabs.
  */

@@ -88,7 +88,14 @@ export function createFakeCatalogStore() {
       return row && { ...row };
     },
     async list(filter, page) {
-      const rows = state.providers.filter((p) => !p.archivedAt && (!filter.q || fakeContains(p.name, filter.q)));
+      const digits = filter.q?.replace(/\s+/g, '');
+      const matches = (p: ServiceProvider) =>
+        !filter.q ||
+        fakeContains(p.name, filter.q) ||
+        fakeContains(p.code, filter.q) ||
+        fakeContains(p.phone?.replace(/\s+/g, ''), digits!) ||
+        state.links.some((l) => l.providerId === p.id && fakeContains(manufacturerById(l.manufacturerId)?.name, filter.q!));
+      const rows = state.providers.filter((p) => Boolean(p.archivedAt) === Boolean(filter.archived) && matches(p));
       return fakePageByName(rows, page);
     },
     async count(filter) {

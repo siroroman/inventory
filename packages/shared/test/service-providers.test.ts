@@ -23,6 +23,13 @@ describe('createServiceProviderBody', () => {
     ).toMatchObject({ email: 'novak@example.test', web: 'https://novak.example.test/servis', note: null });
   });
 
+  it('takes the brands the provider services as a list of ids, at most 100', () => {
+    const id = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
+    expect(createServiceProviderBody.parse({ name: 'x', manufacturerIds: [id] })).toEqual({ name: 'x', manufacturerIds: [id] });
+    expect(createServiceProviderBody.safeParse({ name: 'x', manufacturerIds: ['nope'] }).success).toBe(false);
+    expect(createServiceProviderBody.safeParse({ name: 'x', manufacturerIds: Array.from({ length: 101 }, () => id) }).success).toBe(false);
+  });
+
   it('accepts internationalised email addresses', () => {
     for (const email of ['servis@příklad.cz', 'jiří.novák@example.test']) {
       expect(createServiceProviderBody.safeParse({ name: 'x', email }).success, email).toBe(true);
@@ -51,7 +58,7 @@ describe('createServiceProviderBody', () => {
       { name: 'x', contactPerson: 'j'.repeat(121) },
       { name: 'x', note: 'n'.repeat(2001) },
       { name: 'x', code: 'SUP-999' },
-      { name: 'x', manufacturerIds: [] },
+      { name: 'x', manufacturers: [] },
     ]) {
       expect(createServiceProviderBody.safeParse(body).success, JSON.stringify(body)).toBe(false);
     }
@@ -64,6 +71,11 @@ describe('updateServiceProviderBody', () => {
     expect(updateServiceProviderBody.safeParse({ version: 2 }).success).toBe(false);
     expect(updateServiceProviderBody.safeParse({ name: 'x' }).success).toBe(false);
     expect(updateServiceProviderBody.safeParse({ version: 0, name: 'x' }).success).toBe(false);
+  });
+
+  it('counts the brands as a change, an empty list included (it drops every brand)', () => {
+    expect(updateServiceProviderBody.parse({ version: 2, manufacturerIds: [] })).toEqual({ version: 2, manufacturerIds: [] });
+    expect(updateServiceProviderBody.safeParse({ version: 2, manufacturerIds: ['nope'] }).success).toBe(false);
   });
 
   it('cannot clear the name and applies the same checks as create', () => {
@@ -84,6 +96,11 @@ describe('serviceProviderListQuery', () => {
     expect(serviceProviderListQuery.parse({})).toEqual({ limit: 50 });
     expect(serviceProviderListQuery.parse({ q: '  ' })).toEqual({ limit: 50, q: undefined });
     expect(serviceProviderListQuery.parse({ q: ' Novák ' })).toMatchObject({ q: 'Novák' });
+  });
+
+  it('accepts only archived=true', () => {
+    expect(serviceProviderListQuery.parse({ archived: 'true' })).toMatchObject({ archived: 'true' });
+    expect(serviceProviderListQuery.safeParse({ archived: 'false' }).success).toBe(false);
   });
 });
 

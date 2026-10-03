@@ -41,20 +41,6 @@ export const itemPickerOptions = (q: string) => ({
   },
 });
 
-/** Manufacturers matching `q`. */
-export const manufacturerPickerOptions = (q: string) => ({
-  queryKey: ['manufacturers', 'item-picker', q] as const,
-  queryFn: async () => {
-    const page = await unwrap(api.api.v1.manufacturers.$get({ query: { q: q || undefined, limit: '20' } }));
-    return page.items.map((manufacturer) => ({ id: manufacturer.id, label: manufacturer.name }));
-  },
-});
-
-export async function createManufacturer(name: string) {
-  const created = await unwrap(api.api.v1.manufacturers.$post({ json: { name } }));
-  return { id: created.id, label: created.name };
-}
-
 export const createItem = (json: CreateItemBody) => unwrap(api.api.v1.items.$post({ json }));
 
 export const updateItem = (id: string, json: UpdateItemBody) =>

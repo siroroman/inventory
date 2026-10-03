@@ -76,6 +76,51 @@ describe('service provider service', () => {
       ]);
     });
 
+    it('creates and updates the brands together with the provider, in one audit entry', async () => {
+      const { store, service, manufacturers } = setup();
+      const other = await store.addProvider('Jiný servis');
+      const rational = await store.addManufacturer('Rational');
+      const unox = await store.addManufacturer('Unox');
+      await manufacturers.setProviders(writer, rational.id, [other.id]);
+
+      const row = await service.create(writer, { name: 'Servis Novák', manufacturerIds: [rational.id] });
+      expect(row.manufacturers.map((b) => [b.name, b.priority])).toEqual([['Rational', 2]]);
+      expect(store.state.audit.filter((e) => e.entityType === 'service_provider')[0]!.changes).toMatchObject({
+        name: { from: null, to: 'Servis Novák' },
+        manufacturers: { from: [], to: [rational.id] },
+      });
+
+      const updated = await service.update(writer, row.id, { version: 1, phone: '123', manufacturerIds: [unox.id] });
+      expect(updated).toMatchObject({ phone: '123', version: 2 });
+      expect(updated.manufacturers.map((b) => b.name)).toEqual(['Unox']);
+      expect((await manufacturers.get(reader, rational.id)).providers.map((p) => p.id)).toEqual([other.id]);
+      expect(store.state.audit.at(-1)).toMatchObject({
+        entityType: 'service_provider',
+        changes: { phone: { from: null, to: '123' }, manufacturers: { from: [rational.id], to: [unox.id] } },
+      });
+    });
+
+    it('does not write when only the brands are sent and they are the same', async () => {
+      const { store, service } = setup();
+      const rational = await store.addManufacturer('Rational');
+      const row = await service.create(writer, { name: 'Servis Novák', manufacturerIds: [rational.id] });
+      const auditBefore = store.state.audit.length;
+
+      await expect(service.update(writer, row.id, { version: 1, manufacturerIds: [rational.id] })).resolves.toMatchObject({ version: 1 });
+      expect(store.state.audit).toHaveLength(auditBefore);
+    });
+
+    it('rolls the fields back when a brand is refused', async () => {
+      const { store, service } = setup();
+      const row = await service.create(writer, { name: 'Servis Novák' });
+      const auditBefore = store.state.audit.length;
+
+      await expectCode(service.update(writer, row.id, { version: 1, name: 'Nový', manufacturerIds: [randomUUID()] }), 'manufacturer_not_found');
+      await expectCode(service.create(writer, { name: 'Další', manufacturerIds: [randomUUID()] }), 'manufacturer_not_found');
+      expect(store.state.providers.map((p) => p.name)).toEqual(['Servis Novák']);
+      expect(store.state.audit).toHaveLength(auditBefore);
+    });
+
     it('changes only the sent fields, can clear a field, and audits the difference', async () => {
       const { store, service } = setup();
       const row = await service.create(writer, { name: 'Servis Novák', phone: '123', email: 'a@b.cz' });
@@ -113,6 +158,7 @@ describe('service provider service', () => {
       const row = await service.create(writer, { name: 'Servis Novák' });
       await service.archive(writer, row.id, 1);
       expect(await service.list(reader, {}, { limit: 50 })).toMatchObject({ total: 0, items: [] });
+      expect(await service.list(reader, { archived: true }, { limit: 50 })).toMatchObject({ total: 1 });
       expect(await service.get(reader, row.id)).toMatchObject({ name: 'Servis Novák' });
       await service.restore(writer, row.id, 2);
       expect(await service.list(reader, {}, { limit: 50 })).toMatchObject({ total: 1 });
