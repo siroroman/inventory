@@ -67,6 +67,37 @@ Choose a strong password: the sign-in page is public.
 deploy/seed.sh      # asks for the password; type it in a terminal
 ```
 
+## Real inventory
+
+`db:import` fills an empty database with the company's inventory from two CSV files (centres and
+items, prepared from the accounting and electrician spreadsheets) and the same three users as the
+seed. The files hold real company data: keep them out of the repository.
+
+```
+deploy/import.sh <locations.csv> <items.csv>   # asks for the users' password
+```
+
+Each centre becomes a top-level location whose ID is its centre number (50, 620). Accounting
+inventory numbers become the external ID `Inv. č. stř. <centre>` (they repeat across centres), the
+electrician's IDs `Revize ILKO`; the other columns of the files go into the item's note. Any bad row
+stops the import and nothing is written.
+
+### Starting over
+
+Only while the database holds nothing worth keeping. The roles (`app_runtime`, `inventory_app`) are
+cluster-wide and survive.
+
+```
+gcloud sql backups create --instance=inventory-db          # optional safety net
+gcloud sql databases delete inventory --instance=inventory-db
+gcloud sql databases create inventory --instance=inventory-db
+```
+
+Then run the Deploy workflow (Actions → Deploy → Run workflow) to apply the migrations, empty the
+file bucket (`gcloud storage rm "gs://<project>-inventory-files/**"`) and run `deploy/import.sh`.
+If the delete fails on open connections, run `DROP DATABASE inventory WITH (FORCE);` as the owner
+through `deploy/db-proxy.sh` (connected to the `postgres` database), then create it again.
+
 ## Cost
 
 Cloud SQL `db-f1-micro` is about $10/month; the rest stays within the free tiers at test traffic.

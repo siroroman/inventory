@@ -52,12 +52,29 @@ function addDays(isoDate: string, days: number | undefined): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-async function isEmpty(db: DbExecutor): Promise<boolean> {
+/** No locations, items or users yet: the seed and the import only fill such a database. */
+export async function isEmpty(db: DbExecutor): Promise<boolean> {
   for (const table of [locations, items, user]) {
     const [row] = await db.select({ n: count() }).from(table);
     if (row!.n > 0) return false;
   }
   return true;
+}
+
+/** The admin@, write@ and read@example.test users with a password account; returns their ids, admin first. */
+export async function insertSeedUsers(db: DbExecutor, passwordHash: string): Promise<string[]> {
+  const userIds: string[] = [];
+  for (const u of seedUsers) {
+    const [row] = await db.insert(user).values({ ...u, emailVerified: true }).returning({ id: user.id });
+    await db.insert(account).values({
+      userId: row!.id,
+      accountId: row!.id,
+      providerId: 'credential',
+      password: passwordHash,
+    });
+    userIds.push(row!.id);
+  }
+  return userIds;
 }
 
 /** Fills an empty database with sample data, in one transaction. */
@@ -68,17 +85,7 @@ export async function seed(db: Db, options: SeedOptions): Promise<SeedSummary> {
     if (!(await isEmpty(tx))) throw new SeedRefusedError();
 
     // Users with a password account, so email + password sign-in works locally.
-    const userIds: string[] = [];
-    for (const u of seedUsers) {
-      const [row] = await tx.insert(user).values({ ...u, emailVerified: true }).returning({ id: user.id });
-      await tx.insert(account).values({
-        userId: row!.id,
-        accountId: row!.id,
-        providerId: 'credential',
-        password: passwordHash,
-      });
-      userIds.push(row!.id);
-    }
+    const userIds = await insertSeedUsers(tx, passwordHash);
     const by = userIds[0]!;
 
     const typeIds = new Map((await createLocationTypeRepository(tx).list()).map((t) => [t.code, t.id]));
