@@ -222,7 +222,9 @@ export function ProviderForm({ provider, onReload }: Props) {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button asChild variant="outline">
-          <Link {...cancelTo}>{t('providerForm.cancel')}</Link>
+          <Link {...cancelTo} replace>
+            {t('providerForm.cancel')}
+          </Link>
         </Button>
         <Button type="submit" disabled={save.isPending || save.isSuccess || (provider !== undefined && !isDirty)}>
           {save.isPending ? t('providerForm.saving') : t('providerForm.save')}

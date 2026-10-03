@@ -219,7 +219,9 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button asChild variant="outline">
-          <Link {...cancelTo}>{t('common.cancel')}</Link>
+          <Link {...cancelTo} replace>
+            {t('common.cancel')}
+          </Link>
         </Button>
         <Button type="submit" disabled={save.isPending || save.isSuccess || (record !== undefined && !isDirty)}>
           {save.isPending ? t('serviceRecordForm.saving') : t('serviceRecordForm.save')}

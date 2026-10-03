@@ -145,6 +145,19 @@ describe('new service record', () => {
     expect(screen.getByRole('button', { name: 'Uložit' })).toBeEnabled();
   });
 
+  it('does not keep the form in the history on Cancel, so Back skips it', async () => {
+    api();
+    const user = userEvent.setup();
+    const { router } = renderApp(`/items/${itemId}`);
+    await user.click(await screen.findByRole('link', { name: 'Přidat záznam' }));
+    await user.click(await screen.findByRole('link', { name: 'Zrušit' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${itemId}`));
+
+    router.history.back();
+    await waitFor(() => expect(router.history.location.pathname).toBe(`/items/${itemId}`));
+    expect(router.history.location.pathname).not.toBe(`/items/${itemId}/service-records/new`);
+  });
+
   it('refuses a reader', async () => {
     api({}, 'read');
     renderApp(`/items/${itemId}/service-records/new`);
