@@ -45,7 +45,13 @@ function Brands({ provider }: { provider: ServiceProviderDetailDto }) {
               >
                 {brand.priority}
               </span>
-              <span className="min-w-0 flex-1 text-[15px] font-semibold break-words">{brand.name}</span>
+              <Link
+                to="/manufacturers/$id"
+                params={{ id: brand.id }}
+                className="min-w-0 flex-1 text-[15px] font-semibold break-words hover:underline"
+              >
+                {brand.name}
+              </Link>
               {brand.archivedAt && <ArchivedBadge />}
               <span className="shrink-0 text-xs text-muted-foreground">
                 {t('provider.brands.priority', { priority: brand.priority })}

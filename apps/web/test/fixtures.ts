@@ -82,3 +82,29 @@ export function providerDetail(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+
+/** A provider as it ranks in a manufacturer's contact order. */
+export const rankedProvider = (priority: number, over: Record<string, unknown> = {}) => ({
+  id: crypto.randomUUID(),
+  code: `SUP-00${priority}`,
+  name: `Servis ${priority}`,
+  contactPerson: null,
+  phone: null,
+  email: null,
+  web: null,
+  archivedAt: null,
+  priority,
+  ...over,
+});
+
+/** A manufacturer with its providers in contact order, as `GET /manufacturers/{id}` answers. */
+export function manufacturerDetail(over: Record<string, unknown> = {}) {
+  return {
+    ...record,
+    id: crypto.randomUUID(),
+    name: 'La Marzocco',
+    note: 'Italský výrobce profesionálních kávovarů.',
+    providers: [] as unknown[],
+    ...over,
+  };
+}

@@ -447,5 +447,23 @@
     "cancel": "Zrušit",
     "save": "Uložit",
     "saving": "Ukládám…"
+  },
+  "manufacturer": {
+    "notFoundTitle": "Výrobce nenalezen",
+    "notFoundHint": "Výrobce neexistuje nebo byl odstraněn.",
+    "back": "Zpět",
+    "note": "Poznámka",
+    "providers": {
+      "title": "Servis zajišťují",
+      "hint": "Kontaktujte dodavatele v tomto pořadí. Pokud servis nezajistí, pokračujte dalším.",
+      "empty": "Tuto značku zatím neservisuje žádný dodavatel.",
+      "emptyHint": "Dodavatele ke značce přidáte v jeho formuláři, v části „Značky, které servisuje“."
+    },
+    "moveUp": "Posunout nahoru: {{name}}",
+    "moveDown": "Posunout dolů: {{name}}",
+    "moved": "{{name}}: pořadí {{position}} z {{total}}",
+    "call": "Zavolat: {{name}}",
+    "email": "Napsat e-mail: {{name}}",
+    "web": "Otevřít web: {{name}}"
   }
 }

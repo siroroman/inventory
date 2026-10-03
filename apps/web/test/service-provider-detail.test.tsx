@@ -62,6 +62,7 @@ describe('service provider detail', () => {
     const section = (await screen.findByRole('heading', { name: 'Značky, které servisuje' })).closest('section')!;
     const rows = within(section).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByRole('link', { name: 'Daikin' })).toHaveAttribute('href', expect.stringMatching(/^\/manufacturers\//));
     expect(rows[0]).toHaveTextContent('Daikin');
     expect(rows[0]).toHaveTextContent('Pořadí 3');
     expect(rows[1]).toHaveTextContent('La Marzocco');
