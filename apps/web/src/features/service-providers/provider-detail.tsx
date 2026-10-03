@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { isMissingRecord } from '@/lib/api';
+import { telHref } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { archiveProvider, providerQueryOptions, restoreProvider } from './api';
 
@@ -109,7 +110,7 @@ function ProviderBody({ provider }: { provider: ServiceProviderDetailDto }) {
             {
               label: t('provider.fields.phone'),
               value: provider.phone && (
-                <a href={`tel:${provider.phone.replace(/\s+/g, '')}`} className={linkClass}>
+                <a href={telHref(provider.phone)} className={linkClass}>
                   {provider.phone}
                 </a>
               ),

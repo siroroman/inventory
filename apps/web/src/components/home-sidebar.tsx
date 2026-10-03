@@ -7,11 +7,7 @@ import { cn } from '@/lib/utils';
 
 export type HomeTab = 'locations' | 'items' | 'maintenance' | 'suppliers';
 
-const entries: {
-  tab: HomeTab;
-  icon: LucideIcon;
-  label: 'home.locations.tab' | 'home.items.tab' | 'home.maintenance.tab' | 'home.suppliers.tab';
-}[] = [
+const entries: { tab: HomeTab; icon: LucideIcon; label: `home.${HomeTab}.tab` }[] = [
   { tab: 'locations', icon: Building2, label: 'home.locations.tab' },
   { tab: 'items', icon: Image, label: 'home.items.tab' },
   { tab: 'maintenance', icon: Wrench, label: 'home.maintenance.tab' },

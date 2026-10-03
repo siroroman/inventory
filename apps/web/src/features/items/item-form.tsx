@@ -183,7 +183,7 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
                 value={field.value}
                 onChange={field.onChange}
                 clearable
-                search={(q) => manufacturerPickerOptions(q)}
+                search={manufacturerPickerOptions}
                 placeholder={t('itemForm.manufacturerPlaceholder')}
                 emptyText={t('itemForm.noManufacturers')}
                 create={{

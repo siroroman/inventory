@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { Button } from '@/components/ui/button';
+import { telHref } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -27,7 +28,7 @@ function ContactActions({ provider }: { provider: RankedProviderDto }) {
     <div className="flex gap-2">
       {phone && (
         <Button asChild variant="ghost" size="icon" className={actionClass}>
-          <a href={`tel:${phone.replace(/\s+/g, '')}`} aria-label={t('manufacturer.call', { name })}>
+          <a href={telHref(phone)} aria-label={t('manufacturer.call', { name })}>
             <Phone aria-hidden />
           </a>
         </Button>

@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
+import { invalidateAfterWrite } from '@/lib/query';
 import { manufacturerQueryOptions, setProviderOrder } from './api';
 import { RankedProviders } from './ranked-providers';
 
@@ -75,7 +76,7 @@ function ProviderOrder({ manufacturer }: { manufacturer: ManufacturerDetailDto }
     onSuccess: (_answer, { moved }) =>
       setAnnouncement(t('manufacturer.moved', { name: moved.name, position: moved.position, total: manufacturer.providers.length })),
     // Whatever shows the priority (the suppliers' brand lists) is stale now, and so is this list after a failure.
-    onSettled: () => queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' }),
+    onSettled: () => invalidateAfterWrite(queryClient),
   });
 
   // An archived brand's order is read-only; the API refuses it too.

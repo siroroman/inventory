@@ -28,3 +28,6 @@ export function formatFileSize(bytes: number): string {
   if (kilobytes < 1024) return `${kilobytes} kB`;
   return `${megabytes.format(bytes / (1024 * 1024))} MB`;
 }
+
+/** A `tel:` link for a phone number as people write it ("+420 601 123 456"). */
+export const telHref = (phone: string) => `tel:${phone.replace(/\s+/g, '')}`;
