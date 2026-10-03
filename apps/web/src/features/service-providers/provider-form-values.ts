@@ -11,8 +11,11 @@ import { z } from 'zod';
 const optionalText = (max: number) => z.string().trim().max(max, 'providerForm.errors.tooLong');
 const picked = z.object({ id: z.string(), label: z.string() });
 
-/** "novak-servis.cz" is meant as a web address: without a scheme, https is assumed. */
-const withScheme = (address: string) => (/^[a-z][a-z\d+.-]*:/i.test(address) ? address : `https://${address}`);
+/**
+ * "novak-servis.cz" is meant as a web address: without a scheme, https is assumed. Only `scheme://`
+ * counts as one, so "novak-servis.cz:8443" (a host and port) gets https too.
+ */
+const withScheme = (address: string) => (/^[a-z][a-z\d+.-]*:\/\//i.test(address) ? address : `https://${address}`);
 
 export const providerFormSchema = z.object({
   name: z.string().trim().min(1, 'providerForm.errors.required').max(120, 'providerForm.errors.tooLong'),

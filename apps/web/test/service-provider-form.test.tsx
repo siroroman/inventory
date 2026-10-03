@@ -106,6 +106,22 @@ describe('new supplier', () => {
     expect(calls.some((call) => call.method === 'POST')).toBe(false);
   });
 
+  it('takes a web address with a port but no scheme as https', async () => {
+    const created = providerDetail({ id: crypto.randomUUID(), name: 'Servis' });
+    const calls = api({
+      'POST /api/v1/service-providers': () => jsonResponse(created, { status: 201 }),
+      [`GET /api/v1/service-providers/${created.id}`]: () => jsonResponse(created),
+    });
+    const user = userEvent.setup();
+    renderApp('/service-providers/new');
+
+    await user.type(await screen.findByLabelText('Název'), 'Servis');
+    await user.type(screen.getByLabelText('Web'), 'novak-servis.cz:8443/servis');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    await screen.findByRole('heading', { name: 'Servis', level: 1 });
+    expect(await bodyOf(calls, 'POST', '/api/v1/service-providers')).toMatchObject({ web: 'https://novak-servis.cz:8443/servis' });
+  });
+
   it('adds a brand once, offers only the others, and removes a chosen one', async () => {
     api();
     const user = userEvent.setup();
