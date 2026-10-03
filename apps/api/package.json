@@ -11,6 +11,7 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.cli.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/db/seed.cli.ts",
     "db:seed:bulk": "tsx --env-file-if-exists=.env src/db/seed/bulk.cli.ts",
+    "db:import": "tsx --env-file-if-exists=.env src/db/import/import.cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
