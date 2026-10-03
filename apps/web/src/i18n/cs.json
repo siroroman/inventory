@@ -132,7 +132,8 @@
         "name": "Název",
         "code": "ID",
         "phone": "Telefon"
-      }
+      },
+      "add": "Přidat dodavatele"
     }
   },
   "locationDetail": {
@@ -396,6 +397,7 @@
     "noItems": "Žádná položka nenalezena."
   },
   "provider": {
+    "edit": "Upravit",
     "fields": {
       "code": "ID",
       "contactPerson": "Kontaktní osoba",
@@ -413,5 +415,37 @@
     "archiveHint": "Dodavatel zmizí ze seznamu, ale zůstane v pořadí dodavatelů u značek, označený jako archivovaný. Archivaci můžete vrátit.",
     "notFoundTitle": "Dodavatel nenalezen",
     "notFoundHint": "Dodavatel neexistuje nebo byl odstraněn."
+  },
+  "providerForm": {
+    "newTitle": "Nový dodavatel",
+    "editTitle": "Upravit dodavatele",
+    "fields": {
+      "name": "Název",
+      "contactPerson": "Kontaktní osoba",
+      "phone": "Telefon",
+      "email": "E-mail",
+      "web": "Web",
+      "brands": "Značky, které servisuje",
+      "note": "Poznámka"
+    },
+    "namePlaceholder": "Např. Servis Novák s.r.o.",
+    "phonePlaceholder": "+420",
+    "webPlaceholder": "https://",
+    "notePlaceholder": "Volitelná poznámka",
+    "brandPlaceholder": "Přidat značku…",
+    "noBrands": "Zatím žádná značka. Napište název a vytvořte ji.",
+    "createBrand": "Vytvořit značku „{{name}}“",
+    "removeBrand": "Odebrat značku {{name}}",
+    "brandsHint": "Pořadí dodavatelů u značky se nastavuje v detailu výrobce.",
+    "errors": {
+      "required": "Vyplňte toto pole.",
+      "tooLong": "Text je příliš dlouhý.",
+      "email": "Zadejte platný e-mail.",
+      "web": "Zadejte platnou webovou adresu."
+    },
+    "reload": "Načíst aktuální údaje",
+    "cancel": "Zrušit",
+    "save": "Uložit",
+    "saving": "Ukládám…"
   }
 }

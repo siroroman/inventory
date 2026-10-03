@@ -1,3 +1,4 @@
+import type { CreateServiceProviderBody, UpdateServiceProviderBody } from '@inventory/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { api, unwrap } from '@/lib/api';
 import { pagedListQueryOptions } from '@/lib/query';
@@ -18,3 +19,9 @@ export const archiveProvider = (id: string, version: number) =>
 
 export const restoreProvider = (id: string, version: number) =>
   unwrap(api.api.v1['service-providers'][':id'].restore.$post({ param: { id }, json: { version } }));
+
+export const createProvider = (json: CreateServiceProviderBody) =>
+  unwrap(api.api.v1['service-providers'].$post({ json }));
+
+export const updateProvider = (id: string, json: UpdateServiceProviderBody) =>
+  unwrap(api.api.v1['service-providers'][':id'].$patch({ param: { id }, json }));

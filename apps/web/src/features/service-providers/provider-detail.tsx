@@ -1,7 +1,7 @@
 import type { ServiceProviderDetailDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
@@ -76,6 +76,14 @@ function ProviderBody({ provider }: { provider: ServiceProviderDetailDto }) {
         {provider.archivedAt && <ArchivedBadge />}
         {canWrite && (
           <div className="ml-auto flex items-center gap-2">
+            {!provider.archivedAt && (
+              <Button asChild size="sm">
+                <Link to="/service-providers/$id/edit" params={{ id: provider.id }}>
+                  <Pencil aria-hidden />
+                  {t('provider.edit')}
+                </Link>
+              </Button>
+            )}
             <ArchiveControl
               archived={provider.archivedAt !== null}
               archive={() => archiveProvider(provider.id, provider.version)}

@@ -1,10 +1,13 @@
 import type { ServiceProviderDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ListFrame, ListToolbar } from '@/components/list-toolbar';
 import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
+import { Button } from '@/components/ui/button';
+import { useCanWrite } from '@/features/auth/use-can-write';
 import { providerListQueryOptions } from './api';
 
 /** Suppliers tab: the service providers by name, or the matches of a search; or the archived ones. */
@@ -23,6 +26,7 @@ export function ServiceProvidersPanel({
   const { t } = useTranslation();
   const query = useInfiniteQuery(providerListQueryOptions(q, archived));
   const total = pagedTotal(query.data);
+  const canWrite = useCanWrite();
 
   const columns: Column<ServiceProviderDto>[] = [
     {
@@ -60,6 +64,16 @@ export function ServiceProvidersPanel({
         title={t('home.suppliers.tab')}
         count={total === undefined ? undefined : t('common.providerCount', { count: total })}
         archived={{ checked: archived, onChange: onArchived, label: t('home.showArchived') }}
+        action={
+          canWrite && (
+            <Button asChild>
+              <Link to="/service-providers/new">
+                <Plus aria-hidden />
+                {t('home.suppliers.add')}
+              </Link>
+            </Button>
+          )
+        }
         search={{
           value: q,
           onSearch,

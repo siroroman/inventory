@@ -20,6 +20,9 @@ const web = z
     return !url?.username && !url?.password;
   });
 
+/** The same rules, for a form to check before it sends. */
+export { email as serviceProviderEmail, web as serviceProviderWeb };
+
 const providerFields = {
   name: requiredText(120),
   contactPerson: nullableText(120),
