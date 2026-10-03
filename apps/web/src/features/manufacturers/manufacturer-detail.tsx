@@ -2,7 +2,7 @@ import type { ManufacturerDetailDto } from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useCanGoBack, useRouter } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { ErrorState } from '@/components/error-state';
@@ -48,20 +48,17 @@ function BackButton() {
   );
 }
 
-/** The ranked suppliers; writers move a card up or down and the new order is saved at once. */
+/** The ranked suppliers; writers drag a card to another place and the new order is saved at once. */
 function ProviderOrder({ manufacturer }: { manufacturer: ManufacturerDetailDto }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canWrite = useCanWrite();
   const detail = manufacturerQueryOptions(manufacturer.id);
-  // Read out after a move: the card moves under the focus, so say where it went.
-  const [announcement, setAnnouncement] = useState('');
 
   const reorder = useMutation({
-    mutationFn: ({ providerIds }: { providerIds: string[]; moved: { name: string; position: number } }) =>
-      setProviderOrder(manufacturer.id, providerIds),
+    mutationFn: (providerIds: string[]) => setProviderOrder(manufacturer.id, providerIds),
     // The cards show the new order straight away; a failure (toasted by the query client) puts the old one back.
-    onMutate: async ({ providerIds }) => {
+    onMutate: async (providerIds) => {
       await queryClient.cancelQueries({ queryKey: detail.queryKey });
       const previous = queryClient.getQueryData(detail.queryKey);
       queryClient.setQueryData(detail.queryKey, (current) =>
@@ -73,8 +70,6 @@ function ProviderOrder({ manufacturer }: { manufacturer: ManufacturerDetailDto }
       return { previous };
     },
     onError: (_error, _ids, context) => queryClient.setQueryData(detail.queryKey, context?.previous),
-    onSuccess: (_answer, { moved }) =>
-      setAnnouncement(t('manufacturer.moved', { name: moved.name, position: moved.position, total: manufacturer.providers.length })),
     // Whatever shows the priority (the suppliers' brand lists) is stale now, and so is this list after a failure.
     onSettled: () => invalidateAfterWrite(queryClient),
   });
@@ -98,13 +93,10 @@ function ProviderOrder({ manufacturer }: { manufacturer: ManufacturerDetailDto }
       ) : (
         <RankedProviders
           providers={manufacturer.providers}
-          onReorder={canReorder ? (providerIds, moved) => reorder.mutate({ providerIds, moved }) : undefined}
+          onReorder={canReorder ? (providerIds) => reorder.mutate(providerIds) : undefined}
           busy={reorder.isPending}
         />
       )}
-      <p role="status" className="sr-only">
-        {announcement}
-      </p>
     </section>
   );
 }

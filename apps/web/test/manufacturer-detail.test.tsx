@@ -1,6 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { manufacturerDetail, providerDetail, rankedProvider } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
 
@@ -113,98 +113,165 @@ describe('manufacturer detail', () => {
 });
 
 describe('manufacturer detail: contact order', () => {
-  it('offers a writer arrows, with the first up and the last down not usable', async () => {
+  // jsdom lays nothing out: give each card its place, one under another, so a drag can measure them.
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      const card = this.closest('li');
+      const top = card?.parentElement ? [...card.parentElement.children].indexOf(card) * 100 : 0;
+      return { x: 0, y: top, top, left: 0, right: 400, bottom: top + 80, width: 400, height: 80, toJSON: () => ({}) };
+    });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  const handle = (name: string) => screen.getByRole('button', { name: `Přesunout: ${name}` });
+
+  /** The order the API answers with once a PUT has saved one. */
+  function savingApi(answer: (ids: string[]) => Response = () => jsonResponse({ items: [] })) {
+    let order = [novak, gastro, kavo];
+    const calls = api({
+      [`GET /api/v1/manufacturers/${id}`]: () =>
+        jsonResponse(manufacturerDetail({ id, providers: order.map((p, i) => ({ ...p, priority: i + 1 })) })),
+      [`PUT /api/v1/manufacturers/${id}/service-providers`]: async (request) => {
+        const { providerIds } = (await request.clone().json()) as { providerIds: string[] };
+        const response = answer(providerIds);
+        if (response.ok) order = providerIds.map((pid) => [novak, gastro, kavo].find((p) => p.id === pid)!);
+        return response;
+      },
+    });
+    return calls;
+  }
+
+  const putBody = async (calls: Request[]) => {
+    const put = await waitFor(() => {
+      const found = calls.find((call) => call.method === 'PUT');
+      expect(found).toBeDefined();
+      return found!;
+    });
+    return put.clone().json();
+  };
+
+  it('offers a writer a drag handle on every card, in one column, without arrows', async () => {
     api();
     renderApp(`/manufacturers/${id}`);
     await screen.findByRole('heading', { name: 'La Marzocco' });
 
-    expect(screen.getByRole('button', { name: 'Posunout nahoru: Servis Novák s.r.o.' })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('button', { name: 'Posunout dolů: Servis Novák s.r.o.' })).not.toHaveAttribute('aria-disabled');
-    expect(screen.getByRole('button', { name: 'Posunout dolů: Kávoservis Plus' })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('button', { name: 'Posunout nahoru: Kávoservis Plus' })).not.toHaveAttribute('aria-disabled');
+    for (const p of [novak, gastro, kavo]) expect(handle(p.name)).toBeInTheDocument();
+    expect(handle(novak.name)).toHaveAccessibleDescription(/mezerníkem zvednete, šipkami nahoru a dolů posunete/);
+    expect(screen.queryByRole('button', { name: /Posunout/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('list')).not.toHaveClass('lg:grid-cols-3');
   });
 
-  it('moves a card with the arrow, shows it at once, sends the whole new order and keeps the focus on the arrow', async () => {
-    let saved = false;
-    const calls = api({
-      [`GET /api/v1/manufacturers/${id}`]: () =>
-        jsonResponse(
-          manufacturerDetail({
-            id,
-            providers: saved
-              ? [{ ...gastro, priority: 1 }, { ...novak, priority: 2 }, kavo]
-              : [novak, gastro, kavo],
-          }),
-        ),
-      [`PUT /api/v1/manufacturers/${id}/service-providers`]: () => {
-        saved = true;
-        return jsonResponse({ items: [{ ...gastro, priority: 1 }, { ...novak, priority: 2 }, kavo] });
-      },
-    });
+  it('moves a card with the keyboard, shows it at once, sends the whole new order and keeps the focus', async () => {
+    const calls = savingApi();
     const user = userEvent.setup();
     renderApp(`/manufacturers/${id}`);
+    await screen.findByRole('heading', { name: 'La Marzocco' });
 
-    const down = await screen.findByRole('button', { name: 'Posunout dolů: Servis Novák s.r.o.' });
-    await user.click(down);
-    await waitFor(() => expect(names()).toEqual(['GastroTech Morava', 'Servis Novák s.r.o.', 'Kávoservis Plus']));
-    const put = calls.find((call) => call.method === 'PUT')!;
-    expect(await put.clone().json()).toEqual({ providerIds: [gastro.id, novak.id, kavo.id] });
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Posunout dolů: Servis Novák s.r.o.' })).toHaveFocus(),
-    );
+    handle(novak.name).focus();
+    await user.keyboard('[Space]');
+    expect(await screen.findByText('Zvednuto: Servis Novák s.r.o., pořadí 1 z 3')).toBeInTheDocument();
+    await user.keyboard('[ArrowDown]');
     expect(await screen.findByText('Servis Novák s.r.o.: pořadí 2 z 3')).toBeInTheDocument();
+    await user.keyboard('[Space]');
+
+    await waitFor(() => expect(names()).toEqual(['GastroTech Morava', 'Servis Novák s.r.o.', 'Kávoservis Plus']));
+    expect(await putBody(calls)).toEqual({ providerIds: [gastro.id, novak.id, kavo.id] });
+    await waitFor(() => expect(handle(novak.name)).toHaveFocus());
     // The numbers follow the places.
     const cards = within(screen.getByRole('list')).getAllByRole('listitem');
     expect(cards[0]).toHaveTextContent('1');
     expect(cards[1]).toHaveTextContent('2');
   });
 
-  it('moves a card up', async () => {
-    const calls = api({
-      [`PUT /api/v1/manufacturers/${id}/service-providers`]: () => jsonResponse({ items: [] }),
-    });
+  it('moves a card up with the keyboard', async () => {
+    const calls = savingApi();
+    const user = userEvent.setup();
     renderApp(`/manufacturers/${id}`);
-    await userEvent.click(await screen.findByRole('button', { name: 'Posunout nahoru: Kávoservis Plus' }));
-    const put = await waitFor(() => calls.find((call) => call.method === 'PUT')!);
-    expect(await put.clone().json()).toEqual({ providerIds: [novak.id, kavo.id, gastro.id] });
+    await screen.findByRole('heading', { name: 'La Marzocco' });
+
+    handle(kavo.name).focus();
+    await user.keyboard('[Space]');
+    await screen.findByText('Zvednuto: Kávoservis Plus, pořadí 3 z 3');
+    await user.keyboard('[ArrowUp]');
+    await screen.findByText('Kávoservis Plus: pořadí 2 z 3');
+    await user.keyboard('[Space]');
+    expect(await putBody(calls)).toEqual({ providerIds: [novak.id, kavo.id, gastro.id] });
   });
 
-  it('does nothing for an arrow that cannot move the card', async () => {
-    const calls = api();
+  it('moves a card dragged with the pointer', async () => {
+    const calls = savingApi();
     renderApp(`/manufacturers/${id}`);
-    await userEvent.click(await screen.findByRole('button', { name: 'Posunout nahoru: Servis Novák s.r.o.' }));
+    await screen.findByRole('heading', { name: 'La Marzocco' });
+
+    // Novák's card (0-80 px) dragged by 110 px lands on GastroTech's place (100-180 px).
+    fireEvent.pointerDown(handle(novak.name), { isPrimary: true, button: 0, clientX: 20, clientY: 40 });
+    fireEvent.pointerMove(document, { clientX: 20, clientY: 50 });
+    fireEvent.pointerMove(document, { clientX: 20, clientY: 150 });
+    fireEvent.pointerUp(document, { clientX: 20, clientY: 150 });
+
+    await waitFor(() => expect(names()).toEqual(['GastroTech Morava', 'Servis Novák s.r.o.', 'Kávoservis Plus']));
+    expect(await putBody(calls)).toEqual({ providerIds: [gastro.id, novak.id, kavo.id] });
+  });
+
+  it('saves nothing when the drag is cancelled or the card is dropped where it was', async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(`/manufacturers/${id}`);
+    await screen.findByRole('heading', { name: 'La Marzocco' });
+
+    handle(novak.name).focus();
+    await user.keyboard('[Space]');
+    await screen.findByText(/^Zvednuto/);
+    await user.keyboard('[ArrowDown]');
+    await screen.findByText('Servis Novák s.r.o.: pořadí 2 z 3');
+    await user.keyboard('[Escape]');
+    expect(await screen.findByText('Přesun zrušen: Servis Novák s.r.o. zůstává na pořadí 1 z 3')).toBeInTheDocument();
+
+    await user.keyboard('[Space]');
+    await screen.findByText(/^Zvednuto/);
+    await user.keyboard('[ArrowUp]');
+    await user.keyboard('[Space]');
+    expect(names()).toEqual(['Servis Novák s.r.o.', 'GastroTech Morava', 'Kávoservis Plus']);
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
   it('puts the old order back and says why when saving fails', async () => {
-    api({ [`PUT /api/v1/manufacturers/${id}/service-providers`]: () => problem(409, 'conflict') });
+    savingApi(() => problem(409, 'conflict'));
+    const user = userEvent.setup();
     renderApp(`/manufacturers/${id}`);
-    await userEvent.click(await screen.findByRole('button', { name: 'Posunout dolů: Servis Novák s.r.o.' }));
+    await screen.findByRole('heading', { name: 'La Marzocco' });
+
+    handle(novak.name).focus();
+    await user.keyboard('[Space]');
+    await screen.findByText(/^Zvednuto/);
+    await user.keyboard('[ArrowDown]');
+    await screen.findByText('Servis Novák s.r.o.: pořadí 2 z 3');
+    await user.keyboard('[Space]');
     expect(await screen.findByText(/Záznam mezitím někdo upravil/)).toBeInTheDocument();
     await waitFor(() => expect(names()).toEqual(['Servis Novák s.r.o.', 'GastroTech Morava', 'Kávoservis Plus']));
   });
 
-  it('shows a reader no arrows', async () => {
+  it('shows a reader no handles', async () => {
     api({}, 'read');
     renderApp(`/manufacturers/${id}`);
     await screen.findByRole('heading', { name: 'La Marzocco' });
-    expect(screen.queryByRole('button', { name: /Posunout/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Přesunout/ })).not.toBeInTheDocument();
   });
 
-  it('shows no arrows for an archived brand', async () => {
+  it('shows no handles for an archived brand', async () => {
     api({
       [`GET /api/v1/manufacturers/${id}`]: () =>
         jsonResponse(manufacturerDetail({ id, archivedAt: '2026-05-01T00:00:00.000Z', providers: [novak, gastro] })),
     });
     renderApp(`/manufacturers/${id}`);
     expect(await screen.findByText('Archivováno')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Posunout/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Přesunout/ })).not.toBeInTheDocument();
   });
 
-  it('shows no arrows for a single supplier', async () => {
+  it('shows no handle for a single supplier', async () => {
     api({ [`GET /api/v1/manufacturers/${id}`]: () => jsonResponse(manufacturerDetail({ id, providers: [novak] })) });
     renderApp(`/manufacturers/${id}`);
     await screen.findByRole('heading', { name: 'La Marzocco' });
-    expect(screen.queryByRole('button', { name: /Posunout/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Přesunout/ })).not.toBeInTheDocument();
   });
 });

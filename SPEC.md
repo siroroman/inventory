@@ -123,8 +123,8 @@ Item (link), Date, Title, Service performed by, Responsible person, Description 
 ### 3.5 Manufacturer detail
 
 - A back button (to where the user came from; to the Suppliers tab on a deep link), the name, Note, and a "Service providers" section with the text: "Contact suppliers in this order. If one can't help, move to the next."
-- Provider cards ranked 1, 2, 3…: name (a link to the supplier), contact person with phone, and Call / Email / Web icon actions for what is known; an archived supplier that is still ranked is marked "Archived". Three columns from 1024 px, one below.
-- Write and Admin reorder with up/down arrows directly on the card of an active manufacturer with two or more providers: the new order shows at once and is saved as a whole; a failure puts the old order back and shows the error. The first card's up and the last card's down arrow do nothing.
+- Provider cards ranked 1, 2, 3…: name (a link to the supplier), contact person with phone, and Call / Email / Web icon actions for what is known; an archived supplier that is still ranked is marked "Archived". One card under another at every width.
+- Write and Admin reorder by dragging a card by its handle (mouse or finger; on the keyboard Space picks the card up, the arrow keys move it, Space drops it and Escape cancels), on an active manufacturer with two or more providers: the new order shows at once and is saved as a whole; a failure puts the old order back and shows the error. A card dropped where it was, or a cancelled drag, saves nothing.
 - A manufacturer without providers says so; Write and Admin are told the providers are added in the supplier form. Creating and editing a manufacturer has no screen of its own yet (see 3.7).
 
 ### 3.6 Service provider detail
@@ -313,7 +313,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /service-records/{id}/archive`, `/restore` | archive, restore | Write |
 | `GET /manufacturers`, `GET /manufacturers/{id}` | list, detail with ranked providers | Read |
 | `POST /manufacturers`, `PATCH /manufacturers/{id}` | create, edit | Write |
-| `PUT /manufacturers/{id}/service-providers` | send the whole new order at once, on every arrow click | Write |
+| `PUT /manufacturers/{id}/service-providers` | send the whole new order at once, after every drop | Write |
 | `GET /service-providers`, `GET /service-providers/{id}` | list (search covers name, code, phone and the brands serviced; `archived=true` = the archived providers), detail with brands | Read |
 | `POST /service-providers`, `PATCH /service-providers/{id}` | create, edit; an optional `manufacturerIds` sets the brands in the same transaction (a new brand ranks the provider last, a dropped one closes the gap) and the answer is the provider with its brands | Write |
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
@@ -401,7 +401,7 @@ The finished design ([Evidence majetku — UI design](https://claude.ai/artifact
 | Radius | 6, 8, 12 px; badges as pills |
 | Touch target | min. 44×44 px; button 44 px, small button 36 px |
 
-**What the design added beyond the original brief:** sub-locations with breadcrumb navigation, external item IDs, the Site and Warehouse location types, a single-line address field, arrow-based provider reordering, photos in the form instead of on the detail screen, and a "Pending" status for invited users.
+**What the design added beyond the original brief:** sub-locations with breadcrumb navigation, external item IDs, the Site and Warehouse location types, a single-line address field, provider reordering (arrows in the design, dragging in the app), photos in the form instead of on the detail screen, and a "Pending" status for invited users.
 
 **Still to add to the design:**
 - a Documents field (Google Drive link) in the item form

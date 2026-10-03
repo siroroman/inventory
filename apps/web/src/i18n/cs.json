@@ -459,8 +459,13 @@
       "empty": "Tuto značku zatím neservisuje žádný dodavatel.",
       "emptyHint": "Dodavatele ke značce přidáte v jeho formuláři, v části „Značky, které servisuje“."
     },
-    "moveUp": "Posunout nahoru: {{name}}",
-    "moveDown": "Posunout dolů: {{name}}",
+    "drag": {
+      "handle": "Přesunout: {{name}}",
+      "role": "položka k přesunutí",
+      "instructions": "Dodavatele přesunete přetažením. Na klávesnici ho mezerníkem zvednete, šipkami nahoru a dolů posunete a mezerníkem pustíte; klávesa Escape přesun zruší.",
+      "start": "Zvednuto: {{name}}, pořadí {{position}} z {{total}}",
+      "cancel": "Přesun zrušen: {{name}} zůstává na pořadí {{position}} z {{total}}"
+    },
     "moved": "{{name}}: pořadí {{position}} z {{total}}",
     "call": "Zavolat: {{name}}",
     "email": "Napsat e-mail: {{name}}",
