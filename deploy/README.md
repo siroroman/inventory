@@ -77,9 +77,11 @@ seed. The files hold real company data: keep them out of the repository.
 deploy/import.sh <locations.csv> <items.csv>   # asks for the users' password
 ```
 
-Each centre becomes a top-level location whose ID is its centre number (50, 620). Accounting
-inventory numbers become the external ID `Inv. č. stř. <centre>` (they repeat across centres), the
-electrician's IDs `Revize ILKO`; the other columns of the files go into the item's note. Any bad row
+Each centre becomes a top-level location whose ID is its centre number behind a prefix (`LOC-50`,
+`LOC-620`). An item with an accounting inventory number gets the ID `INV-<centre>-<number>`
+(`INV-73-2023016`; the numbers repeat across centres); the others get the next `INV-nnnnn`. The
+electrician's IDs become the external ID `Revize ILKO`; the other columns of the files go into the
+item's note. Any bad row
 stops the import and nothing is written.
 
 ### Starting over

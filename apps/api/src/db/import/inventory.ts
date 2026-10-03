@@ -64,8 +64,13 @@ const ITEM_COLUMNS = [
 
 /** The source of the electrician's inspection IDs (S 129, Z 045). */
 export const REVISION_SOURCE = 'Revize ILKO';
-/** Accounting restarts its inventory numbers in every centre, so the number is unique only within one. */
-export const inventoryNumberSource = (centre: string) => `Inv. č. stř. ${centre}`;
+/** A centre's ID: the centre number behind a prefix, LOC-73. */
+export const locationCode = (centre: string) => `LOC-${centre}`;
+/**
+ * An item's ID from its accounting inventory number: INV-73-2023016. Accounting restarts its numbers
+ * in every centre, so the centre belongs in the ID; the number alone would repeat.
+ */
+export const itemCode = (centre: string, inventoryNumber: string) => `INV-${centre}-${inventoryNumber}`;
 
 const orNull = (text: string) => text.trim() || null;
 
@@ -106,7 +111,7 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
       const typeId = typeIds.get(centre.type.trim());
       if (!typeId) throw new Error(`locations CSV record ${index + 1}: unknown location type "${centre.type}"`);
       const row = await locationRepo.insert({
-        code: centre.id.trim(),
+        code: locationCode(centre.id.trim()),
         name: centre.name.trim(),
         parentId: null,
         locationTypeId: typeId,
@@ -114,7 +119,7 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
         note: orNull(centre.note),
         createdBy: by,
       });
-      locationIds.set(row.code, row.id);
+      locationIds.set(centre.id.trim(), row.id);
     }
 
     const manufacturerRepo = createManufacturerRepository(tx);
@@ -139,7 +144,6 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
       if (!locationId) throw problem(`unknown location ${row.location_id}`);
 
       const ids: ExternalIdInput[] = [];
-      if (row.inv_number.trim()) ids.push({ source: inventoryNumberSource(row.location_id.trim()), value: row.inv_number.trim() });
       const skipped: string[] = [];
       for (const value of row.revision_ids.split(',').map((v) => v.trim()).filter(Boolean)) {
         if (takenRevisionIds.has(value.toLowerCase())) skipped.push(value);
@@ -149,7 +153,10 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
         }
       }
 
+      const inventoryNumber = row.inv_number.trim();
       const parsed = createItemBody.safeParse({
+        // Without an inventory number the database assigns the next INV-nnnnn.
+        ...(inventoryNumber && { code: itemCode(row.location_id.trim(), inventoryNumber) }),
         name: row.name,
         model: orNull(row.model),
         serialNumber: orNull(row.serial_number),
@@ -163,6 +170,7 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
       const item = parsed.data;
 
       const saved = await itemRepo.insert({
+        ...(item.code && { code: item.code }),
         name: item.name,
         locationId,
         manufacturerId: await manufacturerId(row.manufacturer),

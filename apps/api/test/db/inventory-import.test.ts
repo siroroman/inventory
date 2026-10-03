@@ -54,12 +54,12 @@ describe('inventory import', () => {
       locations: 3,
       manufacturers: 1,
       items: 3,
-      externalIds: 4,
+      externalIds: 2,
       skippedRevisionIds: 1,
     });
   });
 
-  it('makes each centre a top-level location with its number as the ID, its type and address', async () => {
+  it('makes each centre a top-level location with its number as the ID (LOC-50), its type and address', async () => {
     await importInventory(t().app, options);
     const rows = await t()
       .app.select({ code: locations.code, name: locations.name, parentId: locations.parentId, type: locationTypes.code, address: locations.address })
@@ -67,9 +67,9 @@ describe('inventory import', () => {
       .innerJoin(locationTypes, eq(locationTypes.id, locations.locationTypeId))
       .orderBy(asc(locations.code));
     expect(rows).toEqual([
-      { code: '50', name: 'Anděl', parentId: null, type: 'STORE', address: 'Ostrovského 33/2, 150 00 Praha 5' },
-      { code: '56', name: 'Psáry - Sklad', parentId: null, type: 'WAREHOUSE', address: null },
-      { code: '620', name: 'Vestec Centrála', parentId: null, type: 'HQ', address: 'Na Spojce 670, 252 50 Vestec' },
+      { code: 'LOC-50', name: 'Anděl', parentId: null, type: 'STORE', address: 'Ostrovského 33/2, 150 00 Praha 5' },
+      { code: 'LOC-56', name: 'Psáry - Sklad', parentId: null, type: 'WAREHOUSE', address: null },
+      { code: 'LOC-620', name: 'Vestec Centrála', parentId: null, type: 'HQ', address: 'Na Spojce 670, 252 50 Vestec' },
     ]);
   });
 
@@ -83,11 +83,21 @@ describe('inventory import', () => {
       registeredOn: '2024-12-27',
       purchasePrice: 39440.5,
     });
-    expect(fridge!.code).toMatch(/^INV-\d{5}$/);
     expect(await t().app.select({ name: manufacturers.name }).from(manufacturers)).toEqual([{ name: 'Liebherr' }]);
   });
 
-  it('scopes inventory numbers by centre and keeps a repeated revision ID on the first item only', async () => {
+  it('takes the ID of an item from its inventory number and centre, and generates one without', async () => {
+    await importInventory(t().app, options);
+    const codes = Object.fromEntries((await t().app.select({ name: items.name, code: items.code }).from(items)).map((r) => [r.name, r.code]));
+    // The same number in two centres gives two different IDs.
+    expect(codes['Lednice, 2 ks']).toBe('INV-50-2024003');
+    expect(codes.Tiskárna).toBe('INV-620-2024003');
+    expect(codes.Lednice).toMatch(/^INV-\d{5}$/);
+    const found = await createItemRepository(t().app).list({ q: 'inv-50-2024003' }, { limit: 50 });
+    expect(found.items.map((i) => i.name)).toEqual(['Lednice, 2 ks']);
+  });
+
+  it('keeps a repeated revision ID on the first item only', async () => {
     await importInventory(t().app, options);
     const ids = await t()
       .app.select({ item: items.name, source: itemExternalIds.source, value: itemExternalIds.value })
@@ -95,8 +105,6 @@ describe('inventory import', () => {
       .innerJoin(items, eq(items.id, itemExternalIds.itemId))
       .orderBy(asc(itemExternalIds.source), asc(itemExternalIds.value));
     expect(ids).toEqual([
-      { item: 'Lednice, 2 ks', source: 'Inv. č. stř. 50', value: '2024003' },
-      { item: 'Tiskárna', source: 'Inv. č. stř. 620', value: '2024003' },
       { item: 'Lednice, 2 ks', source: 'Revize ILKO', value: 'S 172' },
       { item: 'Lednice, 2 ks', source: 'Revize ILKO', value: 'S 176' },
     ]);
@@ -129,10 +137,12 @@ describe('inventory import', () => {
       csv(ITEM_HEADER, [item({ location_id: '99', name: 'Nikde' })]),
       csv(ITEM_HEADER, [item({ name: 'Budoucí', manufacture_year: '2999' })]),
       csv(ITEM_HEADER, [item({ name: 'Záporná', price_czk: '-1' })]),
+      csv(ITEM_HEADER, [item({ name: 'Lomítko', inv_number: '12/3' })]),
     ];
     await expect(importInventory(t().app, { ...options, itemsCsv: bad[0]! })).rejects.toThrow('record 1 (Nikde): unknown location 99');
     await expect(importInventory(t().app, { ...options, itemsCsv: bad[1]! })).rejects.toThrow('manufactureYear');
     await expect(importInventory(t().app, { ...options, itemsCsv: bad[2]! })).rejects.toThrow('purchasePrice');
+    await expect(importInventory(t().app, { ...options, itemsCsv: bad[3]! })).rejects.toThrow('record 1 (Lomítko): code');
     await expect(
       importInventory(t().app, { ...options, locationsCsv: csv(LOCATION_HEADER, [{ id: '1', name: 'X', type: 'MOON' }]) }),
     ).rejects.toThrow('unknown location type "MOON"');
