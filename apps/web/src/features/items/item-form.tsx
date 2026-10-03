@@ -91,7 +91,7 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
   });
 
   const fieldError = (message: string | undefined) => (message ? t(message as never) : undefined);
-  const props = (name: 'name' | 'model' | 'serialNumber' | 'manufactureYear' | 'documentsUrl' | 'registeredOn' | 'warrantyUntil' | 'lastServiceOn' | 'nextServiceOn' | 'note') => ({
+  const props = (name: 'name' | 'model' | 'serialNumber' | 'manufactureYear' | 'documentsUrl' | 'registeredOn' | 'purchasePrice' | 'warrantyUntil' | 'lastServiceOn' | 'nextServiceOn' | 'note') => ({
     id: `item-${name}`,
     'aria-invalid': errors[name] ? (true as const) : undefined,
     'aria-describedby': errors[name] ? `item-${name}-error` : undefined,
@@ -277,9 +277,14 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
           <Field id="item-registeredOn" label={t('item.fields.registeredOn')} error={fieldError(errors.registeredOn?.message)}>
             <Input {...props('registeredOn')} type="date" />
           </Field>
+          <Field id="item-purchasePrice" label={t('itemForm.purchasePrice')} error={fieldError(errors.purchasePrice?.message)}>
+            <Input {...props('purchasePrice')} inputMode="decimal" autoComplete="off" maxLength={20} />
+          </Field>
           <Field id="item-warrantyUntil" label={t('item.fields.warrantyUntil')} error={fieldError(errors.warrantyUntil?.message)}>
             <Input {...props('warrantyUntil')} type="date" />
           </Field>
+          {/* Keeps the two service dates side by side. */}
+          <div aria-hidden className="hidden sm:block" />
           <Field id="item-lastServiceOn" label={t('item.fields.lastServiceOn')} error={fieldError(errors.lastServiceOn?.message)}>
             <Input {...props('lastServiceOn')} type="date" />
           </Field>

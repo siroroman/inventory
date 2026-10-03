@@ -58,6 +58,17 @@ describe('items', () => {
   });
 
   it.each([
+    [-0.01, false],
+    [0, true],
+    [144902.5, true],
+    [9_999_999_999.99, true],
+  ])('purchase price %d accepted: %s', async (purchasePrice, accepted) => {
+    const attempt = insertItem(t().app, { purchasePrice });
+    if (accepted) expect((await attempt).purchasePrice).toBe(purchasePrice);
+    else await expectPgError(attempt, { code: PG.checkViolation, constraint: 'items_purchase_price_not_negative' });
+  });
+
+  it.each([
     'https://drive.google.com/drive/folders/1AbCdEf',
     'https://docs.google.com/document/d/1AbCdEf/edit',
     null,

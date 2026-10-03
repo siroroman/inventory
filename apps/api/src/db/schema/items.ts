@@ -5,6 +5,7 @@ import {
   foreignKey,
   index,
   integer,
+  numeric,
   pgSequence,
   pgTable,
   smallint,
@@ -36,6 +37,8 @@ export const items = pgTable(
     serialNumber: text(),
     manufactureYear: smallint(),
     registeredOn: date({ mode: 'string' }),
+    /** CZK, two decimals. */
+    purchasePrice: numeric({ precision: 12, scale: 2, mode: 'number' }),
     warrantyUntil: date({ mode: 'string' }),
     lastServiceOn: date({ mode: 'string' }),
     nextServiceOn: date({ mode: 'string' }),
@@ -50,6 +53,7 @@ export const items = pgTable(
     check('items_name_not_blank', sql`btrim(${t.name}) <> ''`),
     // "Not after the current year" is checked in Zod; a CHECK must be immutable.
     check('items_manufacture_year_range', sql`${t.manufactureYear} between 1950 and 2100`),
+    check('items_purchase_price_not_negative', sql`${t.purchasePrice} >= 0`),
     check(
       'items_documents_url_google',
       sql`${t.documentsUrl} ~ '^https://(drive|docs)\\.google\\.com/'`,

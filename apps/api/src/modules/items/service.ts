@@ -51,6 +51,8 @@ export type CreateItemInput = {
   serialNumber?: string | null;
   manufactureYear?: number | null;
   registeredOn?: string | null;
+  /** CZK. */
+  purchasePrice?: number | null;
   warrantyUntil?: string | null;
   lastServiceOn?: string | null;
   nextServiceOn?: string | null;
@@ -71,6 +73,7 @@ const AUDITED = [
   'serialNumber',
   'manufactureYear',
   'registeredOn',
+  'purchasePrice',
   'warrantyUntil',
   'lastServiceOn',
   'nextServiceOn',
@@ -215,6 +218,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
           serialNumber: input.serialNumber ?? null,
           manufactureYear: input.manufactureYear ?? null,
           registeredOn: input.registeredOn ?? null,
+          purchasePrice: input.purchasePrice ?? null,
           warrantyUntil: input.warrantyUntil ?? null,
           lastServiceOn: input.lastServiceOn ?? null,
           nextServiceOn: input.nextServiceOn ?? null,

@@ -32,6 +32,9 @@ const manufactureYear = z
   .min(1950)
   .refine((year) => year <= currentYear(), { message: 'Manufacture year is in the future' });
 
+/** CZK with at most two decimals; numeric(12, 2) in the database. */
+const purchasePrice = z.number().nonnegative().max(9_999_999_999.99).multipleOf(0.01);
+
 /** An identifier the item has at another party, e.g. source "Elektrikář", value "EL-4821". */
 export const externalIdSchema = z.strictObject({ source: requiredText(60), value: requiredText(120) });
 export type ExternalIdDto = z.infer<typeof externalIdSchema>;
@@ -44,6 +47,7 @@ const itemFields = {
   serialNumber: nullableText(120),
   manufactureYear: manufactureYear.nullable(),
   registeredOn: isoDate.nullable(),
+  purchasePrice: purchasePrice.nullable(),
   warrantyUntil: isoDate.nullable(),
   lastServiceOn: isoDate.nullable(),
   nextServiceOn: isoDate.nullable(),
@@ -57,6 +61,7 @@ const itemFields = {
 export const itemSchema = itemListEntrySchema.extend({
   manufactureYear: z.number().int().nullable(),
   registeredOn: isoDate.nullable(),
+  purchasePrice: z.number().nullable(),
   documentsUrl: z.string().nullable(),
   note: z.string().nullable(),
   externalIds: z.array(externalIdSchema),
@@ -69,6 +74,7 @@ const optionalItemFields = {
   serialNumber: true,
   manufactureYear: true,
   registeredOn: true,
+  purchasePrice: true,
   warrantyUntil: true,
   lastServiceOn: true,
   nextServiceOn: true,

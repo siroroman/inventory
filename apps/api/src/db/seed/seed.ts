@@ -126,6 +126,7 @@ export async function seed(db: Db, options: SeedOptions): Promise<SeedSummary> {
         serialNumber: i.serialNumber ?? null,
         manufactureYear: i.manufactureYear ?? null,
         registeredOn: addDays(options.today, i.registered),
+        purchasePrice: i.purchasePrice ?? null,
         warrantyUntil: addDays(options.today, i.warranty),
         lastServiceOn: addDays(options.today, i.lastService),
         nextServiceOn: addDays(options.today, i.nextService),

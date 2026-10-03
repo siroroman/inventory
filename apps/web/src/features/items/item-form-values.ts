@@ -8,6 +8,15 @@ const optionalText = (max: number) => z.string().trim().max(max, 'itemForm.error
 const optionalDate = z.string().refine((v) => v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v), 'itemForm.errors.date');
 const picked = z.object({ id: z.string(), label: z.string() });
 
+/** "144 902,50" or "144902.5" as a number; null for an empty field, NaN when it is not a price. */
+export function parsePrice(text: string): number | null {
+  const compact = text.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
+  if (compact === '') return null;
+  return /^\d{1,10}(\.\d{1,2})?$/.test(compact) ? Number(compact) : Number.NaN;
+}
+
+const priceText = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 2 });
+
 export const itemFormSchema = z.object({
   // Only used on creation (empty = the database assigns INV-nnnnn); it never goes into an edit.
   code: z.string().refine((v) => v.trim() === '' || humanCode.safeParse(v).success, 'itemForm.errors.code'),
@@ -22,6 +31,7 @@ export const itemFormSchema = z.object({
     return /^\d{4}$/.test(year) && Number(year) >= 1950 && Number(year) <= new Date().getFullYear();
   }, 'itemForm.errors.year'),
   registeredOn: optionalDate,
+  purchasePrice: z.string().refine((v) => !Number.isNaN(parsePrice(v)), 'itemForm.errors.price'),
   warrantyUntil: optionalDate,
   lastServiceOn: optionalDate,
   nextServiceOn: optionalDate,
@@ -67,6 +77,7 @@ export const emptyItemForm: ItemFormValues = {
   serialNumber: '',
   manufactureYear: '',
   registeredOn: '',
+  purchasePrice: '',
   warrantyUntil: '',
   lastServiceOn: '',
   nextServiceOn: '',
@@ -87,6 +98,7 @@ export function itemToFormValues(item: ItemDetailDto): ItemFormValues {
     serialNumber: item.serialNumber ?? '',
     manufactureYear: item.manufactureYear === null ? '' : String(item.manufactureYear),
     registeredOn: item.registeredOn ?? '',
+    purchasePrice: item.purchasePrice === null ? '' : priceText.format(item.purchasePrice),
     warrantyUntil: item.warrantyUntil ?? '',
     lastServiceOn: item.lastServiceOn ?? '',
     nextServiceOn: item.nextServiceOn ?? '',
@@ -108,6 +120,7 @@ export function formValuesToBody(values: ItemFormValues): CreateItemBody & { nam
     serialNumber: orNull(values.serialNumber),
     manufactureYear: values.manufactureYear.trim() === '' ? null : Number(values.manufactureYear),
     registeredOn: orNull(values.registeredOn),
+    purchasePrice: parsePrice(values.purchasePrice),
     warrantyUntil: orNull(values.warrantyUntil),
     lastServiceOn: orNull(values.lastServiceOn),
     nextServiceOn: orNull(values.nextServiceOn),

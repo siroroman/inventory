@@ -35,6 +35,7 @@ function detail(over: Record<string, unknown> = {}) {
     nextServiceOn: '2000-01-01',
     manufactureYear: 2018,
     registeredOn: '2019-05-01',
+    purchasePrice: 144902.5,
     documentsUrl: 'https://drive.google.com/drive/folders/abc',
     note: 'Pravidelně odvápňovat.',
     externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }],
@@ -83,6 +84,7 @@ describe('item detail', () => {
     for (const text of ['Rational', 'SCC 101', 'SN-7781', '2018', '1. 5. 2019', '1. 5. 2020', '4. 3. 2026', 'Pravidelně odvápňovat.']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
+    expect(screen.getByText((_, el) => el?.tagName === 'DD' && el.textContent?.replace(/\s/g, ' ') === '144 902,50 Kč')).toBeInTheDocument();
     expect(screen.getByText('Záruka vypršela')).toBeInTheDocument();
     expect(screen.getByText('Po termínu')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: /Otevřít složku na Google Drive/ });
@@ -122,6 +124,7 @@ describe('item detail', () => {
           serialNumber: null,
           manufactureYear: null,
           registeredOn: null,
+          purchasePrice: null,
           warrantyUntil: null,
           lastServiceOn: null,
           nextServiceOn: null,
@@ -132,7 +135,7 @@ describe('item detail', () => {
     );
     renderApp(`/items/${id}`);
     await screen.findByRole('heading', { name: 'Konvektomat' });
-    expect(screen.getAllByText('—')).toHaveLength(9);
+    expect(screen.getAllByText('—')).toHaveLength(10);
     expect(screen.queryByText('Záruka vypršela')).not.toBeInTheDocument();
     expect(screen.queryByText('Dokumenty')).not.toBeInTheDocument();
     expect(screen.queryByText('Poznámka')).not.toBeInTheDocument();

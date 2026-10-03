@@ -26,6 +26,7 @@ type ItemFields = Pick<
   | 'serialNumber'
   | 'manufactureYear'
   | 'registeredOn'
+  | 'purchasePrice'
   | 'warrantyUntil'
   | 'lastServiceOn'
   | 'nextServiceOn'

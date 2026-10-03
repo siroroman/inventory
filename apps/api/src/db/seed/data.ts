@@ -81,6 +81,8 @@ export type SeedItem = {
   manufactureYear?: number;
   /** Day offsets from today. */
   registered?: number;
+  /** CZK. */
+  purchasePrice?: number;
   warranty?: number;
   lastService?: number;
   nextService?: number;
@@ -93,20 +95,20 @@ const DRIVE = 'https://drive.google.com/drive/folders/';
 
 export const seedItems: SeedItem[] = [
   // Centrála Praha
-  { name: 'Konvektomat 10 GN', location: 'Kuchyně', manufacturer: 'Rational', model: 'iCombi Pro 10-1/1', serialNumber: 'E11SI22031456', manufactureYear: 2022, registered: -900, warranty: -170, lastService: -200, nextService: -10, documentsUrl: `${DRIVE}1RatKonv10GN`, externalIds: [['Elektrikář', 'EL-4821'], ['Revize plynu', 'RP-2025-117']] },
-  { name: 'Konvektomat 6 GN', location: 'Kuchyně', manufacturer: 'Rational', model: 'iCombi Pro 6-1/1', serialNumber: 'E61SI23040112', manufactureYear: 2023, registered: -500, warranty: 230, lastService: -150, nextService: 14, externalIds: [['Elektrikář', 'EL-4822']] },
+  { name: 'Konvektomat 10 GN', location: 'Kuchyně', manufacturer: 'Rational', model: 'iCombi Pro 10-1/1', serialNumber: 'E11SI22031456', manufactureYear: 2022, registered: -900, purchasePrice: 389900, warranty: -170, lastService: -200, nextService: -10, documentsUrl: `${DRIVE}1RatKonv10GN`, externalIds: [['Elektrikář', 'EL-4821'], ['Revize plynu', 'RP-2025-117']] },
+  { name: 'Konvektomat 6 GN', location: 'Kuchyně', manufacturer: 'Rational', model: 'iCombi Pro 6-1/1', serialNumber: 'E61SI23040112', manufactureYear: 2023, registered: -500, purchasePrice: 279500, warranty: 230, lastService: -150, nextService: 14, externalIds: [['Elektrikář', 'EL-4822']] },
   { name: 'Indukční varná deska', location: 'Kuchyně', manufacturer: 'Electrolux Professional', model: '700XP', serialNumber: '41200875', manufactureYear: 2021, registered: -1200, warranty: -470, lastService: -300, nextService: 65, externalIds: [['Elektrikář', 'EL-4823']] },
   { name: 'Chladicí skříň', location: 'Kuchyně', manufacturer: 'Liebherr', model: 'GKPv 6590', serialNumber: '88.431.912.4', manufactureYear: 2020, registered: -1500, warranty: -770, lastService: -340, nextService: 25 },
   { name: 'Mrazicí box', location: 'Kuchyně', manufacturer: 'Liebherr', model: 'GGv 5060', serialNumber: '88.512.004.1', manufactureYear: 2024, registered: -200, warranty: 530, nextService: 165 },
   { name: 'Univerzální robot', location: 'Kuchyně', manufacturer: 'Hobart', model: 'HSM20', manufactureYear: 2019, registered: -2000 },
-  { name: 'Průchozí myčka nádobí', location: 'Mycí linka', manufacturer: 'Winterhalter', model: 'PT-M', serialNumber: 'WH-PTM-77120', manufactureYear: 2022, registered: -800, warranty: -70, lastService: -95, nextService: 5, externalIds: [['Elektrikář', 'EL-4830'], ['Vodoinstalatér', 'V-042']] },
+  { name: 'Průchozí myčka nádobí', location: 'Mycí linka', manufacturer: 'Winterhalter', model: 'PT-M', serialNumber: 'WH-PTM-77120', manufactureYear: 2022, registered: -800, purchasePrice: 184250.5, warranty: -70, lastService: -95, nextService: 5, externalIds: [['Elektrikář', 'EL-4830'], ['Vodoinstalatér', 'V-042']] },
   { name: 'Myčka skla', location: 'Mycí linka', manufacturer: 'Winterhalter', model: 'UC-S', serialNumber: 'WH-UCS-10451', manufactureYear: 2023, registered: -450, warranty: 280, lastService: -60, nextService: 120 },
   { name: 'Změkčovač vody', location: 'Mycí linka', manufacturer: 'Winterhalter', model: 'MonoMatik 3', manufactureYear: 2022, registered: -800, nextService: -40, note: 'Sůl doplňovat každý týden.' },
   { name: 'Klimatizace zasedačka', location: 'Zasedací místnost', manufacturer: 'Daikin', model: 'FTXM35R', serialNumber: 'D35R-2201887', manufactureYear: 2022, registered: -700, warranty: 30, lastService: -180, nextService: 28, externalIds: [['Vzduchotechnika', 'VZT-015']] },
   { name: 'Projektor', location: 'Zasedací místnost', model: 'Epson EB-L200F', serialNumber: 'X7JK1200345', manufactureYear: 2021, registered: -1100, warranty: -370 },
   { name: 'Kávovar', location: '1. patro kanceláře', manufacturer: 'Bosch', model: 'VeroCafe', manufactureYear: 2024, registered: -120, warranty: 610 },
   { name: 'Hasicí přístroj práškový 6 kg', location: '1. patro kanceláře', manufactureYear: 2020, registered: -1400, lastService: -380, nextService: -15, externalIds: [['Hasiči', 'HP-0101']] },
-  { name: 'Klimatizace serverovna', location: 'Serverovna', manufacturer: 'Daikin', model: 'FTXM50R', serialNumber: 'D50R-2104410', manufactureYear: 2021, registered: -1000, warranty: -270, lastService: -170, nextService: 10, documentsUrl: `${DRIVE}1DaikinServer`, externalIds: [['Vzduchotechnika', 'VZT-016'], ['Elektrikář', 'EL-4840']] },
+  { name: 'Klimatizace serverovna', location: 'Serverovna', manufacturer: 'Daikin', model: 'FTXM50R', serialNumber: 'D50R-2104410', manufactureYear: 2021, registered: -1000, purchasePrice: 48600, warranty: -270, lastService: -170, nextService: 10, documentsUrl: `${DRIVE}1DaikinServer`, externalIds: [['Vzduchotechnika', 'VZT-016'], ['Elektrikář', 'EL-4840']] },
   { name: 'UPS záložní zdroj', location: 'Serverovna', model: 'APC Smart-UPS 3000', serialNumber: 'AS2104112233', manufactureYear: 2021, registered: -1000, warranty: -270, lastService: -330, nextService: 35, externalIds: [['Elektrikář', 'EL-4841']] },
   { name: 'Hasicí přístroj CO2 5 kg', location: 'Serverovna', manufactureYear: 2021, registered: -1000, lastService: -350, nextService: 15, externalIds: [['Hasiči', 'HP-0102']] },
   // Prodejna Brno
@@ -126,7 +128,7 @@ export const seedItems: SeedItem[] = [
   { name: 'Pračka průmyslová', location: 'Šatny', manufacturer: 'Electrolux Professional', model: 'WH6-11', serialNumber: '91450032', manufactureYear: 2020, registered: -1450, warranty: -720, lastService: -160, nextService: 20 },
   { name: 'Šatní skříně (sada 12 ks)', location: 'Šatny', registered: -1450 },
   // Sklad Kolín
-  { name: 'Vysokozdvižný vozík', location: 'Sklad Kolín', model: 'Linde E20', serialNumber: 'LI-E20-7731', manufactureYear: 2020, registered: -1500, warranty: -770, lastService: -170, nextService: 10, externalIds: [['Revize VZV', 'VZV-2025-3']] },
+  { name: 'Vysokozdvižný vozík', location: 'Sklad Kolín', model: 'Linde E20', serialNumber: 'LI-E20-7731', manufactureYear: 2020, registered: -1500, purchasePrice: 512000, warranty: -770, lastService: -170, nextService: 10, externalIds: [['Revize VZV', 'VZV-2025-3']] },
   { name: 'Paletový vozík', location: 'Regál A', model: 'Jungheinrich AM 22', manufactureYear: 2018, registered: -2500 },
   { name: 'Průmyslový vysavač', location: 'Regál A', manufacturer: 'Kärcher', model: 'NT 70/2', manufactureYear: 2021, registered: -1100, warranty: -400 },
   { name: 'Průmyslová myčka podlah', location: 'Regál B', manufacturer: 'Kärcher', model: 'B 50 W', serialNumber: 'KA-B50-10077', manufactureYear: 2023, registered: -420, warranty: 310, lastService: -120, nextService: 60 },

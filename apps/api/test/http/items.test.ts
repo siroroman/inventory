@@ -192,6 +192,7 @@ describe('GET /items/{id}', () => {
         serialNumber: 'SN-1',
         manufactureYear: 2019,
         registeredOn: '2020-01-15',
+        purchasePrice: 144902.5,
         warrantyUntil: '2022-01-15',
         lastServiceOn: '2025-11-01',
         nextServiceOn: '2026-11-01',
@@ -215,6 +216,7 @@ describe('GET /items/{id}', () => {
       path: [{ name: 'Praha' }, { name: 'Kuchyně' }],
       manufactureYear: 2019,
       registeredOn: '2020-01-15',
+      purchasePrice: 144902.5,
       warrantyUntil: '2022-01-15',
       lastServiceOn: '2025-11-01',
       nextServiceOn: '2026-11-01',
@@ -257,6 +259,7 @@ describe('POST /items', () => {
       model: null,
       serialNumber: null,
       manufactureYear: null,
+      purchasePrice: null,
       documentsUrl: null,
       note: null,
       externalIds: [],
@@ -385,6 +388,8 @@ describe('POST /items', () => {
       { ...base, locationId: 'nope' },
       { ...base, manufactureYear: 1949 },
       { ...base, manufactureYear: new Date().getFullYear() + 1 },
+      { ...base, purchasePrice: -1 },
+      { ...base, purchasePrice: 1.005 },
       { ...base, registeredOn: '15. 1. 2020' },
       { ...base, documentsUrl: 'https://evil.example/x' },
       // Zod once let these through and the database CHECK turned them into a 500.
@@ -421,6 +426,17 @@ describe('PATCH /items/{id}', () => {
       itemSchema,
     );
     expect(cleared).toMatchObject({ name: 'Konvektomat 2', model: null, note: null, warrantyUntil: null, version: 3 });
+  });
+
+  it('sets, changes and clears the purchase price', async () => {
+    const { write } = await setup();
+    const row = await item();
+    const priced = await expectJson(await write.patch(`/items/${row.id}`, { version: 1, purchasePrice: 39440 }), 200, itemSchema);
+    expect(priced.purchasePrice).toBe(39440);
+    const changed = await expectJson(await write.patch(`/items/${row.id}`, { version: 2, purchasePrice: 0.5 }), 200, itemSchema);
+    expect(changed.purchasePrice).toBe(0.5);
+    const cleared = await expectJson(await write.patch(`/items/${row.id}`, { version: 3, purchasePrice: null }), 200, itemSchema);
+    expect(cleared.purchasePrice).toBeNull();
   });
 
   it('moves the item to another location and changes its manufacturer', async () => {

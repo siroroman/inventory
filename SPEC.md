@@ -106,7 +106,7 @@ From the user menu (avatar with initials, top right) you can also reach: Users (
 | Basic info | Location | full path, every level is a link |
 | Basic info | Manufacturer | links to the manufacturer detail |
 | Basic info | Model, Serial number, Manufacture year | text; year 1950 to current |
-| Registration & warranty | Registered on, Warranty until | "Expired" badge after the warranty date |
+| Registration & warranty | Registered on, Purchase price, Warranty until | price in CZK with at most two decimals (`144 902 Kč`), visible to every role; "Expired" badge after the warranty date |
 | Documents | "Open folder in Google Drive" | opens in a new tab |
 | Note | free text | |
 | Service (last section) | Last service, Next service due, then **Service providers**, then **Service history (N)** | the two dates stay manual fields of the item; the providers are the manufacturer's service providers in contact order (numbered cards with contact person, phone and Call / Email / Web buttons, read only; shown when the item has a manufacturer); the history lists its service records newest first (title + date, each opens the record), "Add record" for Write and Admin on an active item |
@@ -163,7 +163,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 | --- | --- | --- |
 | `location_types` | code, name, sort_order | HQ, Store, Site, Warehouse; a new type is a new row |
 | `locations` | code, name, parent_id, location_type_id, address, note | tree via `parent_id`, unlimited depth; type required only for a location with no parent; address is a single text line |
-| `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, warranty_until, last_service_on, next_service_on, documents_url, note | N:1 location at any level (optional), N:1 manufacturer (optional) |
+| `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, purchase_price, warranty_until, last_service_on, next_service_on, documents_url, note | N:1 location at any level (optional), N:1 manufacturer (optional) |
 | `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID; (source, value) is unique across all items, archived ones included, ignoring case |
 | `item_photos` | item_id, storage_key, content_type, width, height, sort_order | N:1 item; the file lives in Cloud Storage |
 | `service_records` | item_id, performed_on, title, performed_by, responsible_person, description | N:1 item; free text for who did it (no link to providers or users); archivable and versioned like the other records, never deleted |

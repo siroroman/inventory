@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '../src/i18n/index.ts';
-import { formatDate, formatFileSize, formatTimestamp } from '../src/lib/format.ts';
+import { formatDate, formatFileSize, formatPrice, formatTimestamp } from '../src/lib/format.ts';
 
 describe('Czech plurals', () => {
   it.each([
@@ -27,6 +27,17 @@ describe('formatTimestamp', () => {
   it('shows the day of a moment in time the Czech way', () => {
     // Noon UTC is the same calendar day in every time zone from UTC-11 to UTC+11.
     expect(formatTimestamp('2026-10-02T12:00:00.000Z').replace(/\s/g, ' ')).toBe('2. 10. 2026');
+  });
+});
+
+describe('formatPrice', () => {
+  it.each([
+    [0, '0 Kč'],
+    [39440, '39 440 Kč'],
+    [144902.5, '144 902,50 Kč'],
+    [13064.25, '13 064,25 Kč'],
+  ])('%s', (value, text) => {
+    expect(formatPrice(value).replace(/\s/g, ' ')).toBe(text);
   });
 });
 
