@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListFrame, ListToolbar } from '@/components/list-toolbar';
-import { type Column, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
+import { type Column, codeColumnWidth, nestedNameColumnWidth, PagedList, pagedTotal } from '@/components/paged-list';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
@@ -35,7 +35,7 @@ export function useItemRows({ nested }: { nested: boolean }) {
         </>
       ),
     },
-    { header: t('home.items.columns.code'), className: 'w-28', cell: (item) => item.code },
+    { header: t('home.items.columns.code'), className: codeColumnWidth, cell: (item) => item.code },
     { header: t('home.items.columns.brand'), cell: brandAndModel },
     {
       header: t('home.items.columns.location'),

@@ -179,8 +179,8 @@ describe('location detail: sub-locations and items', () => {
     // Both tables give the name the same width, so their ID columns line up.
     expect(within(items).getByRole('columnheader', { name: 'Název' })).toHaveClass('w-80');
     expect(within(children).getByRole('columnheader', { name: 'Název' })).toHaveClass('w-80');
-    expect(within(children).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-28');
-    expect(within(items).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-28');
+    expect(within(children).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-44');
+    expect(within(items).getByRole('columnheader', { name: 'ID' })).toHaveClass('w-44');
     // The rest is shared evenly by the columns without a set width: the two counts and an empty
     // column spanning two of them, as many as the items table has, so the divider after the counts
     // lines up with the location column below and the row lines reach the edge.

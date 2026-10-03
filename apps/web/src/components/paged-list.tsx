@@ -44,6 +44,12 @@ type Props<T extends { id: string }> = {
  */
 export const nestedNameColumnWidth = 'w-80';
 
+/**
+ * Width of the ID column in the location and item tables. Item IDs from the import (INV-<centre>-<number>)
+ * are long; the location table uses the same width so the columns line up on a location's page.
+ */
+export const codeColumnWidth = 'w-44';
+
 // Tailwind's `md` breakpoint.
 const wideScreen = '(min-width: 768px)';
 
