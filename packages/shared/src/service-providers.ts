@@ -53,14 +53,20 @@ export const serviceProviderDetailSchema = serviceProviderSchema.extend({
 });
 export type ServiceProviderDetailDto = z.infer<typeof serviceProviderDetailSchema>;
 
-const optionalFields = { contactPerson: true, phone: true, email: true, web: true, note: true } as const;
+/** The whole set of brands a provider services; saving it with the provider makes a form one request. */
+const manufacturerIds = z.array(z.uuid()).max(100);
 
-export const createServiceProviderBody = z.strictObject(providerFields).partial(optionalFields);
+const optionalFields = { contactPerson: true, phone: true, email: true, web: true, note: true, manufacturerIds: true } as const;
+
+export const createServiceProviderBody = z.strictObject({ ...providerFields, manufacturerIds }).partial(optionalFields);
 export type CreateServiceProviderBody = z.infer<typeof createServiceProviderBody>;
 
-/** Only the fields present change; `null` clears a contact field or the note. */
+/**
+ * Only the fields present change; `null` clears a contact field or the note. `manufacturerIds`, when
+ * present, replaces the brands the provider services (see `setManufacturersBody`).
+ */
 export const updateServiceProviderBody = z
-  .strictObject({ ...providerFields, version: versionField })
+  .strictObject({ ...providerFields, manufacturerIds, version: versionField })
   .partial({ name: true, ...optionalFields })
   .refine(hasChange, { message: 'Nothing to change' });
 export type UpdateServiceProviderBody = z.infer<typeof updateServiceProviderBody>;
@@ -73,8 +79,5 @@ export const serviceProviderListQuery = searchPageQuery.extend(archivedQuery.sha
  * provider last for it; the order per brand is changed on the manufacturer. An empty list drops
  * the provider from every brand.
  */
-export const setManufacturersBody = z.strictObject({
-  version: versionField,
-  manufacturerIds: z.array(z.uuid()).max(100),
-});
+export const setManufacturersBody = z.strictObject({ version: versionField, manufacturerIds });
 export type SetManufacturersBody = z.infer<typeof setManufacturersBody>;

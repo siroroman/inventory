@@ -233,6 +233,41 @@ describe('POST /service-providers', () => {
     expect(entry?.changes).toMatchObject({ name: { to: 'A' }, phone: { to: '123' } });
   });
 
+  it('creates the provider with the brands it services, ranked last for each', async () => {
+    const { write, read } = await setup();
+    const first = await insertProvider(db().app, { name: 'První' });
+    const [a, b] = await Promise.all(['Alfa', 'Beta'].map((name) => insertManufacturer(db().app, { name })));
+    await write.put(`/manufacturers/${a!.id}/service-providers`, { providerIds: [first.id] });
+
+    const body = await expectJson(
+      await write.post('/service-providers', { name: 'Servis Novák', manufacturerIds: [b!.id, a!.id] }),
+      201,
+      serviceProviderDetailSchema,
+    );
+    expect(body).toMatchObject({ version: 1 });
+    expect(body.manufacturers).toEqual([
+      { id: a!.id, name: 'Alfa', archivedAt: null, priority: 2 },
+      { id: b!.id, name: 'Beta', archivedAt: null, priority: 1 },
+    ]);
+    const detail = await expectJson(await read.get(`/manufacturers/${a!.id}`), 200, manufacturerDetailSchema);
+    expect(detail.providers.map((p) => p.id)).toEqual([first.id, body.id]);
+    const [entry] = await auditOf('service_provider', body.id);
+    expect(entry?.changes).toMatchObject({ manufacturers: { from: [], to: [b!.id, a!.id] } });
+    expect(await auditOf('manufacturer', b!.id)).toHaveLength(1);
+  });
+
+  it('answers 422 and 409 for a refused brand and creates nothing', async () => {
+    const { write, read } = await setup();
+    const a = await insertManufacturer(db().app, { name: 'Alfa' });
+    const archived = await insertManufacturer(db().app, { name: 'Beta' });
+    await archiveManufacturerRow(archived.id);
+
+    await expectProblem(await write.post('/service-providers', { name: 'X', manufacturerIds: [MISSING] }), 422, 'manufacturer_not_found');
+    await expectProblem(await write.post('/service-providers', { name: 'X', manufacturerIds: [archived.id] }), 422, 'manufacturer_archived');
+    await expectProblem(await write.post('/service-providers', { name: 'X', manufacturerIds: [a.id, a.id] }), 409, 'duplicate_manufacturer');
+    expect((await expectJson(await read.get('/service-providers'), 200, serviceProviderListSchema)).items).toEqual([]);
+  });
+
   it('answers 400 for an invalid body', async () => {
     const { write } = await setup();
     for (const body of [
@@ -245,7 +280,8 @@ describe('POST /service-providers', () => {
       { name: 'X', phone: '' },
       { name: 'X', note: '' },
       { name: 'X', code: 'SUP-999' },
-      { name: 'X', manufacturerIds: [MISSING] },
+      { name: 'X', manufacturerIds: ['nope'] },
+      { name: 'X', manufacturerIds: Array.from({ length: 101 }, () => MISSING) },
     ]) {
       await expectProblem(await write.post('/service-providers', body), 400, 'validation_error');
     }
@@ -284,6 +320,58 @@ describe('PATCH /service-providers/{id}', () => {
     expect(Object.keys(entries[0]?.changes ?? {})).toEqual(['name']);
   });
 
+  it('saves the fields and the brands in one save, bumping the version once', async () => {
+    const { write, read } = await setup();
+    const novak = await insertProvider(db().app, { name: 'Servis Novák' });
+    const other = await insertProvider(db().app, { name: 'Jiný servis' });
+    const [a, b] = await Promise.all(['Alfa', 'Beta'].map((name) => insertManufacturer(db().app, { name })));
+    await write.put(`/manufacturers/${a!.id}/service-providers`, { providerIds: [other.id, novak.id] });
+
+    const saved = await expectJson(
+      await write.patch(`/service-providers/${novak.id}`, { version: 1, phone: '123', manufacturerIds: [b!.id] }),
+      200,
+      serviceProviderDetailSchema,
+    );
+    expect(saved).toMatchObject({ phone: '123', version: 2 });
+    expect(saved.manufacturers.map((m) => [m.name, m.priority])).toEqual([['Beta', 1]]);
+    const detail = await expectJson(await read.get(`/manufacturers/${a!.id}`), 200, manufacturerDetailSchema);
+    expect(detail.providers.map((p) => [p.id, p.priority])).toEqual([[other.id, 1]]);
+    const entries = await auditOf('service_provider', novak.id);
+    expect(entries.at(-1)?.changes).toMatchObject({
+      phone: { from: null, to: '123' },
+      manufacturers: { from: [a!.id], to: [b!.id] },
+    });
+  });
+
+  it('changes only the brands, and writes nothing when they are the same', async () => {
+    const { write } = await setup();
+    const novak = await insertProvider(db().app, { name: 'Servis Novák' });
+    const a = await insertManufacturer(db().app, { name: 'Alfa' });
+    const path = `/service-providers/${novak.id}`;
+
+    const added = await expectJson(await write.patch(path, { version: 1, manufacturerIds: [a.id] }), 200, serviceProviderDetailSchema);
+    expect(added).toMatchObject({ version: 2, name: 'Servis Novák' });
+    const same = await expectJson(await write.patch(path, { version: 2, manufacturerIds: [a.id] }), 200, serviceProviderDetailSchema);
+    expect(same).toMatchObject({ version: 2 });
+    expect(await auditOf('service_provider', novak.id)).toHaveLength(1);
+    const cleared = await expectJson(await write.patch(path, { version: 2, manufacturerIds: [] }), 200, serviceProviderDetailSchema);
+    expect(cleared).toMatchObject({ version: 3, manufacturers: [] });
+  });
+
+  it('keeps the fields and the brands as they were when a brand is refused or the version is stale', async () => {
+    const { write, read } = await setup();
+    const novak = await insertProvider(db().app, { name: 'Servis Novák' });
+    const a = await insertManufacturer(db().app, { name: 'Alfa' });
+    const path = `/service-providers/${novak.id}`;
+
+    await expectProblem(await write.patch(path, { version: 1, name: 'Nový název', manufacturerIds: [MISSING] }), 422, 'manufacturer_not_found');
+    await expectProblem(await write.patch(path, { version: 1, name: 'Nový název', manufacturerIds: [a.id, a.id] }), 409, 'duplicate_manufacturer');
+    await expectProblem(await write.patch(path, { version: 5, name: 'Nový název', manufacturerIds: [a.id] }), 409, 'conflict');
+    const detail = await expectJson(await read.get(path), 200, serviceProviderDetailSchema);
+    expect(detail).toMatchObject({ name: 'Servis Novák', version: 1, manufacturers: [] });
+    expect(await auditOf('manufacturer', a.id)).toEqual([]);
+  });
+
   it('answers 409 for a stale version and for an archived provider, 404 for an unknown one', async () => {
     const { write } = await setup();
     const novak = await insertProvider(db().app, { name: 'Servis Novák' });
@@ -300,7 +388,7 @@ describe('PATCH /service-providers/{id}', () => {
     const novak = await insertProvider(db().app, { name: 'Servis Novák' });
     const path = `/service-providers/${novak.id}`;
     await expectProblem(await write.patch(path, { name: 'X' }), 400, 'validation_error');
-    await expectProblem(await write.patch(path, { version: 1, manufacturerIds: [] }), 400, 'validation_error');
+    await expectProblem(await write.patch(path, { version: 1, manufacturers: [] }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, name: '' }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, name: null }), 400, 'validation_error');
     await expectProblem(await write.patch(path, { version: 1, email: 'nope' }), 400, 'validation_error');

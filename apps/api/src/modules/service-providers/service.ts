@@ -40,6 +40,8 @@ export type CreateServiceProviderInput = {
   email?: string | null;
   web?: string | null;
   note?: string | null;
+  /** The brands the provider services (see `setManufacturers`). */
+  manufacturerIds?: string[];
 };
 export type UpdateServiceProviderInput = Partial<CreateServiceProviderInput> & { version: number };
 
@@ -51,6 +53,44 @@ async function loadCurrent(r: ServiceProviderRepos, id: string, version: number)
   if (!current) throw new DomainError('not_found');
   if (current.version !== version) throw new DomainError('conflict');
   return current;
+}
+
+/**
+ * Makes `ids` the brands the provider services, inside the caller's transaction. A new brand ranks
+ * the provider last; a dropped brand closes the gap in its order. Only active brands can be added;
+ * leaving an archived brand is allowed. Every manufacturer whose order changes gets an audit entry;
+ * the provider's own entry and version bump are the caller's.
+ */
+async function applyBrands(r: ServiceProviderRepos, actor: Actor, providerId: string, ids: string[]) {
+  if (new Set(ids).size !== ids.length) throw new DomainError('duplicate_manufacturer');
+
+  const before = (await r.serviceProviders.listManufacturers(providerId)).map((m) => m.id);
+  const added = ids.filter((m) => !before.includes(m));
+  const removed = before.filter((m) => !ids.includes(m));
+  for (const manufacturerId of added) {
+    const manufacturer = await r.manufacturers.findById(manufacturerId);
+    if (!manufacturer) throw new DomainError('manufacturer_not_found', { manufacturerId });
+    if (manufacturer.archivedAt) throw new DomainError('manufacturer_archived', { manufacturerId });
+  }
+  if (!added.length && !removed.length) return undefined;
+
+  for (const manufacturerId of [...added, ...removed]) {
+    const order = (await r.manufacturers.listProviders(manufacturerId)).map((p) => p.id);
+    const next = added.includes(manufacturerId) ? [...order, providerId] : order.filter((p) => p !== providerId);
+    await r.manufacturers.replaceProviders(manufacturerId, next, actor.id);
+    await r.audit.record({
+      userId: actor.id,
+      entityType: 'manufacturer',
+      entityId: manufacturerId,
+      action: 'update',
+      changes: { providers: { from: order, to: next } },
+    });
+  }
+  return { manufacturers: { from: before, to: [...before.filter((m) => !removed.includes(m)), ...added] } };
+}
+
+async function withBrands(r: ServiceProviderRepos, row: ServiceProvider): Promise<ServiceProviderDetail> {
+  return { ...row, manufacturers: await r.serviceProviders.listManufacturers(row.id) };
 }
 
 export function createServiceProviderService({ repos, transact }: ServiceProviderDeps) {
@@ -95,7 +135,7 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
       return { ...result, total };
     },
 
-    async create(actor: Actor, input: CreateServiceProviderInput): Promise<ServiceProvider> {
+    async create(actor: Actor, input: CreateServiceProviderInput): Promise<ServiceProviderDetail> {
       assertRole(actor, 'write');
       return transact(async (r) => {
         const row = await r.serviceProviders.insert({
@@ -107,23 +147,32 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
           note: input.note ?? null,
           createdBy: actor.id,
         });
+        const brands = await applyBrands(r, actor, row.id, input.manufacturerIds ?? []);
         await r.audit.record({
           userId: actor.id,
           entityType: 'service_provider',
           entityId: row.id,
           action: 'create',
-          changes: initialFields(row, AUDITED),
+          changes: { ...initialFields(row, AUDITED), ...brands },
         });
-        return row;
+        return withBrands(r, row);
       });
     },
 
-    async update(actor: Actor, id: string, input: UpdateServiceProviderInput): Promise<ServiceProvider> {
+    /**
+     * Edits the sent fields and, when `manufacturerIds` is sent, the brands in the same transaction
+     * (see `setManufacturers`). A save that changes nothing but leaves the brands as they are
+     * writes nothing; any other save bumps the version once.
+     */
+    async update(actor: Actor, id: string, input: UpdateServiceProviderInput): Promise<ServiceProviderDetail> {
       assertRole(actor, 'write');
       return transact(async (r) => {
         const current = await loadCurrent(r, id, input.version);
         if (current.archivedAt) throw new DomainError('archived');
         const patch = Object.fromEntries(EDITABLE.filter((f) => input[f] !== undefined).map((f) => [f, input[f]]));
+        const brands = input.manufacturerIds && (await applyBrands(r, actor, id, input.manufacturerIds));
+        if (input.manufacturerIds && !brands && Object.keys(patch).length === 0) return withBrands(r, current);
+
         const updated = await r.serviceProviders.update(id, input.version, { ...patch, updatedBy: actor.id });
         if (!updated) throw new DomainError('conflict');
         await r.audit.record({
@@ -131,9 +180,9 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
           entityType: 'service_provider',
           entityId: id,
           action: 'update',
-          changes: changedFields(current, updated, AUDITED),
+          changes: { ...changedFields(current, updated, AUDITED), ...brands },
         });
-        return updated;
+        return withBrands(r, updated);
       });
     },
 
@@ -153,32 +202,9 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
       return transact(async (r) => {
         const current = await loadCurrent(r, id, version);
         if (current.archivedAt) throw new DomainError('archived');
-        if (new Set(manufacturerIds).size !== manufacturerIds.length) throw new DomainError('duplicate_manufacturer');
+        const brands = await applyBrands(r, actor, id, manufacturerIds);
+        if (!brands) return withBrands(r, current);
 
-        const before = (await r.serviceProviders.listManufacturers(id)).map((m) => m.id);
-        const added = manufacturerIds.filter((m) => !before.includes(m));
-        const removed = before.filter((m) => !manufacturerIds.includes(m));
-        for (const manufacturerId of added) {
-          const manufacturer = await r.manufacturers.findById(manufacturerId);
-          if (!manufacturer) throw new DomainError('manufacturer_not_found', { manufacturerId });
-          if (manufacturer.archivedAt) throw new DomainError('manufacturer_archived', { manufacturerId });
-        }
-        if (!added.length && !removed.length) {
-          return { ...current, manufacturers: await r.serviceProviders.listManufacturers(id) };
-        }
-
-        for (const manufacturerId of [...added, ...removed]) {
-          const order = (await r.manufacturers.listProviders(manufacturerId)).map((p) => p.id);
-          const next = added.includes(manufacturerId) ? [...order, id] : order.filter((p) => p !== id);
-          await r.manufacturers.replaceProviders(manufacturerId, next, actor.id);
-          await r.audit.record({
-            userId: actor.id,
-            entityType: 'manufacturer',
-            entityId: manufacturerId,
-            action: 'update',
-            changes: { providers: { from: order, to: next } },
-          });
-        }
         const touched = await r.serviceProviders.update(id, version, { updatedBy: actor.id });
         if (!touched) throw new DomainError('conflict');
         await r.audit.record({
@@ -186,9 +212,9 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
           entityType: 'service_provider',
           entityId: id,
           action: 'update',
-          changes: { manufacturers: { from: before, to: [...before.filter((m) => !removed.includes(m)), ...added] } },
+          changes: brands,
         });
-        return { ...touched, manufacturers: await r.serviceProviders.listManufacturers(id) };
+        return withBrands(r, touched);
       });
     },
 
