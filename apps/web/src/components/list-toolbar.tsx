@@ -44,9 +44,10 @@ export function ListToolbar({ title, count, search, action, archived }: Props) {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between gap-3">
+          {/* A longer heading and button (Dodavatelé, Přidat dodavatele) wrap onto two lines instead of leaving the screen. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             {heading}
-            {action}
+            {action && <div className="ml-auto">{action}</div>}
           </div>
           <SearchBox {...search} />
         </>
