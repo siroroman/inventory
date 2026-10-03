@@ -1,4 +1,4 @@
-import type { ServiceProviderDto } from '@inventory/shared';
+import type { ServiceProviderDetailDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
@@ -9,6 +9,8 @@ import { type Column, PagedList, pagedTotal } from '@/components/paged-list';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { providerListQueryOptions } from './api';
+
+const brandNames = (provider: ServiceProviderDetailDto) => provider.manufacturers.map((brand) => brand.name).join(', ');
 
 /** Suppliers tab: the service providers by name, or the matches of a search; or the archived ones. */
 export function ServiceProvidersPanel({
@@ -28,7 +30,7 @@ export function ServiceProvidersPanel({
   const total = pagedTotal(query.data);
   const canWrite = useCanWrite();
 
-  const columns: Column<ServiceProviderDto>[] = [
+  const columns: Column<ServiceProviderDetailDto>[] = [
     {
       header: t('home.suppliers.columns.name'),
       primary: true,
@@ -43,10 +45,14 @@ export function ServiceProvidersPanel({
     },
     { header: t('home.suppliers.columns.code'), className: 'w-32', cell: (provider) => provider.code },
     { header: t('home.suppliers.columns.phone'), cell: (provider) => provider.phone ?? t('common.empty') },
+    {
+      header: t('home.suppliers.columns.brands'),
+      cell: (provider) => <span title={brandNames(provider)}>{brandNames(provider) || t('common.empty')}</span>,
+    },
   ];
 
   // The card is one link to the supplier; its phone is called from the detail.
-  const card = (provider: ServiceProviderDto) => (
+  const card = (provider: ServiceProviderDetailDto) => (
     <Link to="/service-providers/$id" params={{ id: provider.id }} className="block">
       <p className="text-[15px] font-semibold">
         {provider.name}
@@ -55,6 +61,7 @@ export function ServiceProvidersPanel({
       <p className="mt-1 text-sm text-muted-foreground">
         {[provider.code, provider.phone].filter(Boolean).join(' · ')}
       </p>
+      {brandNames(provider) && <p className="text-sm text-muted-foreground">{brandNames(provider)}</p>}
     </Link>
   );
 

@@ -15,8 +15,13 @@ const listCalls = (calls: Request[]) =>
   calls.filter((call) => new URL(call.url).pathname === '/api/v1/service-providers').map((call) => new URL(call.url).searchParams);
 
 describe('home: suppliers tab', () => {
-  it('lists the suppliers with ID and phone under a heading with the total', async () => {
-    const novak = provider();
+  it('lists the suppliers with ID, phone and brands under a heading with the total', async () => {
+    const novak = provider({
+      manufacturers: [
+        { id: crypto.randomUUID(), name: 'Daikin', archivedAt: null, priority: 1 },
+        { id: crypto.randomUUID(), name: 'La Marzocco', archivedAt: null, priority: 2 },
+      ],
+    });
     api(() => page([novak], { total: 3 }));
     renderApp('/?tab=suppliers');
 
@@ -25,20 +30,28 @@ describe('home: suppliers tab', () => {
     const row = await screen.findByRole('listitem');
     expect(row).toHaveTextContent('Servis Novák s.r.o.');
     expect(row).toHaveTextContent('SUP-001 · +420 601 123 456');
+    expect(row).toHaveTextContent('Daikin, La Marzocco');
     expect(within(row).getByRole('link')).toHaveAttribute('href', `/service-providers/${novak.id}`);
   });
 
   it('shows a table with the name as a link on a wide screen', async () => {
     stubWideScreen(true);
     const novak = provider();
-    api(() => page([novak, provider({ code: 'SUP-002', name: 'AquaTech servis', phone: null })]));
+    const marzocco = { id: crypto.randomUUID(), name: 'La Marzocco', archivedAt: null, priority: 1 };
+    const daikin = { id: crypto.randomUUID(), name: 'Daikin', archivedAt: null, priority: 2 };
+    api(() =>
+      page([
+        provider({ ...novak, manufacturers: [daikin, marzocco] }),
+        provider({ code: 'SUP-002', name: 'AquaTech servis', phone: null }),
+      ]),
+    );
     renderApp('/?tab=suppliers');
 
     const table = await screen.findByRole('table');
-    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Název', 'ID', 'Telefon']);
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Název', 'ID', 'Telefon', 'Značky']);
     const rows = within(table).getAllByRole('row');
-    expect(within(rows[1]!).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Servis Novák s.r.o.', 'SUP-001', '+420 601 123 456']);
-    expect(within(rows[2]!).getAllByRole('cell').map((c) => c.textContent)).toEqual(['AquaTech servis', 'SUP-002', '—']);
+    expect(within(rows[1]!).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Servis Novák s.r.o.', 'SUP-001', '+420 601 123 456', 'Daikin, La Marzocco']);
+    expect(within(rows[2]!).getAllByRole('cell').map((c) => c.textContent)).toEqual(['AquaTech servis', 'SUP-002', '—', '—']);
     expect(screen.getByRole('link', { name: 'Servis Novák s.r.o.' })).toHaveAttribute('href', `/service-providers/${novak.id}`);
   });
 

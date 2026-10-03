@@ -131,7 +131,8 @@
       "columns": {
         "name": "Název",
         "code": "ID",
-        "phone": "Telefon"
+        "phone": "Telefon",
+        "brands": "Značky"
       },
       "add": "Přidat dodavatele"
     }
