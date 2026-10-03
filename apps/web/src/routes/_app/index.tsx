@@ -5,10 +5,11 @@ import { z } from 'zod';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ItemsPanel } from '@/features/items/item-list';
 import { LocationsPanel } from '@/features/locations/location-list';
+import { ServiceProvidersPanel } from '@/features/service-providers/provider-list';
 import { ServiceRecordsPanel } from '@/features/service-records/service-record-list';
 import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 
-const tabs = ['locations', 'items', 'maintenance'] as const;
+const tabs = ['locations', 'items', 'maintenance', 'suppliers'] as const;
 type Tab = (typeof tabs)[number];
 
 // The URL holds the active tab (missing = locations), the search text and whether the archived
@@ -53,6 +54,7 @@ function Home() {
     locations: <LocationsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
     items: <ItemsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
     maintenance: <ServiceRecordsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
+    suppliers: <ServiceProvidersPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
   };
 
   return (
@@ -73,10 +75,14 @@ function Home() {
             <TabsTrigger value="maintenance" className="px-0">
               {t('home.maintenance.tab')}
             </TabsTrigger>
+            <TabsTrigger value="suppliers" className="px-0">
+              {t('home.suppliers.tab')}
+            </TabsTrigger>
           </TabsList>
           <TabsContent value="locations">{panels.locations}</TabsContent>
           <TabsContent value="items">{panels.items}</TabsContent>
           <TabsContent value="maintenance">{panels.maintenance}</TabsContent>
+          <TabsContent value="suppliers">{panels.suppliers}</TabsContent>
         </Tabs>
       )}
     </div>

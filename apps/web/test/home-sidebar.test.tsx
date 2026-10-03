@@ -10,18 +10,24 @@ function api() {
     'GET /api/v1/locations': () => page([location()]),
     'GET /api/v1/items': () => page([]),
     'GET /api/v1/service-records': () => page([]),
+    'GET /api/v1/service-providers': () => page([]),
     'GET /api/v1/manufacturers': () => page([]),
   });
 }
 
 describe('home: side menu on desktop', () => {
-  it('replaces the top bar and the tabs with the three lists and the user', async () => {
+  it('replaces the top bar and the tabs with the four lists and the user', async () => {
     stubWideScreen(true);
     api();
     renderApp('/');
 
     const nav = await screen.findByRole('navigation', { name: 'Hlavní navigace' });
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Lokality', 'Položky', 'Údržba']);
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Lokality',
+      'Položky',
+      'Údržba',
+      'Dodavatelé',
+    ]);
     expect(within(nav).getByRole('link', { name: 'Lokality' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Položky' })).not.toHaveAttribute('aria-current');
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();

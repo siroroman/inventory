@@ -31,7 +31,11 @@
     "subLocationCount_one": "{{count}} podlokalita",
     "subLocationCount_few": "{{count}} podlokality",
     "subLocationCount_many": "{{count}} podlokality",
-    "subLocationCount_other": "{{count}} podlokalit"
+    "subLocationCount_other": "{{count}} podlokalit",
+    "providerCount_one": "{{count}} dodavatel",
+    "providerCount_few": "{{count}} dodavatelé",
+    "providerCount_many": "{{count}} dodavatele",
+    "providerCount_other": "{{count}} dodavatelů"
   },
   "states": {
     "loading": "Načítání",
@@ -116,6 +120,19 @@
         "location": "Lokalita"
       },
       "add": "Přidat záznam"
+    },
+    "suppliers": {
+      "tab": "Dodavatelé",
+      "searchLabel": "Hledat dodavatele",
+      "searchPlaceholder": "Hledat podle názvu, ID, telefonu…",
+      "emptyTitle": "Zatím žádný dodavatel",
+      "emptyHint": "Servisní dodavatelé se tu zobrazí, jakmile je někdo přidá.",
+      "archivedEmptyTitle": "Žádní archivovaní dodavatelé",
+      "columns": {
+        "name": "Název",
+        "code": "ID",
+        "phone": "Telefon"
+      }
     }
   },
   "locationDetail": {
@@ -377,5 +394,24 @@
     "saving": "Ukládám…",
     "itemPlaceholder": "Hledat podle názvu, ID, sériového čísla, lokality…",
     "noItems": "Žádná položka nenalezena."
+  },
+  "provider": {
+    "fields": {
+      "code": "ID",
+      "contactPerson": "Kontaktní osoba",
+      "phone": "Telefon",
+      "email": "E-mail",
+      "web": "Web",
+      "note": "Poznámka"
+    },
+    "brands": {
+      "title": "Značky, které servisuje",
+      "empty": "Dodavatel zatím neservisuje žádnou značku.",
+      "priority": "Pořadí {{priority}}"
+    },
+    "archiveTitle": "Archivovat dodavatele?",
+    "archiveHint": "Dodavatel zmizí ze seznamu, ale zůstane v pořadí dodavatelů u značek, označený jako archivovaný. Archivaci můžete vrátit.",
+    "notFoundTitle": "Dodavatel nenalezen",
+    "notFoundHint": "Dodavatel neexistuje nebo byl odstraněn."
   }
 }

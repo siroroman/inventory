@@ -57,3 +57,28 @@ export function recordListEntry(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+
+/** A service provider ("supplier") as the list and the edit answers have it. */
+export function provider(over: Record<string, unknown> = {}) {
+  return {
+    ...record,
+    id: crypto.randomUUID(),
+    code: 'SUP-001',
+    name: 'Servis Novák s.r.o.',
+    contactPerson: 'Jan Novák',
+    phone: '+420 601 123 456',
+    email: 'servis@novak-sro.cz',
+    web: 'https://www.novak-servis.cz',
+    note: 'Rychlá reakce, servis do 24 hodin.',
+    ...over,
+  };
+}
+
+/** A provider with the brands it services, as `GET /service-providers/{id}` answers. */
+export function providerDetail(over: Record<string, unknown> = {}) {
+  return {
+    ...provider(),
+    manufacturers: [{ id: crypto.randomUUID(), name: 'La Marzocco', archivedAt: null, priority: 1 }],
+    ...over,
+  };
+}
