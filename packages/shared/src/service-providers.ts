@@ -39,8 +39,6 @@ export const serviceProviderSchema = z.object({
 });
 export type ServiceProviderDto = z.infer<typeof serviceProviderSchema>;
 
-export const serviceProviderListSchema = pageOf(serviceProviderSchema);
-
 /** A brand the provider services, with this provider's priority for it (1 is contacted first). */
 export const servicedBrandSchema = z.object({
   id: z.uuid(),
@@ -55,6 +53,9 @@ export const serviceProviderDetailSchema = serviceProviderSchema.extend({
   manufacturers: z.array(servicedBrandSchema),
 });
 export type ServiceProviderDetailDto = z.infer<typeof serviceProviderDetailSchema>;
+
+/** A page of the list: every row carries its brands, so the Suppliers tab can show them. */
+export const serviceProviderListSchema = pageOf(serviceProviderDetailSchema);
 
 /** The whole set of brands a provider services; saving it with the provider makes a form one request. */
 const manufacturerIds = z.array(z.uuid()).max(100);

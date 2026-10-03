@@ -1,6 +1,7 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { page, recordListEntry } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
 
 const id = '7a2d9e41-5c3b-4e8f-9a60-1b2c3d4e5f60';
@@ -39,12 +40,12 @@ describe('service record detail', () => {
     renderApp(`/service-records/${id}`);
 
     expect(await screen.findByRole('heading', { name: 'Servisní záznam', level: 1 })).toBeInTheDocument();
-    for (const text of ['15. 4. 2026', 'Výměna filtru a kontrola tlaku', 'Servis Novák s.r.o.', 'Jan Novák']) {
+    for (const text of ['INV-00042', '15. 4. 2026', 'Výměna filtru a kontrola tlaku', 'Servis Novák s.r.o.', 'Jan Novák']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
     expect(screen.getByRole('link', { name: 'Kávovar Linea PB' })).toHaveAttribute('href', `/items/${itemId}`);
-    expect(screen.getByRole('link', { name: 'Zpět na položku: Kávovar Linea PB' })).toHaveAttribute('href', `/items/${itemId}`);
-    expect(screen.getByRole('link', { name: 'Zpět na položku: Kávovar Linea PB' })).toHaveTextContent('Kávovar Linea PB');
+    // Opened directly, there is no previous screen: "Zpět" leads to the item.
+    expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', `/items/${itemId}`);
     expect(screen.getByRole('heading', { name: 'Popis', level: 2 })).toBeInTheDocument();
     expect(screen.getByText(/Vyměněn vodní filtr\./)).toHaveTextContent('Vyměněn vodní filtr. Tlak bojleru 9,2 bar.');
   });
@@ -53,6 +54,19 @@ describe('service record detail', () => {
     signedIn(() => jsonResponse(record()));
     renderApp(`/service-records/${id}`);
     expect(await screen.findByRole('link', { name: 'Upravit' })).toHaveAttribute('href', `/service-records/${id}/edit`);
+  });
+
+  it('goes back to the screen it was opened from', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      'GET /api/v1/service-records': () => page([recordListEntry({ id })]),
+      [`GET /api/v1/service-records/${id}`]: () => jsonResponse(record()),
+    });
+    const { router } = renderApp('/?tab=maintenance');
+    await userEvent.click(await screen.findByRole('link', { name: /Výměna filtru a kontrola tlaku/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Zpět' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(router.state.location.search).toEqual({ tab: 'maintenance' });
   });
 
   it('shows a dash for empty fields and leaves out the description section', async () => {

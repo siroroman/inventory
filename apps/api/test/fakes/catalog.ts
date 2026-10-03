@@ -135,6 +135,9 @@ export function createFakeCatalogStore() {
         })
         .sort((a, b) => a.name.localeCompare(b.name, 'cs'));
     },
+    async listManufacturersOf(providerIds) {
+      return new Map(await Promise.all(providerIds.map(async (id) => [id, await serviceProviders.listManufacturers(id)] as const)));
+    },
   };
 
   const repos: ManufacturerRepos = { manufacturers, serviceProviders, audit: createFakeAuditRepository(state.audit) };

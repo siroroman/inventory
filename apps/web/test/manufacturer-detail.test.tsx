@@ -96,7 +96,7 @@ describe('manufacturer detail', () => {
   it('leads back to the suppliers list on a deep link', async () => {
     api();
     renderApp(`/manufacturers/${id}`);
-    expect(await screen.findByRole('link', { name: 'Dodavatelé' })).toHaveAttribute('href', '/?tab=suppliers');
+    expect(await screen.findByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/?tab=suppliers');
   });
 
   it('goes back to where the user came from', async () => {

@@ -69,6 +69,28 @@ describe('GET /service-providers', () => {
     });
   });
 
+  it('returns the brands each provider services, by name with its priority, and none for a provider without', async () => {
+    const { read, write } = await setup();
+    const alfa = await insertProvider(db().app, { name: 'Alfa servis' });
+    const beta = await insertProvider(db().app, { name: 'Beta servis' });
+    await insertProvider(db().app, { name: 'Gama servis' });
+    const marzocco = await insertManufacturer(db().app, { name: 'La Marzocco' });
+    const daikin = await insertManufacturer(db().app, { name: 'Daikin' });
+    await write.put(`/service-providers/${beta.id}/manufacturers`, { version: 1, manufacturerIds: [daikin.id] });
+    await write.put(`/service-providers/${alfa.id}/manufacturers`, { version: 1, manufacturerIds: [marzocco.id, daikin.id] });
+    await archiveManufacturerRow(marzocco.id);
+
+    const body = await expectJson(await read.get('/service-providers'), 200, serviceProviderListSchema);
+    expect(body.items.map((p) => p.manufacturers.map((m) => [m.name, m.priority, m.archivedAt !== null]))).toEqual([
+      [
+        ['Daikin', 2, false],
+        ['La Marzocco', 1, true],
+      ],
+      [['Daikin', 1, false]],
+      [],
+    ]);
+  });
+
   it('searches by name, ignoring case and diacritics', async () => {
     const { read } = await setup();
     await insertProvider(db().app, { name: 'Čech servis' });

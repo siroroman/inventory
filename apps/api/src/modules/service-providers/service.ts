@@ -121,18 +121,20 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
       return { ...row, manufacturers: await repos.serviceProviders.listManufacturers(id) };
     },
 
-    /** Active (or archived) providers by name, plus the total for the list heading. */
+    /** Active (or archived) providers by name with their brands, plus the total for the list heading. */
     async list(
       actor: Actor,
       filter: ServiceProviderFilter,
       page: { limit: number; cursor?: string },
-    ): Promise<Page<ServiceProvider> & { total: number }> {
+    ): Promise<Page<ServiceProviderDetail> & { total: number }> {
       assertRole(actor, 'read');
       const [result, total] = await Promise.all([
         repos.serviceProviders.list(filter, page),
         repos.serviceProviders.count(filter),
       ]);
-      return { ...result, total };
+      const brands = await repos.serviceProviders.listManufacturersOf(result.items.map((row) => row.id));
+      const items = result.items.map((row) => ({ ...row, manufacturers: brands.get(row.id) ?? [] }));
+      return { ...result, items, total };
     },
 
     async create(actor: Actor, input: CreateServiceProviderInput): Promise<ServiceProviderDetail> {

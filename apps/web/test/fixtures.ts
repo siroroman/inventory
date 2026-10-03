@@ -58,7 +58,7 @@ export function recordListEntry(over: Record<string, unknown> = {}) {
   };
 }
 
-/** A service provider ("supplier") as the list and the edit answers have it. */
+/** A service provider ("supplier") with the brands it services (none by default), as the list and the edit answers have it. */
 export function provider(over: Record<string, unknown> = {}) {
   return {
     ...record,
@@ -70,11 +70,12 @@ export function provider(over: Record<string, unknown> = {}) {
     email: 'servis@novak-sro.cz',
     web: 'https://www.novak-servis.cz',
     note: 'Rychlá reakce, servis do 24 hodin.',
+    manufacturers: [] as unknown[],
     ...over,
   };
 }
 
-/** A provider with the brands it services, as `GET /service-providers/{id}` answers. */
+/** A provider with a brand it services, as `GET /service-providers/{id}` answers. */
 export function providerDetail(over: Record<string, unknown> = {}) {
   return {
     ...provider(),

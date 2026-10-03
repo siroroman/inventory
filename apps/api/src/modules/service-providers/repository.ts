@@ -45,6 +45,26 @@ function listWhere(db: DbExecutor, filter: ServiceProviderFilter): SQL[] {
 }
 
 export function createServiceProviderRepository(db: DbExecutor) {
+  /** Brands of several providers, one entry per id (an empty list for a provider without brands), each with that provider's priority. */
+  async function listManufacturersOf(providerIds: string[]): Promise<Map<string, ServicedBrand[]>> {
+    const brands = new Map<string, ServicedBrand[]>(providerIds.map((id) => [id, []]));
+    if (providerIds.length === 0) return brands;
+    const rows = await db
+      .select({
+        providerId: manufacturerServiceProviders.serviceProviderId,
+        id: manufacturers.id,
+        name: manufacturers.name,
+        archivedAt: manufacturers.archivedAt,
+        priority: manufacturerServiceProviders.priority,
+      })
+      .from(manufacturerServiceProviders)
+      .innerJoin(manufacturers, eq(manufacturers.id, manufacturerServiceProviders.manufacturerId))
+      .where(inArray(manufacturerServiceProviders.serviceProviderId, providerIds))
+      .orderBy(asc(manufacturers.name));
+    for (const { providerId, ...brand } of rows) brands.get(providerId)?.push(brand);
+    return brands;
+  }
+
   return {
     async findById(id: string): Promise<ServiceProvider | undefined> {
       const [row] = await db.select().from(serviceProviders).where(eq(serviceProviders.id, id));
@@ -86,19 +106,12 @@ export function createServiceProviderRepository(db: DbExecutor) {
     },
 
     /** Brands this provider services, each with this provider's priority for that brand. */
-    listManufacturers(providerId: string): Promise<ServicedBrand[]> {
-      return db
-        .select({
-          id: manufacturers.id,
-          name: manufacturers.name,
-          archivedAt: manufacturers.archivedAt,
-          priority: manufacturerServiceProviders.priority,
-        })
-        .from(manufacturerServiceProviders)
-        .innerJoin(manufacturers, eq(manufacturers.id, manufacturerServiceProviders.manufacturerId))
-        .where(eq(manufacturerServiceProviders.serviceProviderId, providerId))
-        .orderBy(asc(manufacturers.name));
+    async listManufacturers(providerId: string): Promise<ServicedBrand[]> {
+      return (await listManufacturersOf([providerId])).get(providerId) ?? [];
     },
+
+    /** The same for several providers at once, one entry per id (an empty list for a provider without brands). */
+    listManufacturersOf,
   };
 }
 

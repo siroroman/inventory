@@ -83,6 +83,8 @@ describe('new service record', () => {
 
     expect(await screen.findByRole('heading', { name: 'Nový servisní záznam' })).toBeInTheDocument();
     expect(screen.getByText('Kávovar Linea PB')).toBeInTheDocument();
+    expect(screen.getByText('ID položky')).toBeInTheDocument();
+    expect(screen.getByText('INV-00042')).toBeInTheDocument();
     expect(screen.getByLabelText('Datum')).toHaveValue(today());
 
     await user.clear(screen.getByLabelText('Datum'));
@@ -102,6 +104,23 @@ describe('new service record', () => {
       responsiblePerson: null,
       description: 'Bez závad.',
     });
+  });
+
+  it('replaces the form with the saved record in the history, so Back returns to the item', async () => {
+    const created = record({ id: crypto.randomUUID(), version: 1, title: 'Roční prohlídka' });
+    api({
+      [`POST /api/v1/items/${itemId}/service-records`]: () => jsonResponse(created, { status: 201 }),
+      [`GET /api/v1/service-records/${created.id}`]: () => jsonResponse(created),
+    });
+    const user = userEvent.setup();
+    const { router } = renderApp(`/items/${itemId}`);
+    await user.click(await screen.findByRole('link', { name: 'Přidat záznam' }));
+    await user.type(await screen.findByLabelText('Název'), 'Roční prohlídka');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    await screen.findByRole('heading', { name: 'Servisní záznam', level: 1 });
+
+    router.history.back();
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${itemId}`));
   });
 
   it('asks for the title and the date and sends nothing until they are there', async () => {
@@ -124,6 +143,19 @@ describe('new service record', () => {
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Záznam je archivovaný.');
     expect(screen.getByRole('button', { name: 'Uložit' })).toBeEnabled();
+  });
+
+  it('does not keep the form in the history on Cancel, so Back skips it', async () => {
+    api();
+    const user = userEvent.setup();
+    const { router } = renderApp(`/items/${itemId}`);
+    await user.click(await screen.findByRole('link', { name: 'Přidat záznam' }));
+    await user.click(await screen.findByRole('link', { name: 'Zrušit' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${itemId}`));
+
+    router.history.back();
+    await waitFor(() => expect(router.history.location.pathname).toBe(`/items/${itemId}`));
+    expect(router.history.location.pathname).not.toBe(`/items/${itemId}/service-records/new`);
   });
 
   it('refuses a reader', async () => {
@@ -252,6 +284,8 @@ describe('edit service record', () => {
     const { router } = renderApp(`/service-records/${id}/edit`);
 
     expect(await screen.findByRole('heading', { name: 'Upravit servisní záznam' })).toBeInTheDocument();
+    expect(screen.getByText('Kávovar Linea PB')).toBeInTheDocument();
+    expect(screen.getByText('INV-00042')).toBeInTheDocument();
     expect(screen.getByLabelText('Datum')).toHaveValue('2026-04-15');
     expect(screen.getByLabelText('Název')).toHaveValue('Výměna filtru');
     expect(screen.getByLabelText('Servis provedl')).toHaveValue('Servis Novák s.r.o.');

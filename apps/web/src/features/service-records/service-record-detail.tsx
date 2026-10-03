@@ -1,11 +1,12 @@
 import type { ServiceRecordDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
+import { BackButton } from '@/components/back-button';
 import { DetailFields } from '@/components/detail-fields';
 import { ErrorState } from '@/components/error-state';
 import { Button } from '@/components/ui/button';
@@ -37,17 +38,14 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
 
   return (
     <>
-      {/* The item's name as a text button above the title; the accessible name also says where it leads. */}
-      <Button asChild variant="link" className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0 text-foreground">
-        <Link
-          to="/items/$id"
-          params={{ id: record.item.id }}
-          aria-label={t('serviceRecord.backToItem', { name: record.item.name })}
-        >
-          <ArrowLeft aria-hidden />
-          <span className="truncate">{record.item.name}</span>
-        </Link>
-      </Button>
+      {/* Back to the previous screen (usually the item or the Maintenance tab); a deep link leads to the item. */}
+      <BackButton
+        fallback={(content) => (
+          <Link to="/items/$id" params={{ id: record.item.id }}>
+            {content}
+          </Link>
+        )}
+      />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-2xl font-semibold">{t('serviceRecord.title')}</h1>
@@ -88,6 +86,7 @@ function RecordBody({ record }: { record: ServiceRecordDto }) {
                 </Link>
               ),
             },
+            { label: t('serviceRecord.fields.itemCode'), value: record.item.code },
             { label: t('serviceRecord.fields.date'), value: formatDate(record.performedOn) },
             { label: t('serviceRecord.fields.title'), value: record.title },
             { label: t('serviceRecord.fields.performedBy'), value: record.performedBy },

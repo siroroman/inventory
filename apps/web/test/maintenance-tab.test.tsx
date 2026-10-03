@@ -23,7 +23,7 @@ describe('home: maintenance tab', () => {
     expect(await screen.findByText('3 záznamy')).toBeInTheDocument();
     const row = await screen.findByRole('listitem');
     expect(row).toHaveTextContent('Výměna filtru a kontrola tlaku');
-    expect(row).toHaveTextContent('15. 4. 2026 · Kávovar Linea PB');
+    expect(row).toHaveTextContent('15. 4. 2026 · Kávovar Linea PB · INV-00042');
     expect(row).toHaveTextContent('Centrála Praha › Přízemí výroba › Teplá kuchyně');
     expect(within(row).getByRole('link')).toHaveAttribute('href', expect.stringMatching(/^\/service-records\//));
   });
@@ -37,6 +37,7 @@ describe('home: maintenance tab', () => {
     const table = await screen.findByRole('table');
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Název',
+      'ID',
       'Datum',
       'Položka',
       'Lokalita',
@@ -44,6 +45,7 @@ describe('home: maintenance tab', () => {
     const cells = within(within(table).getAllByRole('row')[1]!).getAllByRole('cell').map((c) => c.textContent);
     expect(cells).toEqual([
       'Výměna filtru a kontrola tlaku',
+      'INV-00042',
       '15. 4. 2026',
       'Kávovar Linea PB',
       'Centrála Praha › Přízemí výroba › Teplá kuchyně',
@@ -55,7 +57,7 @@ describe('home: maintenance tab', () => {
     api(() => page([recordListEntry({ location: null, path: [] })]));
     renderApp('/?tab=maintenance');
     const row = await screen.findByRole('listitem');
-    expect(row).toHaveTextContent('15. 4. 2026 · Kávovar Linea PB');
+    expect(row).toHaveTextContent('15. 4. 2026 · Kávovar Linea PB · INV-00042');
     expect(row).not.toHaveTextContent('›');
   });
 

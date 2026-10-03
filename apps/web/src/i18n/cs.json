@@ -6,6 +6,7 @@
     "main": "Hlavní navigace"
   },
   "common": {
+    "back": "Zpět",
     "retry": "Zkusit znovu",
     "saved": "Uloženo",
     "cancel": "Zrušit",
@@ -117,6 +118,7 @@
         "title": "Název",
         "date": "Datum",
         "item": "Položka",
+        "code": "ID",
         "location": "Lokalita"
       },
       "add": "Přidat záznam"
@@ -131,7 +133,8 @@
       "columns": {
         "name": "Název",
         "code": "ID",
-        "phone": "Telefon"
+        "phone": "Telefon",
+        "brands": "Značky"
       },
       "add": "Přidat dodavatele"
     }
@@ -329,6 +332,7 @@
     "emptyHint": "Provedené servisy a prohlídky se zobrazí tady.",
     "fields": {
       "item": "Položka",
+      "itemCode": "ID položky",
       "date": "Datum",
       "title": "Název",
       "performedBy": "Servis provedl",
@@ -336,7 +340,6 @@
       "description": "Popis"
     },
     "edit": "Upravit",
-    "backToItem": "Zpět na položku: {{name}}",
     "archiveTitle": "Archivovat servisní záznam?",
     "archiveHint": "Záznam zmizí z historie servisu položky.",
     "notFoundTitle": "Servisní záznam nenalezen",
@@ -451,7 +454,6 @@
   "manufacturer": {
     "notFoundTitle": "Výrobce nenalezen",
     "notFoundHint": "Výrobce neexistuje nebo byl odstraněn.",
-    "back": "Zpět",
     "note": "Poznámka",
     "providers": {
       "title": "Servis zajišťují",

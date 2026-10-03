@@ -1,11 +1,12 @@
 import type { ServiceProviderDetailDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchiveControl } from '@/components/archive-control';
 import { ArchivedBadge } from '@/components/archived-badge';
+import { BackButton } from '@/components/back-button';
 import { DetailFields } from '@/components/detail-fields';
 import { ErrorState } from '@/components/error-state';
 import { Section } from '@/components/section';
@@ -71,12 +72,7 @@ function ProviderBody({ provider }: { provider: ServiceProviderDetailDto }) {
 
   return (
     <>
-      <Button asChild variant="link" className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0 text-foreground">
-        <Link to="/" search={{ tab: 'suppliers' }}>
-          <ArrowLeft aria-hidden />
-          <span className="truncate">{t('home.suppliers.tab')}</span>
-        </Link>
-      </Button>
+      <BackButton fallback={(content) => <Link to="/" search={{ tab: 'suppliers' }}>{content}</Link>} />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-2xl font-semibold break-words">{provider.name}</h1>
