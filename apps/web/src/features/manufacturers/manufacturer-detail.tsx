@@ -1,12 +1,11 @@
 import type { ManufacturerDetailDto } from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useCanGoBack, useRouter } from '@tanstack/react-router';
-import { ArrowLeft } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
+import { BackButton } from '@/components/back-button';
 import { ErrorState } from '@/components/error-state';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { isMissingRecord } from '@/lib/api';
@@ -22,29 +21,6 @@ function DetailSkeleton() {
       <Skeleton className="h-6 w-56 max-w-full" />
       <Skeleton className="h-24 w-full" />
     </div>
-  );
-}
-
-/** The way back: where the user came from (an item, a supplier), or the suppliers list on a deep link. */
-function BackButton() {
-  const { t } = useTranslation();
-  const router = useRouter();
-  const canGoBack = useCanGoBack();
-  const content = (
-    <>
-      <ArrowLeft aria-hidden />
-      <span className="truncate">{canGoBack ? t('manufacturer.back') : t('home.suppliers.tab')}</span>
-    </>
-  );
-  return (
-    <Button
-      asChild={!canGoBack}
-      variant="link"
-      className="-mb-3 min-h-11 max-w-full min-w-0 self-start px-0 text-foreground"
-      onClick={canGoBack ? () => router.history.back() : undefined}
-    >
-      {canGoBack ? content : <Link to="/" search={{ tab: 'suppliers' }}>{content}</Link>}
-    </Button>
   );
 }
 
@@ -105,7 +81,7 @@ function ManufacturerBody({ manufacturer }: { manufacturer: ManufacturerDetailDt
   const { t } = useTranslation();
   return (
     <>
-      <BackButton />
+      <BackButton fallback={(content) => <Link to="/" search={{ tab: 'suppliers' }}>{content}</Link>} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-2xl font-semibold break-words">{manufacturer.name}</h1>
         {manufacturer.archivedAt && <ArchivedBadge />}

@@ -83,7 +83,7 @@ export function ServiceRecordForm({ item, record, onReload }: Props) {
       saved.current = true;
       await invalidateAfterWrite(queryClient);
       toast.success(t('common.saved'));
-      await navigate({ to: '/service-records/$id', params: { id: result.id } });
+      await navigate({ to: '/service-records/$id', params: { id: result.id }, replace: true });
     },
   });
 

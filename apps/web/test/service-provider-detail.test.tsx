@@ -1,7 +1,7 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { providerDetail } from './fixtures.ts';
+import { page, provider, providerDetail } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
 
 const id = '3c8e1f52-7a4b-4d69-8e0a-9b1c2d3e4f50';
@@ -32,7 +32,20 @@ describe('service provider detail', () => {
     expect(web).toHaveAttribute('rel', expect.stringContaining('noopener'));
     expect(screen.getByRole('heading', { name: 'Poznámka', level: 2 })).toBeInTheDocument();
     expect(screen.getByText('Rychlá reakce, servis do 24 hodin.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Dodavatelé' })).toHaveAttribute('href', '/?tab=suppliers');
+    expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/?tab=suppliers');
+  });
+
+  it('goes back to the screen it was opened from', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      'GET /api/v1/service-providers': () => page([provider({ id })]),
+      [`GET /api/v1/service-providers/${id}`]: () => jsonResponse(providerDetail({ id })),
+    });
+    const { router } = renderApp('/?tab=suppliers');
+    await userEvent.click(await screen.findByRole('link', { name: /Servis Novák s\.r\.o\./ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Zpět' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(router.state.location.search).toEqual({ tab: 'suppliers' });
   });
 
   it('shows a dash for empty fields and leaves out the note', async () => {
