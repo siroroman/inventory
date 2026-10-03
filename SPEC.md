@@ -62,9 +62,9 @@ Only invited users get access, and each has exactly one role. **Permissions are 
 
 The UI design (link above) has screens 1–11 for both mobile (390 px) and desktop (1280 px). This section describes intended behavior; the design is the visual source of truth.
 
-From the user menu (avatar with initials, top right) you can also reach: Manufacturers & service, Users (admin only), and Sign out. Every screen has its own URL, so browser back, bookmarks, and future QR links all work.
+From the user menu (avatar with initials, top right) you can also reach: Users (admin only) and Sign out. Every screen has its own URL, so browser back, bookmarks, and future QR links all work.
 
-**Navigation map:** Login → Home (3 tabs: Locations, Items, Maintenance) → Location detail (has sub-locations, loops back to itself for nested levels) → Item detail (links to Manufacturer detail, only if the manufacturer has service data) → Manufacturer detail (lists Service providers with priority order) → Service provider detail.
+**Navigation map:** Login → Home (4 tabs: Locations, Items, Maintenance, Suppliers) → Location detail (has sub-locations, loops back to itself for nested levels) → Item detail (links to Manufacturer detail and lists its service providers) → Manufacturer detail (lists Service providers with priority order) → Service provider detail (links to the Manufacturers it services) → Service provider form.
 
 ### 3.1 Login
 
@@ -73,10 +73,10 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - Errors: "Nesprávný e-mail nebo heslo." and "Tento účet nemá do aplikace přístup. Obraťte se na správce."
 - After login, return to the originally requested URL.
 
-### 3.2 Home — Locations, Items and Maintenance tabs
+### 3.2 Home — Locations, Items, Maintenance and Suppliers tabs
 
-- Top bar with app name and avatar; below it, tabs Locations / Items / Maintenance. Active tab and search text live in the URL.
-- On desktop (from 1024 px) Home has a side menu instead of the top bar and the tabs: logo and name, links Locations / Items / Maintenance, and the signed-in user (name, role, sign-out menu) at the bottom. The heading, search and "Add" button share one row above the list. Other screens keep the top bar.
+- Top bar with app name and avatar; below it, tabs Locations / Items / Maintenance / Suppliers. Active tab and search text live in the URL.
+- On desktop (from 1024 px) Home has a side menu instead of the top bar and the tabs: logo and name, links Locations / Items / Maintenance / Suppliers, and the signed-in user (name, role, sign-out menu) at the bottom. The heading, search and "Add" button share one row above the list. Other screens keep the top bar.
 - Heading with a record count, a search field, and an "Add location" / "Add item" button (Write and Admin only).
 - **Locations** shows only top-level locations. Mobile: name, type badge, a line like "Praha · 38 items · 4 sub-locations". Desktop: table with Name, Type, City, Item count, Sub-locations.
 - A location's item count includes items in all of its sub-locations.
@@ -84,8 +84,9 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 - Status badges: "Service overdue" and "Service due within 30 days".
 - Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path. Location search (the Locations tab and the location pickers) covers name and ID; several words may be spread over the path, each word in the location or one above it and at least one in the location itself ("zasedačka hradec" finds Zasedačka in Centrála Hradec Králové).
 - **Maintenance** lists the service records of all items, newest first. Search placeholder: "Hledat podle názvu, položky, lokality…"; it covers the record title, the item's name and ID, and the location names along the path (words are not split across fields). Mobile: title, "date · item", then the location path. Desktop: table with Title, Date, Item (a link to the item), Location. The "Add record" button (Write and Admin) opens the service record form with a required item search field; an item's own "Add record" keeps the item fixed.
+- **Suppliers** (the service providers) lists them by name. Search placeholder: "Hledat podle názvu, ID, telefonu…"; it covers the name, the SUP code and the phone number (with or without the spaces it is written with). Mobile: name, then "SUP-001 · phone". Desktop: table with Name, ID, Phone. The "Add supplier" button (Write and Admin) opens the supplier form.
 - Lists load in pages of 20 (the API's default page is 50; the SPA asks for 20).
-- A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it. On the Maintenance tab it lists the archived records (marked "Archived").
+- A "Show archived" checkbox under the search swaps the list for the archived records (`?archived=true` in the URL; archived locations at every level, marked "Archived"). A row opens the detail, where Write and Admin restore it. On the Maintenance tab it lists the archived records and on the Suppliers tab the archived suppliers (marked "Archived").
 
 ### 3.3 Location / sub-location detail
 
@@ -103,12 +104,12 @@ From the user menu (avatar with initials, top right) you can also reach: Manufac
 | Basic info | External IDs | 0..N entries shaped "Supplier: ID", e.g. "Electrician: EL-4821" |
 | Basic info | Name | required |
 | Basic info | Location | full path, every level is a link |
-| Basic info | Manufacturer | links to manufacturer detail only if it has service providers |
+| Basic info | Manufacturer | links to the manufacturer detail |
 | Basic info | Model, Serial number, Manufacture year | text; year 1950 to current |
 | Registration & warranty | Registered on, Warranty until | "Expired" badge after the warranty date |
 | Documents | "Open folder in Google Drive" | opens in a new tab |
 | Note | free text | |
-| Service (last section) | Last service, Next service due, then **Service history (N)** | the two dates stay manual fields of the item; the history lists its service records newest first (title + date, each opens the record), "Add record" for Write and Admin on an active item |
+| Service (last section) | Last service, Next service due, then **Service providers**, then **Service history (N)** | the two dates stay manual fields of the item; the providers are the manufacturer's service providers in contact order (numbered cards with contact person, phone and Call / Email / Web buttons, read only; shown when the item has a manufacturer); the history lists its service records newest first (title + date, each opens the record), "Add record" for Write and Admin on an active item |
 
 - Photo gallery: horizontally scrollable strip on mobile; main photo + thumbnails side by side on desktop.
 - Actions for Write and Admin: Edit, Archive. Photos are added in the edit form, not on the detail screen.
@@ -121,13 +122,16 @@ Item (link), Date, Title, Service performed by, Responsible person, Description 
 
 ### 3.5 Manufacturer detail
 
-- Name, Note, and a "Service providers" section with the text: "Contact suppliers in this order. If one can't help, move to the next."
-- Provider cards ranked 1, 2, 3…: name, contact person with phone, and Call / Email / Web icon actions.
-- Write and Admin reorder with up/down arrows directly on the card.
+- A back button (to where the user came from; to the Suppliers tab on a deep link), the name, Note, and a "Service providers" section with the text: "Contact suppliers in this order. If one can't help, move to the next."
+- Provider cards ranked 1, 2, 3…: name (a link to the supplier), contact person with phone, and Call / Email / Web icon actions for what is known; an archived supplier that is still ranked is marked "Archived". Three columns from 1024 px, one below.
+- Write and Admin reorder with up/down arrows directly on the card of an active manufacturer with two or more providers: the new order shows at once and is saved as a whole; a failure puts the old order back and shows the error. The first card's up and the last card's down arrow do nothing.
+- A manufacturer without providers says so; Write and Admin are told the providers are added in the supplier form. Creating and editing a manufacturer has no screen of its own yet (see 3.7).
 
 ### 3.6 Service provider detail
 
-ID (e.g. SUP-001), Name, Contact person, Phone, Email, Web, Note, and the brands it services, each showing this provider's priority for that brand. Action: Edit.
+- A back link to the Suppliers tab, the name, and the fields ID (e.g. SUP-001), Contact person, Phone (a call link), Email (a mailto link), Web (opens in a new tab), Note (empty fields show "—").
+- **Brands serviced:** each brand (a link to its detail) with this provider's priority for it; an archived brand is marked.
+- Actions for Write and Admin: Edit, Archive (asks first; the supplier stays ranked, marked "Archived", in the contact orders it was in). An archived supplier offers Restore instead of Edit and Archive.
 
 ### 3.7 Forms
 
@@ -135,7 +139,7 @@ ID (e.g. SUP-001), Name, Contact person, Phone, Email, Web, Note, and the brands
 - **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is optional (an item can be added before anyone knows where it is) and is chosen via search, including sub-locations shown with their full path; each match is followed by the sub-locations below it; tapping the chosen location searches again. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
 - **To add beyond the current design:** a Documents field (Google Drive folder link) in the item form's Basic info section.
 - **Service record:** the item (read-only), Date (default today), Title (required), Service performed by and Responsible person (both free text, not links to registered providers or users), Description. Opened from the item's "Add record" button and from the record's Edit.
-- **Service provider:** Name, Contact person, Phone, Email, Web, Brands serviced (addable tags), Note. Per-brand priority is set from the manufacturer detail screen.
+- **Service provider:** Name, Contact person, Phone, Email, Web, Brands serviced (addable tags), Note. Brands are added with a search that can also create a new brand from the typed name; a new supplier is added last in that brand's contact order. The contact data and the brands are saved in one request. The email must have a dot after the @ (stricter than the API); a web address without a scheme gets https. Per-brand priority is set from the manufacturer detail screen.
 - **Manufacturer:** no standalone form in the current design. Proposal: a new manufacturer is created by typing a new name in the Manufacturer or Brands field; its note is edited from its detail page.
 - Field-level errors (e.g. "Enter a valid email."), Cancel and Save buttons. Warn on leaving an unsaved form; on a concurrent edit, show a conflict message instead of silently overwriting.
 
@@ -310,8 +314,8 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `GET /manufacturers`, `GET /manufacturers/{id}` | list, detail with ranked providers | Read |
 | `POST /manufacturers`, `PATCH /manufacturers/{id}` | create, edit | Write |
 | `PUT /manufacturers/{id}/service-providers` | send the whole new order at once, on every arrow click | Write |
-| `GET /service-providers`, `GET /service-providers/{id}` | list, detail with brands | Read |
-| `POST /service-providers`, `PATCH /service-providers/{id}` | create, edit | Write |
+| `GET /service-providers`, `GET /service-providers/{id}` | list (search covers name, code and phone; `archived=true` = the archived providers), detail with brands | Read |
+| `POST /service-providers`, `PATCH /service-providers/{id}` | create, edit; an optional `manufacturerIds` sets the brands in the same transaction (a new brand ranks the provider last, a dropped one closes the gap) and the answer is the provider with its brands | Write |
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
 | `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |
 | `GET /users`, `POST /users`, `PATCH /users/{id}` | list, invite, role, deactivate | Admin |
