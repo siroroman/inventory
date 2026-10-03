@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { BrandProviders } from '@/features/manufacturers/brand-providers';
 import { ServiceHistory } from '@/features/service-records/service-history';
-import { ApiError } from '@/lib/api';
+import { isMissingRecord } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { warrantyExpired } from '@/lib/service-status';
@@ -277,9 +277,7 @@ export function ItemDetail({ id }: { id: string }) {
     body = <ItemBody item={query.data} />;
   } else if (query.isError) {
     // A missing record (or an id that is no id at all) will not appear on a retry.
-    const missing =
-      query.error instanceof ApiError &&
-      (query.error.code === 'not_found' || query.error.code === 'validation_error');
+    const missing = isMissingRecord(query.error);
     body = missing ? (
       <ErrorState title={t('item.notFoundTitle')} message={t('item.notFoundHint')} />
     ) : (

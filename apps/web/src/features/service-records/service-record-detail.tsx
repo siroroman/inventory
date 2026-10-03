@@ -11,7 +11,7 @@ import { ErrorState } from '@/components/error-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
-import { ApiError } from '@/lib/api';
+import { isMissingRecord } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { archiveServiceRecord, restoreServiceRecord, serviceRecordQueryOptions } from './api';
@@ -120,8 +120,7 @@ export function ServiceRecordDetail({ id }: { id: string }) {
     body = <RecordBody record={query.data} />;
   } else if (query.isError) {
     // A missing record (or an id that is no id at all) will not appear on a retry.
-    const missing =
-      query.error instanceof ApiError && (query.error.code === 'not_found' || query.error.code === 'validation_error');
+    const missing = isMissingRecord(query.error);
     body = missing ? (
       <ErrorState title={t('serviceRecord.notFoundTitle')} message={t('serviceRecord.notFoundHint')} />
     ) : (

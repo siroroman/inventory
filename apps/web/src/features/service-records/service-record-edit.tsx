@@ -4,13 +4,10 @@ import { ErrorState } from '@/components/error-state';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { itemDetailQueryOptions } from '@/features/items/api';
 import { FormSkeleton, NoWriteAccess } from '@/features/items/item-edit';
-import { ApiError } from '@/lib/api';
+import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { serviceRecordQueryOptions } from './api';
 import { ServiceRecordForm } from './service-record-form';
-
-const isMissing = (error: unknown) =>
-  error instanceof ApiError && (error.code === 'not_found' || error.code === 'validation_error');
 
 /** New record from the Maintenance tab: the form asks for the item itself. */
 export function NewServiceRecord() {
@@ -28,7 +25,7 @@ export function ServiceRecordCreate({ itemId }: { itemId: string }) {
   if (query.data?.archivedAt) return <ErrorState title={t('errors.archived')} />;
   if (query.data) return <ServiceRecordForm item={{ id: query.data.id, name: query.data.name }} />;
   if (query.isError) {
-    return isMissing(query.error) ? (
+    return isMissingRecord(query.error) ? (
       <ErrorState title={t('item.notFoundTitle')} message={t('item.notFoundHint')} />
     ) : (
       <ErrorState message={problemMessage(query.error)} onRetry={() => void query.refetch()} />
@@ -66,7 +63,7 @@ export function ServiceRecordEdit({ id }: { id: string }) {
     );
   }
   if (query.isError) {
-    return isMissing(query.error) ? (
+    return isMissingRecord(query.error) ? (
       <ErrorState title={t('serviceRecord.notFoundTitle')} message={t('serviceRecord.notFoundHint')} />
     ) : (
       <ErrorState message={problemMessage(query.error)} onRetry={() => void query.refetch()} />

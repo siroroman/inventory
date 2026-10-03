@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
-import { ApiError } from '@/lib/api';
+import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { locationQueryOptions } from '@/features/locations/api';
 import { itemDetailQueryOptions } from './api';
@@ -57,8 +57,7 @@ export function ItemEdit({ id }: { id: string }) {
     return <ItemForm key={query.data.version} item={query.data} onReload={() => void query.refetch()} />;
   }
   if (query.isError) {
-    const missing =
-      query.error instanceof ApiError && (query.error.code === 'not_found' || query.error.code === 'validation_error');
+    const missing = isMissingRecord(query.error);
     return missing ? (
       <ErrorState title={t('item.notFoundTitle')} message={t('item.notFoundHint')} />
     ) : (

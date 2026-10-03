@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { FormSkeleton, NoWriteAccess } from '@/features/items/item-edit';
-import { ApiError } from '@/lib/api';
+import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { providerQueryOptions } from './api';
 import { ProviderForm } from './provider-form';
@@ -35,8 +35,7 @@ export function EditServiceProvider({ id }: { id: string }) {
     return <ProviderForm key={query.data.version} provider={query.data} onReload={() => void query.refetch()} />;
   }
   if (query.isError) {
-    const missing =
-      query.error instanceof ApiError && (query.error.code === 'not_found' || query.error.code === 'validation_error');
+    const missing = isMissingRecord(query.error);
     return missing ? (
       <ErrorState title={t('provider.notFoundTitle')} message={t('provider.notFoundHint')} />
     ) : (

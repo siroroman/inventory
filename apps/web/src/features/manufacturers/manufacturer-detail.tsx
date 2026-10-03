@@ -9,7 +9,7 @@ import { ErrorState } from '@/components/error-state';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
-import { ApiError } from '@/lib/api';
+import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { manufacturerQueryOptions, setProviderOrder } from './api';
 import { RankedProviders } from './ranked-providers';
@@ -138,8 +138,7 @@ export function ManufacturerDetail({ id }: { id: string }) {
     body = <ManufacturerBody manufacturer={query.data} />;
   } else if (query.isError) {
     // A missing brand (or an id that is no id at all) will not appear on a retry.
-    const missing =
-      query.error instanceof ApiError && (query.error.code === 'not_found' || query.error.code === 'validation_error');
+    const missing = isMissingRecord(query.error);
     body = missing ? (
       <ErrorState title={t('manufacturer.notFoundTitle')} message={t('manufacturer.notFoundHint')} />
     ) : (
