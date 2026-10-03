@@ -113,6 +113,7 @@ describe('service provider service', () => {
       const row = await service.create(writer, { name: 'Servis Novák' });
       await service.archive(writer, row.id, 1);
       expect(await service.list(reader, {}, { limit: 50 })).toMatchObject({ total: 0, items: [] });
+      expect(await service.list(reader, { archived: true }, { limit: 50 })).toMatchObject({ total: 1 });
       expect(await service.get(reader, row.id)).toMatchObject({ name: 'Servis Novák' });
       await service.restore(writer, row.id, 2);
       expect(await service.list(reader, {}, { limit: 50 })).toMatchObject({ total: 1 });

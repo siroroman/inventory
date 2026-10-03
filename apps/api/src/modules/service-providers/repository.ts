@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { manufacturers, manufacturerServiceProviders, serviceProviders } from '../../db/schema/index.ts';
@@ -15,12 +15,23 @@ type ServiceProviderFields = Pick<
 /** `code` is optional: the database assigns the next SUP-nnn unless an existing number is imported. */
 export type NewServiceProvider = ServiceProviderFields & { code?: string; createdBy: string };
 export type ServiceProviderPatch = Partial<ServiceProviderFields> & { updatedBy: string };
-export type ServiceProviderFilter = { q?: string };
+/** `archived` lists the archived providers instead of the active ones. */
+export type ServiceProviderFilter = { q?: string; archived?: boolean };
 
-// Tens of providers: the name search needs no trigram index.
+// Tens of providers: the search needs no trigram index. A number is found with or without the
+// spaces it is written with ("+420 601 123 456" and "+420601").
 function listWhere(filter: ServiceProviderFilter): SQL[] {
-  const conditions: SQL[] = [isNull(serviceProviders.archivedAt)];
-  if (filter.q) conditions.push(containsText(serviceProviders.name, filter.q));
+  const conditions: SQL[] = [filter.archived ? isNotNull(serviceProviders.archivedAt) : isNull(serviceProviders.archivedAt)];
+  if (filter.q) {
+    const digits = filter.q.replace(/\s+/g, '');
+    conditions.push(
+      or(
+        containsText(serviceProviders.name, filter.q),
+        containsText(serviceProviders.code, filter.q),
+        containsText(sql`replace(${serviceProviders.phone}, ' ', '')`, digits),
+      )!,
+    );
+  }
   return conditions;
 }
 

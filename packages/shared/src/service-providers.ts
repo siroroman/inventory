@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
-import { searchPageQuery, versionField } from './http.ts';
+import { archivedQuery, searchPageQuery, versionField } from './http.ts';
 
 /** A valid address, internationalised ones included (`servis@příklad.cz`). */
 const email = z.string().trim().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
@@ -65,7 +65,8 @@ export const updateServiceProviderBody = z
   .refine(hasChange, { message: 'Nothing to change' });
 export type UpdateServiceProviderBody = z.infer<typeof updateServiceProviderBody>;
 
-export const serviceProviderListQuery = searchPageQuery;
+/** `archived=true` lists the archived providers instead of the active ones. */
+export const serviceProviderListQuery = searchPageQuery.extend(archivedQuery.shape);
 
 /**
  * The whole set of brands at once, based on the provider's `version`. A new brand ranks the

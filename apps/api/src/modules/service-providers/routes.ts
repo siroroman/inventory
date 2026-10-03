@@ -19,7 +19,8 @@ const list = defineRoute({
   path: '/service-providers',
   minRole: 'read',
   tags: ['service-providers'],
-  summary: 'List active service providers by name',
+  summary:
+    'List and search active service providers by name (`archived=true`: the archived ones); the search covers name, code and phone',
   request: { query: serviceProviderListQuery },
   responses: { 200: { description: 'One page of service providers', content: jsonContent(serviceProviderListSchema) } },
 });
@@ -96,8 +97,8 @@ const setManufacturers = defineRoute({
 export function createServiceProviderRoutes(serviceProviders: ServiceProviderService) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { q, limit, cursor } = c.req.valid('query');
-      const page = await serviceProviders.list(c.get('actor'), { q }, { limit, cursor });
+      const { q, archived, limit, cursor } = c.req.valid('query');
+      const page = await serviceProviders.list(c.get('actor'), { q, archived: archived === 'true' }, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toServiceProviderDto) }, 200);
     })
     .openapi(get, async (c) => {

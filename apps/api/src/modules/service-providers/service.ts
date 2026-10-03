@@ -81,7 +81,7 @@ export function createServiceProviderService({ repos, transact }: ServiceProvide
       return { ...row, manufacturers: await repos.serviceProviders.listManufacturers(id) };
     },
 
-    /** Active providers by name, plus the total for the list heading. */
+    /** Active (or archived) providers by name, plus the total for the list heading. */
     async list(
       actor: Actor,
       filter: ServiceProviderFilter,

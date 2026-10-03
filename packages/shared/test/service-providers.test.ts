@@ -85,6 +85,11 @@ describe('serviceProviderListQuery', () => {
     expect(serviceProviderListQuery.parse({ q: '  ' })).toEqual({ limit: 50, q: undefined });
     expect(serviceProviderListQuery.parse({ q: ' Novák ' })).toMatchObject({ q: 'Novák' });
   });
+
+  it('accepts only archived=true', () => {
+    expect(serviceProviderListQuery.parse({ archived: 'true' })).toMatchObject({ archived: 'true' });
+    expect(serviceProviderListQuery.safeParse({ archived: 'false' }).success).toBe(false);
+  });
 });
 
 describe('setManufacturersBody', () => {

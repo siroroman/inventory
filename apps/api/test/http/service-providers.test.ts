@@ -78,6 +78,38 @@ describe('GET /service-providers', () => {
     expect(body.total).toBe(1);
   });
 
+  it('searches by code and by phone, with or without the spaces of the number', async () => {
+    const { read } = await setup();
+    await insertProvider(db().app, { name: 'Alfa servis', phone: '+420 601 123 456' });
+    await insertProvider(db().app, { name: 'Beta servis', phone: '+420 777 234 111' });
+    const names = async (q: string) =>
+      (await expectJson(await read.get(`/service-providers?q=${encodeURIComponent(q)}`), 200, serviceProviderListSchema)).items.map(
+        (p) => p.name,
+      );
+
+    expect(await names('sup-002')).toEqual(['Beta servis']);
+    expect(await names('601 123')).toEqual(['Alfa servis']);
+    expect(await names('+420601123456')).toEqual(['Alfa servis']);
+    expect(await names('777')).toEqual(['Beta servis']);
+    expect(await names('999')).toEqual([]);
+  });
+
+  it('lists the archived providers instead with ?archived=true', async () => {
+    const { read, write } = await setup();
+    const alfa = await insertProvider(db().app, { name: 'Alfa servis' });
+    await insertProvider(db().app, { name: 'Beta servis' });
+    await write.post(`/service-providers/${alfa.id}/archive`, { version: 1 });
+
+    const archived = await expectJson(await read.get('/service-providers?archived=true'), 200, serviceProviderListSchema);
+    expect(archived.items.map((p) => p.name)).toEqual(['Alfa servis']);
+    expect(archived).toMatchObject({ total: 1 });
+    expect(archived.items[0]?.archivedAt).not.toBeNull();
+    expect((await expectJson(await read.get('/service-providers'), 200, serviceProviderListSchema)).items.map((p) => p.name)).toEqual([
+      'Beta servis',
+    ]);
+    expect((await read.get('/service-providers?archived=yes')).status).toBe(400);
+  });
+
   it('leaves archived providers out', async () => {
     const { read, write } = await setup();
     const alfa = await insertProvider(db().app, { name: 'Alfa servis' });

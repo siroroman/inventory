@@ -44,6 +44,24 @@ describe('service provider repository', () => {
     expect(await repo().count({})).toBe(3);
   });
 
+  it('searches the code and the phone ignoring spaces, and lists the archived ones on request', async () => {
+    const { user, add } = await setup();
+    const alfa = await add('Alfa');
+    await repo().update(alfa.id, 1, { phone: '+420 601 123 456', updatedBy: user.id });
+    const beta = await add('Beta');
+    await repo().setArchived(beta.id, 1, true, user.id);
+
+    const names = async (filter: { q?: string; archived?: boolean }) =>
+      (await repo().list(filter, { limit: 50 })).items.map((p) => p.name);
+    expect(await names({ q: 'sup-001' })).toEqual(['Alfa']);
+    expect(await names({ q: '601123' })).toEqual(['Alfa']);
+    expect(await names({ q: '601 123' })).toEqual(['Alfa']);
+    expect(await names({ q: 'sup-002' })).toEqual([]);
+    expect(await names({ archived: true })).toEqual(['Beta']);
+    expect(await names({ archived: true, q: 'sup-002' })).toEqual(['Beta']);
+    expect(await repo().count({ archived: true })).toBe(1);
+  });
+
   it('lists the brands it services with its priority for each', async () => {
     const { user, add } = await setup();
     const first = await add('První');
