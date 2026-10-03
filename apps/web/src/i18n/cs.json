@@ -219,6 +219,7 @@
       "serialNumber": "Sériové číslo",
       "manufactureYear": "Rok výroby",
       "registeredOn": "Registrováno",
+      "purchasePrice": "Pořizovací cena",
       "warrantyUntil": "Záruka do",
       "lastServiceOn": "Poslední servis",
       "nextServiceOn": "Příští servis",
@@ -304,11 +305,13 @@
     "addExternalId": "Přidat externí ID",
     "removeExternalId": "Odebrat externí ID {{n}}",
     "documentsUrl": "Složka dokumentů (odkaz na Google Drive)",
+    "purchasePrice": "Pořizovací cena (Kč)",
     "errors": {
       "required": "Vyplňte toto pole.",
       "tooLong": "Text je příliš dlouhý.",
       "year": "Zadejte rok od 1950 do letošního roku.",
       "date": "Zadejte platné datum.",
+      "price": "Zadejte částku v korunách, nejvýše se dvěma desetinnými místy.",
       "documentsUrl": "Zadejte odkaz https na drive.google.com nebo docs.google.com.",
       "code": "ID může mít nejvýše 30 znaků: písmena bez diakritiky, číslice, tečku, pomlčku nebo podtržítko."
     },

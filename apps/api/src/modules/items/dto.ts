@@ -33,6 +33,7 @@ export function toItemDto(row: ItemDetail): ItemDto {
     path: row.path,
     manufactureYear: row.manufactureYear,
     registeredOn: row.registeredOn,
+    purchasePrice: row.purchasePrice,
     warrantyUntil: row.warrantyUntil,
     lastServiceOn: row.lastServiceOn,
     nextServiceOn: row.nextServiceOn,

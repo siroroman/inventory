@@ -42,6 +42,15 @@ describe('createItemBody', () => {
     }
   });
 
+  it('takes a purchase price in CZK: not negative, at most two decimals', () => {
+    for (const purchasePrice of [0, 19.99, 0.07, 184250.5, 9_999_999_999.99, null]) {
+      expect(createItemBody.safeParse({ ...base, purchasePrice }).success, String(purchasePrice)).toBe(true);
+    }
+    for (const purchasePrice of [-1, 1.005, 10_000_000_000, '1000', Number.NaN]) {
+      expect(createItemBody.safeParse({ ...base, purchasePrice }).success, String(purchasePrice)).toBe(false);
+    }
+  });
+
   it('does not need a location: missing or null means none yet', () => {
     expect(createItemBody.parse({ name: 'Váha' })).toEqual({ name: 'Váha' });
     expect(createItemBody.parse({ name: 'Váha', locationId: null })).toEqual({ name: 'Váha', locationId: null });
@@ -109,6 +118,7 @@ describe('updateItemBody', () => {
       { version: 1, name: null },
       { version: 1, name: ' ' },
       { version: 1, manufactureYear: new Date().getFullYear() + 1 },
+      { version: 1, purchasePrice: -5 },
       { version: 1, documentsUrl: 'http://drive.google.com/x' },
       { version: 1, externalIds: [{ source: 'S' }] },
       { version: 1, code: 'INV-99999' },

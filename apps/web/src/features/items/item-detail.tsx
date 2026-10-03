@@ -16,7 +16,7 @@ import { useCanWrite } from '@/features/auth/use-can-write';
 import { BrandProviders } from '@/features/manufacturers/brand-providers';
 import { ServiceHistory } from '@/features/service-records/service-history';
 import { isMissingRecord } from '@/lib/api';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatPrice } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { warrantyExpired } from '@/lib/service-status';
 import { useMediaQuery } from '@/lib/use-media-query';
@@ -210,6 +210,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
         <DetailFields
           rows={[
             { label: t('item.fields.registeredOn'), value: date(item.registeredOn) },
+            { label: t('item.fields.purchasePrice'), value: item.purchasePrice === null ? null : formatPrice(item.purchasePrice) },
             {
               label: t('item.fields.warrantyUntil'),
               value: item.warrantyUntil && (

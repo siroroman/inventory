@@ -23,6 +23,7 @@ function itemDetail(over: Record<string, unknown> = {}) {
     serialNumber: null,
     manufactureYear: null,
     registeredOn: null,
+    purchasePrice: null,
     warrantyUntil: null,
     lastServiceOn: null,
     nextServiceOn: null,

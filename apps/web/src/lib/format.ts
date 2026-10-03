@@ -18,6 +18,14 @@ export function formatTimestamp(value: string): string {
   return timestamp.format(new Date(value));
 }
 
+const crowns = new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 0, maximumFractionDigits: 2 });
+const crownsWithHellers = new Intl.NumberFormat('cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 2 });
+
+/** An amount in CZK: `144 902 Kč`, or `144 902,50 Kč` when it has hellers. */
+export function formatPrice(value: number): string {
+  return (Number.isInteger(value) ? crowns : crownsWithHellers).format(value);
+}
+
 const megabytes = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 });
 
 /** A file size the way people read it: `512 B`, `120 kB`, `1,2 MB`. */

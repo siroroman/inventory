@@ -74,6 +74,7 @@ export function createFakeItemStore() {
         serialNumber: values.serialNumber ?? null,
         manufactureYear: values.manufactureYear ?? null,
         registeredOn: values.registeredOn ?? null,
+        purchasePrice: values.purchasePrice ?? null,
         warrantyUntil: values.warrantyUntil ?? null,
         lastServiceOn: values.lastServiceOn ?? null,
         nextServiceOn: values.nextServiceOn ?? null,

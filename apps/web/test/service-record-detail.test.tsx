@@ -98,6 +98,7 @@ describe('service record detail', () => {
           serialNumber: null,
           manufactureYear: null,
           registeredOn: null,
+          purchasePrice: null,
           warrantyUntil: null,
           lastServiceOn: null,
           nextServiceOn: null,

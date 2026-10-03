@@ -16,6 +16,7 @@ function detail(over: Record<string, unknown> = {}) {
     ...item({ id }),
     manufactureYear: 2018,
     registeredOn: '2019-05-01',
+    purchasePrice: 144902.5,
     documentsUrl: null,
     note: null,
     externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }],
@@ -80,6 +81,7 @@ describe('new item', () => {
       serialNumber: null,
       manufactureYear: 2020,
       registeredOn: null,
+      purchasePrice: null,
       warrantyUntil: null,
       lastServiceOn: null,
       nextServiceOn: null,
@@ -221,10 +223,12 @@ describe('new item', () => {
     await user.type(await screen.findByLabelText('Rok výroby'), '1800');
     await user.type(screen.getByLabelText(/Složka dokumentů/), 'https://example.com/x');
     await user.type(screen.getByLabelText('Externí ID 1'), 'EL-1');
+    await user.type(screen.getByLabelText('Pořizovací cena (Kč)'), '12,345');
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
 
     expect(await screen.findByText('Zadejte rok od 1950 do letošního roku.')).toBeInTheDocument();
     expect(screen.getByText(/Zadejte odkaz https/)).toBeInTheDocument();
+    expect(screen.getByText(/Zadejte částku v korunách/)).toBeInTheDocument();
     // The name, and the source of the external ID that has only its value.
     expect(screen.getAllByText('Vyplňte toto pole.')).toHaveLength(2);
     expect(screen.getByLabelText('Název')).toHaveAttribute('aria-invalid', 'true');
@@ -326,6 +330,25 @@ describe('edit item', () => {
       }),
     );
     expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
+  });
+
+  it('shows the price the Czech way and sends it as a number', async () => {
+    const calls = api({
+      [`GET /api/v1/items/${id}`]: () => jsonResponse(detail({ version: 3 })),
+      [`PATCH /api/v1/items/${id}`]: () => jsonResponse(detail({ version: 4, purchasePrice: 39440 })),
+    });
+    const user = userEvent.setup();
+    renderApp(`/items/${id}/edit`);
+
+    const price = await screen.findByLabelText('Pořizovací cena (Kč)');
+    expect((price as HTMLInputElement).value.replace(/\s/g, ' ')).toBe('144 902,5');
+    await user.clear(price);
+    await user.type(price, '39 440,00');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    await waitFor(async () =>
+      expect(await bodyOf(calls, 'PATCH', `/api/v1/items/${id}`)).toEqual({ purchasePrice: 39440, version: 3 }),
+    );
   });
 
   it('shows the ID read-only and never sends it', async () => {
