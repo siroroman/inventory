@@ -1,10 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { manufacturerDetail, rankedProvider } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
 const ref = (code: string, name: string) => ({ id: crypto.randomUUID(), code, name });
 const id = '5b1c6d2e-3f4a-4b5c-8d9e-0a1b2c3d4e5f';
+const brandId = 'b0000000-0000-4000-8000-000000000001';
 const photo = (n: number) => ({
   id: crypto.randomUUID(),
   url: `https://storage.test/photo-${n}.jpg`,
@@ -25,7 +27,7 @@ function detail(over: Record<string, unknown> = {}) {
     name: 'Konvektomat',
     model: 'SCC 101',
     serialNumber: 'SN-7781',
-    manufacturer: { id: crypto.randomUUID(), name: 'Rational' },
+    manufacturer: { id: brandId, name: 'Rational' },
     location: place,
     path: [ref('LOC-001', 'Centrála Praha'), ref('LOC-004', 'Přízemí'), place],
     warrantyUntil: '2020-05-01',
@@ -47,8 +49,20 @@ const history = (rows: { id: string; performedOn: string; title: string }[], ext
 
 const recordsPath = `GET /api/v1/items/${id}/service-records`;
 
-const signedIn = (item: () => Response, records: (request: Request) => Response = () => history([])) =>
-  stubApi({ 'GET /api/v1/me': () => jsonResponse(me), [`GET /api/v1/items/${id}`]: item, [recordsPath]: records });
+const brandPath = `GET /api/v1/manufacturers/${brandId}`;
+
+/** Signed in, with the item, its history and (unless a test says otherwise) a brand without suppliers. */
+const signedIn = (
+  item: () => Response,
+  records: (request: Request) => Response = () => history([]),
+  brand: () => Response = () => jsonResponse(manufacturerDetail({ id: brandId, name: 'Rational' })),
+) =>
+  stubApi({
+    'GET /api/v1/me': () => jsonResponse(me),
+    [`GET /api/v1/items/${id}`]: item,
+    [recordsPath]: records,
+    [brandPath]: brand,
+  });
 
 describe('item detail', () => {
   it('opens an item without a location, the breadcrumb going straight from Lokality to the item', async () => {
@@ -191,6 +205,65 @@ describe('item detail', () => {
 
     router.history.back();
     expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+  });
+});
+
+describe('item detail: the brand and its suppliers', () => {
+  const novak = rankedProvider(1, { name: 'Servis Novák s.r.o.', contactPerson: 'Jan Novák', phone: '+420 601 123 456' });
+  const gastro = rankedProvider(2, { name: 'GastroTech Morava' });
+
+  it('links the manufacturer to its screen', async () => {
+    signedIn(() => jsonResponse(detail()));
+    renderApp(`/items/${id}`);
+    expect(await screen.findByRole('link', { name: 'Rational' })).toHaveAttribute('href', `/manufacturers/${brandId}`);
+  });
+
+  it("lists the brand's suppliers in contact order in the Servis section, read only", async () => {
+    signedIn(
+      () => jsonResponse(detail()),
+      undefined,
+      () => jsonResponse(manufacturerDetail({ id: brandId, name: 'Rational', providers: [novak, gastro] })),
+    );
+    renderApp(`/items/${id}`);
+
+    expect(await screen.findByRole('heading', { name: 'Servis zajišťují', level: 3 })).toBeInTheDocument();
+    const order = (await screen.findByRole('link', { name: 'Servis Novák s.r.o.' })).closest('ol')!;
+    const cards = within(order).getAllByRole('listitem');
+    expect(cards.map((card) => within(card).getAllByRole('link')[0]!.textContent)).toEqual(['Servis Novák s.r.o.', 'GastroTech Morava']);
+    expect(cards[0]).toHaveTextContent('Jan Novák · +420 601 123 456');
+    expect(screen.queryByRole('button', { name: /Posunout/ })).not.toBeInTheDocument();
+  });
+
+  it('says so when no supplier services the brand', async () => {
+    signedIn(() => jsonResponse(detail()));
+    renderApp(`/items/${id}`);
+    expect(await screen.findByText('Tuto značku zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
+  });
+
+  it('shows no suppliers section for an item without a manufacturer', async () => {
+    const calls = signedIn(() => jsonResponse(detail({ manufacturer: null })));
+    renderApp(`/items/${id}`);
+    await screen.findByRole('heading', { name: 'Konvektomat', level: 1 });
+    expect(screen.queryByRole('heading', { name: 'Servis zajišťují' })).not.toBeInTheDocument();
+    expect(calls.some((call) => new URL(call.url).pathname.startsWith('/api/v1/manufacturers'))).toBe(false);
+  });
+
+  it('shows an error with retry for the suppliers while the rest of the item stays', async () => {
+    let fail = true;
+    signedIn(
+      () => jsonResponse(detail()),
+      undefined,
+      () =>
+        fail
+          ? jsonResponse({ type: 'about:blank', title: 'x', status: 500, code: 'internal_error' }, { status: 500, problem: true })
+          : jsonResponse(manufacturerDetail({ id: brandId, providers: [novak] })),
+    );
+    renderApp(`/items/${id}`);
+    expect(await screen.findByRole('heading', { name: 'Konvektomat', level: 1 })).toBeInTheDocument();
+    const retry = await screen.findByRole('button', { name: 'Zkusit znovu' });
+    fail = false;
+    await userEvent.click(retry);
+    expect(await screen.findByText('Servis Novák s.r.o.')).toBeInTheDocument();
   });
 });
 

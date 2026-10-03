@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
+import { BrandProviders } from '@/features/manufacturers/brand-providers';
 import { ServiceHistory } from '@/features/service-records/service-history';
 import { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
@@ -190,7 +191,14 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
                   </ul>
                 ) : null,
             },
-            { label: t('item.fields.manufacturer'), value: item.manufacturer?.name },
+            {
+              label: t('item.fields.manufacturer'),
+              value: item.manufacturer && (
+                <Link to="/manufacturers/$id" params={{ id: item.manufacturer.id }} className="underline underline-offset-2">
+                  {item.manufacturer.name}
+                </Link>
+              ),
+            },
             { label: t('item.fields.model'), value: item.model },
             { label: t('item.fields.serialNumber'), value: item.serialNumber },
             { label: t('item.fields.manufactureYear'), value: item.manufactureYear },
@@ -252,6 +260,7 @@ function ItemBody({ item }: { item: ItemDetailDto }) {
             },
           ]}
         />
+        {item.manufacturer && <BrandProviders manufacturerId={item.manufacturer.id} />}
         <ServiceHistory itemId={item.id} canAdd={canWrite && !item.archivedAt} />
       </Section>
     </>
