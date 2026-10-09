@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Db } from './db/client.ts';
 import { transactor } from './db/transaction.ts';
 import { auditRepos, createAuditService } from './modules/audit/service.ts';
+import { createInventoryService, inventoryRepos } from './modules/inventories/service.ts';
 import { createItemService, itemRepos } from './modules/items/service.ts';
 import {
   createLocationService,
@@ -37,6 +38,10 @@ export function createServices({ db, storage, invites }: { db: Db; storage: Obje
     serviceRecords: createServiceRecordService({
       repos: serviceRecordRepos(db),
       transact: transactor(db, serviceRecordRepos),
+    }),
+    inventories: createInventoryService({
+      repos: inventoryRepos(db),
+      transact: transactor(db, inventoryRepos),
     }),
     photos: createPhotoService({
       repos: photoRepos(db),

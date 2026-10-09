@@ -11,6 +11,7 @@ import { noStore } from './http/middleware/no-store.ts';
 import { requestLog } from './http/middleware/request-log.ts';
 import { securityHeaders } from './http/middleware/security-headers.ts';
 import { serveSpa } from './http/spa.ts';
+import { createInventoryRoutes } from './modules/inventories/routes.ts';
 import { createItemRoutes } from './modules/items/routes.ts';
 import { createLocationRoutes, createLocationTypeRoutes } from './modules/locations/routes.ts';
 import { createManufacturerRoutes } from './modules/manufacturers/routes.ts';
@@ -76,6 +77,7 @@ export function createApp({ auth, baseUrl, isProduction, log, services, staticRo
     .route('/api/v1', createManufacturerRoutes(services.manufacturers))
     .route('/api/v1', createServiceProviderRoutes(services.serviceProviders))
     .route('/api/v1', createServiceRecordRoutes(services.serviceRecords))
+    .route('/api/v1', createInventoryRoutes(services.inventories))
     .route('/api/v1', createUserRoutes(services.users));
 
   routes.openAPIRegistry.registerComponent('securitySchemes', 'cookieAuth', {
