@@ -143,7 +143,7 @@ describe('home: inventory tab', () => {
       renderApp('/?tab=inventory');
       const start = await screen.findByRole('link', { name: 'Zahájit inventuru' });
       expect(start).toHaveAttribute('href', '/inventories/new');
-      expect(start.closest('div')).toHaveClass('sticky', 'bottom-0');
+      expect(start.closest('div')).toHaveClass('fixed', 'bottom-0');
     });
 
     it('is beside the heading and the search on a desktop', async () => {
@@ -152,7 +152,7 @@ describe('home: inventory tab', () => {
       renderApp('/?tab=inventory');
       const start = await screen.findByRole('link', { name: 'Zahájit inventuru' });
       expect(start).toHaveAttribute('href', '/inventories/new');
-      expect(start.closest('.sticky')).toBeNull();
+      expect(start.closest('.fixed')).toBeNull();
       expect(screen.getByRole('searchbox', { name: 'Hledat inventury' })).toBeInTheDocument();
     });
 
@@ -178,6 +178,15 @@ describe('home: inventory tab', () => {
     expect(await screen.findByText('Žádná inventura neprobíhá')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Probíhající (0)' })).toBeInTheDocument();
     expect(screen.queryByText('Zatím žádná inventura')).not.toBeInTheDocument();
+  });
+
+  it('shows the headings without a count until the lists have answered', async () => {
+    api({ open: () => page([running()], { total: 1 }) });
+    renderApp('/?tab=inventory');
+    expect(await screen.findByRole('heading', { name: 'Probíhající', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dokončené', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Probíhající (1)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Dokončené (0)' })).toBeInTheDocument();
   });
 
   it('says there is no ended run yet', async () => {

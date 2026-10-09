@@ -144,8 +144,6 @@
       "searchPlaceholder": "Hledat podle lokality…",
       "emptyTitle": "Zatím žádná inventura",
       "emptyHint": "Inventura ověří, že jsou položky tam, kde je uvádí evidence.",
-      "openTitle": "Probíhající ({{count}})",
-      "closedTitle": "Dokončené ({{count}})",
       "noOpenTitle": "Žádná inventura neprobíhá",
       "noOpenHint": "Zahájit ji může editor nebo správce.",
       "noClosedTitle": "Zatím žádná dokončená inventura",
@@ -169,7 +167,9 @@
         "date": "Datum",
         "result": "Výsledek",
         "status": "Stav"
-      }
+      },
+      "open": "Probíhající",
+      "closed": "Dokončené"
     }
   },
   "locationDetail": {

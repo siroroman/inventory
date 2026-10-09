@@ -2,7 +2,6 @@ import type { InventoryListEntryDto } from '@inventory/shared';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Plus } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
 import { BottomBar } from '@/components/bottom-bar';
@@ -101,9 +100,9 @@ function ClosedCard({ run, result }: { run: InventoryListEntryDto; result: strin
   );
 }
 
-/** A heading with the count above a list, aligned with the framed list below it. */
-function SectionHeading({ children }: { children: ReactNode }) {
-  return <h2 className={`${sectionTitleClass} px-4 pb-2 lg:px-8`}>{children}</h2>;
+/** A heading with the count above a list, aligned with the framed list below it; no count until it is known. */
+function SectionHeading({ title, total }: { title: string; total: number | undefined }) {
+  return <h2 className={`${sectionTitleClass} px-4 pb-2 lg:px-8`}>{total === undefined ? title : `${title} (${total})`}</h2>;
 }
 
 /**
@@ -181,7 +180,7 @@ export function InventoryPanel({ q, onSearch }: { q: string; onSearch: (text: st
         </ListFrame>
       ) : (
         <>
-          <SectionHeading>{t('home.inventory.openTitle', { count: openTotal ?? 0 })}</SectionHeading>
+          <SectionHeading title={t('home.inventory.open')} total={openTotal} />
           <ListFrame>
             <PagedList
               query={open}
@@ -190,7 +189,7 @@ export function InventoryPanel({ q, onSearch }: { q: string; onSearch: (text: st
               card={(run) => <OpenCard run={run} />}
             />
           </ListFrame>
-          <SectionHeading>{t('home.inventory.closedTitle', { count: closedTotal ?? 0 })}</SectionHeading>
+          <SectionHeading title={t('home.inventory.closed')} total={closedTotal} />
           <ListFrame>
             <PagedList
               query={closed}
