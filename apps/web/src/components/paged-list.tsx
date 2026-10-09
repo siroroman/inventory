@@ -26,8 +26,8 @@ type Props<T extends { id: string }> = {
   searching: boolean;
   /** What to say when there is nothing at all. */
   empty: { title: string; hint: string };
-  /** A table with these columns from 768 px up (Tailwind's `md`)... */
-  columns: Column<T>[];
+  /** A table with these columns from 768 px up (Tailwind's `md`); without columns, cards at every width... */
+  columns?: Column<T>[];
   /** ...and a list of these cards below it. */
   card: (item: T) => ReactNode;
   /**
@@ -110,7 +110,7 @@ export function PagedList<T extends { id: string }>({
 
   return (
     <div aria-busy={query.isPlaceholderData} className={query.isPlaceholderData ? 'opacity-60' : undefined}>
-      {wide ? (
+      {wide && columns ? (
         <table className="w-full table-fixed text-left">
           <thead>
             <tr className="divide-x divide-line border-b border-line bg-primary-soft text-xs font-bold tracking-wide text-secondary-foreground uppercase">

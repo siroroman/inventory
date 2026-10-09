@@ -158,6 +158,7 @@ describe('start an inventory', () => {
     const { router } = renderApp('/inventories/new');
     await userEvent.click(await screen.findByRole('link', { name: 'Zrušit' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(router.state.location.search).toEqual({ tab: 'inventory' });
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });
 

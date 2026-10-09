@@ -143,7 +143,7 @@ export function NewInventory() {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button asChild variant="outline">
-          <Link to="/" replace>
+          <Link to="/" search={{ tab: 'inventory' }} replace>
             {t('inventoryStart.cancel')}
           </Link>
         </Button>

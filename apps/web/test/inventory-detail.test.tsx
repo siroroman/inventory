@@ -49,7 +49,7 @@ describe('inventory run overview', () => {
     expect(bar).toHaveAttribute('aria-valuemax', '128');
     // The people are named for a screen reader next to their initials.
     expect(screen.getByText('Roman Siro, Jan Novák')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/?tab=inventory');
   });
 
   it('groups the locations by progress and keeps their order inside a group', async () => {

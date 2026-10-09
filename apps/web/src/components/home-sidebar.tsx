@@ -1,17 +1,18 @@
 import { Link } from '@tanstack/react-router';
-import { Building2, BriefcaseBusiness, Image, type LucideIcon, Wrench } from 'lucide-react';
+import { Building2, BriefcaseBusiness, ClipboardCheck, Image, type LucideIcon, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppLogo } from '@/components/app-logo';
 import { UserMenu } from '@/features/auth/user-menu';
 import { cn } from '@/lib/utils';
 
-export type HomeTab = 'locations' | 'items' | 'maintenance' | 'suppliers';
+export type HomeTab = 'locations' | 'items' | 'maintenance' | 'suppliers' | 'inventory';
 
 const entries: { tab: HomeTab; icon: LucideIcon; label: `home.${HomeTab}.tab` }[] = [
   { tab: 'locations', icon: Building2, label: 'home.locations.tab' },
   { tab: 'items', icon: Image, label: 'home.items.tab' },
   { tab: 'maintenance', icon: Wrench, label: 'home.maintenance.tab' },
   { tab: 'suppliers', icon: BriefcaseBusiness, label: 'home.suppliers.tab' },
+  { tab: 'inventory', icon: ClipboardCheck, label: 'home.inventory.tab' },
 ];
 
 /**

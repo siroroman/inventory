@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { pathLabel } from '@/features/locations/path';
 import { api, unwrap } from '@/lib/api';
+import { pagedListQueryOptions } from '@/lib/query';
 
 /** How often a run in progress is fetched again, so everyone sees the others' checks. */
 export const inventoryPollMs = 5000;
@@ -46,3 +47,15 @@ export const inventoryPreviewQueryOptions = (locationId: string) =>
   });
 
 export const startInventory = (locationId: string) => unwrap(api.api.v1.inventories.$post({ json: { locationId } }));
+
+/**
+ * Pages of the runs in progress (`open`, newest start first) or the finished and cancelled ones
+ * (`closed`, newest end first); `q` searches the root location. Always fetched fresh, so the tab
+ * shows the others' runs when it is opened or focused.
+ */
+export const inventoryListQueryOptions = (state: 'open' | 'closed', q: string) => ({
+  ...pagedListQueryOptions(`inventories:${state}`, q, ({ q: search, cursor, limit }) =>
+    unwrap(api.api.v1.inventories.$get({ query: { q: search, cursor, limit, state } })),
+  ),
+  staleTime: 0,
+});

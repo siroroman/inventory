@@ -12,11 +12,12 @@ function api() {
     'GET /api/v1/service-records': () => page([]),
     'GET /api/v1/service-providers': () => page([]),
     'GET /api/v1/manufacturers': () => page([]),
+    'GET /api/v1/inventories': () => page([]),
   });
 }
 
 describe('home: side menu on desktop', () => {
-  it('replaces the top bar and the tabs with the four lists and the user', async () => {
+  it('replaces the top bar and the tabs with the five lists and the user', async () => {
     stubWideScreen(true);
     api();
     renderApp('/');
@@ -27,6 +28,7 @@ describe('home: side menu on desktop', () => {
       'Položky',
       'Údržba',
       'Dodavatelé',
+      'Inventura',
     ]);
     expect(within(nav).getByRole('link', { name: 'Lokality' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Položky' })).not.toHaveAttribute('aria-current');
@@ -55,6 +57,11 @@ describe('home: side menu on desktop', () => {
 
     await userEvent.click(within(nav).getByRole('link', { name: 'Lokality' }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
+
+    await userEvent.click(within(nav).getByRole('link', { name: 'Inventura' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'inventory' }));
+    expect(within(nav).getByRole('link', { name: 'Inventura' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByRole('heading', { name: 'Inventura', level: 2 })).toBeInTheDocument();
   });
 
   it('keeps the top bar on the other screens', async () => {

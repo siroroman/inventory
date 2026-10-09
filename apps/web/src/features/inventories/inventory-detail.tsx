@@ -123,7 +123,7 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
 
   return (
     <>
-      <BackButton fallback={(content) => <Link to="/">{content}</Link>} />
+      <BackButton fallback={(content) => <Link to="/" search={{ tab: 'inventory' }}>{content}</Link>} />
 
       <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1">

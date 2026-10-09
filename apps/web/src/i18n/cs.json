@@ -137,6 +137,39 @@
         "brands": "Značky"
       },
       "add": "Přidat dodavatele"
+    },
+    "inventory": {
+      "tab": "Inventura",
+      "searchLabel": "Hledat inventury",
+      "searchPlaceholder": "Hledat podle lokality…",
+      "emptyTitle": "Zatím žádná inventura",
+      "emptyHint": "Inventura ověří, že jsou položky tam, kde je uvádí evidence.",
+      "openTitle": "Probíhající ({{count}})",
+      "closedTitle": "Dokončené ({{count}})",
+      "noOpenTitle": "Žádná inventura neprobíhá",
+      "noOpenHint": "Zahájit ji může editor nebo správce.",
+      "noClosedTitle": "Zatím žádná dokončená inventura",
+      "noClosedHint": "Dokončené a zrušené inventury se zobrazí tady.",
+      "start": "Zahájit inventuru",
+      "continue": "Pokračovat",
+      "view": "Zobrazit",
+      "startedOn": "Zahájil {{who}} · {{date}} v {{time}}",
+      "startedBy": "zahájil {{who}}",
+      "result": {
+        "found": "{{count}} nalezeno",
+        "elsewhere": "{{count}} jinde",
+        "missing_one": "{{count}} nezvěstná",
+        "missing_few": "{{count}} nezvěstné",
+        "missing_many": "{{count}} nezvěstné",
+        "missing_other": "{{count}} nezvěstných",
+        "cancelled": "{{checked}} z {{expected}} zkontrolováno"
+      },
+      "columns": {
+        "location": "Lokalita",
+        "date": "Datum",
+        "result": "Výsledek",
+        "status": "Stav"
+      }
     }
   },
   "locationDetail": {
