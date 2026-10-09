@@ -248,6 +248,8 @@
     "duplicate_provider": "Takový servisní dodavatel už existuje.",
     "duplicate_manufacturer": "Výrobce s tímto názvem už existuje.",
     "duplicate_external_id": "Toto externí ID už je u jiné položky použité.",
+    "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
+    "inventory_closed": "Inventura už je ukončená.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
     "last_admin": "Posledního administrátora nelze odebrat ani deaktivovat.",
     "parent_not_found": "Nadřazená lokalita neexistuje.",

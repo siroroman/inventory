@@ -35,6 +35,8 @@ export const domainErrorCodes = [
   'document_not_uploaded',
   'document_too_large',
   'document_type_not_allowed',
+  'inventory_overlap',
+  'inventory_closed',
   'email_taken',
   'cannot_modify_self',
   'last_admin',

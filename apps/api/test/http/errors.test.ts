@@ -77,6 +77,8 @@ describe('statusByCode', () => {
       'duplicate_provider',
       'duplicate_manufacturer',
       'duplicate_external_id',
+      'inventory_overlap',
+      'inventory_closed',
       'email_taken',
       'last_admin',
     ],

@@ -45,6 +45,8 @@ export const statusByCode: Record<ErrorCode, ProblemStatus> = {
   duplicate_provider: 409,
   duplicate_manufacturer: 409,
   duplicate_external_id: 409,
+  inventory_overlap: 409,
+  inventory_closed: 409,
   email_taken: 409,
   last_admin: 409,
   parent_not_found: 422,
