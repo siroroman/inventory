@@ -516,5 +516,28 @@
       "back": "Zpět",
       "done": "Inventura zrušena"
     }
+  },
+  "inventoryStart": {
+    "title": "Zahájit inventuru",
+    "location": "Lokalita",
+    "locationPlaceholder": "Hledat lokalitu podle názvu nebo ID",
+    "noLocations": "Žádná lokalita nenalezena",
+    "willCheck_one": "Zkontroluje se {{count}} položka",
+    "willCheck_few": "Zkontrolují se {{count}} položky",
+    "willCheck_many": "Zkontrolují se {{count}} položky",
+    "willCheck_other": "Zkontroluje se {{count}} položek",
+    "inLocations_one": "v {{count}} lokalitě",
+    "inLocations_few": "v {{count}} lokalitách",
+    "inLocations_many": "v {{count}} lokalitách",
+    "inLocations_other": "v {{count}} lokalitách",
+    "noItems": "V lokalitě nejsou žádné položky.",
+    "noItemsHint": "Inventuru lze přesto zahájit, například k zapsání nových položek.",
+    "overlap": "Pro tuto lokalitu už probíhá inventura: {{location}}, zahájil {{who}} {{date}}",
+    "overlapNoWho": "Pro tuto lokalitu už probíhá inventura: {{location}}, zahájená {{date}}",
+    "open": "Otevřít",
+    "cancel": "Zrušit",
+    "submit": "Zahájit inventuru",
+    "submitting": "Zahajuji…",
+    "started": "Inventura zahájena"
   }
 }
