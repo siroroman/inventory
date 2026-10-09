@@ -283,6 +283,7 @@
     "duplicate_external_id": "Toto externí ID už je u jiné položky použité.",
     "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
     "inventory_closed": "Inventura už je ukončená.",
+    "item_not_in_inventory": "Tato položka v inventuře není.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
     "last_admin": "Posledního administrátora nelze odebrat ani deaktivovat.",
     "parent_not_found": "Nadřazená lokalita neexistuje.",

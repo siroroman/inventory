@@ -95,6 +95,7 @@ describe('statusByCode', () => {
       'manufacturer_archived',
       'location_not_found',
       'location_archived',
+      'item_not_in_inventory',
       'invalid_photo_key',
       'photo_not_uploaded',
       'photo_too_large',

@@ -89,3 +89,42 @@ export type InventoryPreviewDto = z.infer<typeof inventoryPreviewSchema>;
 
 export const startInventoryBody = z.strictObject({ locationId: z.uuid() });
 export type StartInventoryBody = z.infer<typeof startInventoryBody>;
+
+/** How an item came to be in a run: on the list at the start, found elsewhere, or created during the run. */
+export const inventoryRowKinds = ['expected', 'elsewhere', 'new'] as const;
+export const inventoryRowKind = z.enum(inventoryRowKinds);
+export type InventoryRowKind = z.infer<typeof inventoryRowKind>;
+
+export const checkMethods = ['scan', 'manual'] as const;
+export const checkMethod = z.enum(checkMethods);
+export type CheckMethod = z.infer<typeof checkMethod>;
+
+/**
+ * One item of a run as the checklist shows it. Only rows a person sees are listed: items of the
+ * list taken at the start that are still active, and found or added items that are checked.
+ */
+export const inventoryRowSchema = z.object({
+  /** The item's id. */
+  id: z.uuid(),
+  code: z.string(),
+  name: z.string(),
+  kind: inventoryRowKind,
+  /** The location the row belongs to in the run, where it is checked. */
+  locationId: z.uuid(),
+  checkedAt: timestamp.nullable(),
+  checkedBy: personRef.nullable(),
+  method: checkMethod.nullable(),
+  /** Where a found-elsewhere item was registered, from the top (the location last); empty when it had no location. */
+  registeredPath: z.array(codeRef),
+  /** The item was moved to the run's location during the run. */
+  moved: z.boolean(),
+});
+export type InventoryRowDto = z.infer<typeof inventoryRowSchema>;
+
+/** All the rows of a run or of one of its locations, not paged: a location holds at most a few hundred. */
+export const inventoryRowsSchema = z.object({ items: z.array(inventoryRowSchema) });
+export type InventoryRowsDto = z.infer<typeof inventoryRowsSchema>;
+
+export const inventoryRowsQuery = z.object({ locationId: z.uuid().optional() });
+
+export const inventoryRowParams = z.object({ id: z.uuid(), itemId: z.uuid() });
