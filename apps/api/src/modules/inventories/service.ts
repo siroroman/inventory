@@ -77,6 +77,8 @@ function byPath(a: { path: PathSegment[]; id: string }, b: { path: PathSegment[]
   for (let i = 0; i < Math.min(a.path.length, b.path.length); i++) {
     const order = collator.compare(a.path[i]!.name, b.path[i]!.name);
     if (order) return order;
+    // Same name, different location: keep each one's subtree together.
+    if (a.path[i]!.id !== b.path[i]!.id) return a.path[i]!.id < b.path[i]!.id ? -1 : 1;
   }
   return a.path.length - b.path.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 }
@@ -87,6 +89,20 @@ const overlapOf = (row: InventoryRow): InventoryOverlap => ({
   startedBy: row.startedBy,
   startedAt: row.createdAt,
 });
+
+function toEntry(
+  row: InventoryRow,
+  paths: Map<string, PathSegment[]>,
+  counts: Map<string, InventoryCounts>,
+  participants: Map<string, Person[]>,
+): InventoryEntry {
+  return {
+    ...row,
+    path: paths.get(row.locationId) ?? [],
+    counts: counts.get(row.id) ?? NO_COUNTS,
+    participants: participants.get(row.id) ?? [],
+  };
+}
 
 /** Inventory runs: a physical check of a location and everything below it. */
 export function createInventoryService({ repos, transact, now = () => new Date() }: InventoryDeps) {
@@ -107,12 +123,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
       repos.inventories.counts(ids),
       repos.inventories.participants(ids),
     ]);
-    return rows.map((row) => ({
-      ...row,
-      path: paths.get(row.locationId) ?? [],
-      counts: counts.get(row.id) ?? NO_COUNTS,
-      participants: participants.get(row.id) ?? [],
-    }));
+    return rows.map((row) => toEntry(row, paths, counts, participants));
   }
 
   async function runItemEntries(rows: RunItem[]): Promise<InventoryRunItem[]> {
@@ -131,7 +142,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
    */
   async function setChecked(actor: Actor, id: string, itemId: string, checked: boolean): Promise<InventoryRunItem> {
     assertRole(actor, 'write');
-    await transact(async (r) => {
+    const answer = await transact(async (r) => {
       const run = await r.inventories.lockShared(id);
       if (!run) throw new DomainError('not_found');
       if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
@@ -141,7 +152,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         // An item archived since the start is no longer counted, so it cannot be checked either.
         if (row.itemArchived) throw new DomainError('archived');
         const method = 'manual';
-        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) return;
+        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) return row;
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
@@ -150,7 +161,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
           changes: { itemId: { from: null, to: itemId }, method: { from: null, to: method } },
         });
       } else {
-        if (!(await r.inventories.markUnchecked(id, itemId))) return;
+        if (!(await r.inventories.markUnchecked(id, itemId))) return row;
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
@@ -159,8 +170,10 @@ export function createInventoryService({ repos, transact, now = () => new Date()
           changes: { itemId: { from: itemId, to: null } },
         });
       }
+      // The row as this tick left it, not as a later one by somebody else might.
+      return (await r.inventories.findRunItem(id, itemId))!;
     });
-    const [entry] = await runItemEntries([(await repos.inventories.findRunItem(id, itemId))!]);
+    const [entry] = await runItemEntries([answer]);
     return entry!;
   }
 
@@ -168,15 +181,17 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
     if (!row) throw new DomainError('not_found');
-    const [progress, checkers, activeNow] = await Promise.all([
+    const [progress, checkers, activeNow, counts, participants] = await Promise.all([
       repos.inventories.locationProgress(id),
       repos.inventories.locationCheckers(id),
       row.status === 'in_progress'
         ? repos.inventories.recentCheckers(id, new Date(now().getTime() - ACTIVE_WINDOW_MS))
         : Promise.resolve([]),
+      repos.inventories.counts([id]),
+      repos.inventories.participants([id]),
     ]);
     const paths = await repos.locations.findPaths([row.locationId, ...progress.map((p) => p.locationId)]);
-    const [entry] = await entries([row], paths);
+    const entry = toEntry(row, paths, counts, participants);
     const locations = progress
       .flatMap(({ locationId, total, checked }): InventoryLocationEntry[] => {
         const path = paths.get(locationId);
@@ -188,7 +203,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         return [{ ...self, path, total, checked, participants }];
       })
       .sort(byPath);
-    return { ...entry!, activeNow, locations };
+    return { ...entry, activeNow, locations };
   }
 
   return {
