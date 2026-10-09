@@ -338,9 +338,9 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `GET /inventories/preview?locationId=` | item and location counts for the start screen, and the run in progress it would overlap, if any | Write |
 | `POST /inventories` | start a run for `locationId`; takes the snapshot; `inventory_overlap` 409 | Write |
 | `GET /inventories/{id}` | a run: root and path, state, times, people, counts, every location of the subtree with its counts, note, committee, organization header | Read |
-| `GET /inventories/{id}/items?locationId=` | the run's rows (all, not paged), optionally of one location | Read |
+| `GET /inventories/{id}/items?locationId=` | the run's rows (all, not paged), optionally of one location, by item name; only the rows a person sees (items archived since the start, and found or added items that are not checked, are left out) | Read |
 | `POST /inventories/{id}/scans` | check by code (`{code, locationId?, method?}`); answers an `outcome` (§9.6) | Write |
-| `POST /inventories/{id}/items/{itemId}/check`, `/uncheck` | tick or untick an item by hand (`locationId` = context) | Write |
+| `POST /inventories/{id}/items/{itemId}/check`, `/uncheck` | tick or untick an item by hand; no body (the row already knows its location, so no context is needed); answers the row; an item that is already checked is left as it is (the first check wins) | Write |
 | `POST /inventories/{id}/items/{itemId}/move` | move the item to a location of the run (`{locationId, version}`, the item's version) | Write |
 | `POST /inventories/{id}/finish` | `{version, missingItemIds, note?, committee?}`: end the run, mark those still unchecked Nezvěstná | Write |
 | `POST /inventories/{id}/cancel` | `{version}`: end the run as cancelled | Write |
@@ -473,12 +473,13 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 - **Top bar:** back (to the overview), the location's name, and the same run actions as the overview.
 - **Header:** the path from the root, "24 / 32 zkontrolováno · 75 %" with a bar, the participants.
 - **Search** over name and ID within this location's rows.
-- **Nezkontrolované (N):** all of them. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand.
+- **Nezkontrolované (N):** all of them, by name in Czech order. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand (and "Zobrazit méně" to fold again). While a search is active, every match is listed.
 - **Rows:**
   - Every row: a large checkbox, the name and the ID. Tapping the row toggles it, and Space toggles it from the keyboard. A chevron opens the item detail.
   - A checked row also shows "RS · 10:42" and a scan icon, or the word "ručně" for a hand tick.
-  - A *Nalezeno jinde* row shows "Vedeno v: …" and the *Jinde* badge, plus "přesunuto" once moved. A *Nové* row shows "přidáno při inventuře" and the *Nové* badge. An archived item shows *Archivováno*, without a checkbox.
-  - Read users see the states without checkboxes.
+  - A *Nalezeno jinde* row shows "Vedeno v: …" and the *Jinde* badge, plus "přesunuto" once moved. A *Nové* row shows "přidáno při inventuře" and the *Nové* badge. An item archived after the start is left out (*Decided* 2026-10-09; it is not counted either, rule 11).
+  - Read users, and everyone on a run that is no longer in progress, see the states without checkboxes.
+  - A tick shows at once as pending, but the row moves between the groups only when the server has confirmed it, so the screen never shows a check that was not saved. A failure puts the box back and says so ("Zaškrtnutí se neuložilo", rule 15). Every untick offers "Vrátit" (rule 10).
 - "+ Přidat položku, která není v evidenci" for writers (rule 9).
 - "Skenovat" (touch devices) opens the scanner with this location as context.
 - The checklist loads every row of the location at once, not paged; a location holds at most a few hundred items.
@@ -648,12 +649,13 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 
 **Built so far** (2026-10-09), with what differs from the list above:
 
-- **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. Scans, check, uncheck, move, finish, mark found and the histories are not built.
-- **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2) and the run overview (§9.4.3).
+- **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. The rows of a run (`GET /inventories/{id}/items`) and the hand **check** and **uncheck** are built, with the error code `item_not_in_inventory`; scans, move, finish, mark found and the histories are not.
+- **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2), the run overview (§9.4.3) and the location checklist (§9.4.4) with hand checks and polling. "+ Přidat položku, která není v evidenci" (rule 9) is left for its own change: it needs `POST /items` with `inventoryId` and the item form's `inventoryId` / `code` parameters.
 - **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
 - **`items.missing_since`** is not added yet; it gets its own migration with the finish step.
-- **The audit action CHECK** now allows `start`, `check`, `uncheck`, `finish` and `cancel` (§9.3 rule 16); `start` and `cancel` are written.
-- **Left out of the overview until their step exists:** "Skenovat" (scanner), "Dokončit inventuru", and the links from the location rows to the checklist.
+- **The audit action CHECK** now allows `start`, `check`, `uncheck`, `finish` and `cancel` (§9.3 rule 16); `start`, `check`, `uncheck` and `cancel` are written.
+- **Left out of the overview and the checklist until their step exists:** "Skenovat" (scanner) and "Dokončit inventuru". The checklist of an ended run (cancelled for now) is read-only.
+- **`was_missing`** stays false until `items.missing_since` exists; the finish step must make a check clear that status (rule 12).
 - **Progress counts** only `expected` rows whose item is not archived; a location row counts the rows visible there (expected plus checked extras). The overall "84 / 128" therefore never passes 100 %.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
 - **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
