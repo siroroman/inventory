@@ -8,7 +8,7 @@ import { BackButton } from '@/components/back-button';
 import { ErrorState } from '@/components/error-state';
 import { Section } from '@/components/section';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Progress, progressPercent } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { pathLabel } from '@/features/locations/path';
@@ -18,8 +18,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
 import { CancelInventory } from './cancel-inventory';
 import { shortName, shortNames } from './people';
-
-const statusBadge = { in_progress: 'info', finished: 'success', cancelled: 'neutral' } as const;
+import { statusBadge } from './status';
 
 type Group = 'inProgress' | 'notStarted' | 'done';
 const groups: Group[] = ['inProgress', 'notStarted', 'done'];
@@ -89,7 +88,7 @@ function Progression({ inventory }: { inventory: InventoryDto }) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-[15px] font-semibold">
-        {t('inventory.progress', { checked, total: expected, percent: Math.round((checked / expected) * 100) })}
+        {t('inventory.progress', { checked, total: expected, percent: progressPercent(checked, expected) })}
       </p>
       <Progress value={checked} max={expected} label={t('inventory.progressLabel')} />
     </div>
@@ -119,7 +118,8 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
   const { t } = useTranslation();
   const canWrite = useCanWrite();
   const above = inventory.path.slice(0, -1);
-  const byGroup = Object.groupBy(inventory.locations, groupOf);
+  const byGroup: Record<Group, InventoryLocationDto[]> = { inProgress: [], notStarted: [], done: [] };
+  for (const location of inventory.locations) byGroup[groupOf(location)].push(location);
 
   return (
     <>
@@ -152,7 +152,7 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
       </section>
 
       {groups.map((group) => {
-        const locations = byGroup[group] ?? [];
+        const locations = byGroup[group];
         if (locations.length === 0) return null;
         return (
           <Section key={group} title={t(`inventory.locations.${group}`, { count: locations.length })}>

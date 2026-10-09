@@ -93,10 +93,13 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     if (location.archivedAt) throw new DomainError('location_archived');
   }
 
-  async function entries(rows: InventoryRow[]): Promise<InventoryEntry[]> {
+  /** Paths are looked up by the caller (one query for the root and whatever else it needs). */
+  async function entries(
+    rows: InventoryRow[],
+    paths: Map<string, PathSegment[]>,
+  ): Promise<InventoryEntry[]> {
     const ids = rows.map((row) => row.id);
-    const [paths, counts, participants] = await Promise.all([
-      repos.locations.findPaths([...new Set(rows.map((row) => row.locationId))]),
+    const [counts, participants] = await Promise.all([
       repos.inventories.counts(ids),
       repos.inventories.participants(ids),
     ]);
@@ -112,15 +115,15 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
     if (!row) throw new DomainError('not_found');
-    const [[entry], progress, checkers, activeNow] = await Promise.all([
-      entries([row]),
+    const [progress, checkers, activeNow] = await Promise.all([
       repos.inventories.locationProgress(id),
       repos.inventories.locationCheckers(id),
       row.status === 'in_progress'
         ? repos.inventories.recentCheckers(id, new Date(now().getTime() - ACTIVE_WINDOW_MS))
         : Promise.resolve([]),
     ]);
-    const paths = await repos.locations.findPaths(progress.map((p) => p.locationId));
+    const paths = await repos.locations.findPaths([row.locationId, ...progress.map((p) => p.locationId)]);
+    const [entry] = await entries([row], paths);
     const locations = progress
       .flatMap(({ locationId, total, checked }): InventoryLocationEntry[] => {
         const path = paths.get(locationId);
@@ -147,7 +150,8 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         repos.inventories.list(filter, page),
         repos.inventories.count(filter),
       ]);
-      return { items: await entries(result.items), nextCursor: result.nextCursor, total };
+      const paths = await repos.locations.findPaths([...new Set(result.items.map((row) => row.locationId))]);
+      return { items: await entries(result.items, paths), nextCursor: result.nextCursor, total };
     },
 
     get,

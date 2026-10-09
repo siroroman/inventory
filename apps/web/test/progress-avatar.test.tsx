@@ -17,6 +17,7 @@ describe('Progress', () => {
     expect(screen.getByRole('progressbar').firstElementChild).toHaveStyle({ width: '0%' });
     rerender(<Progress value={9} max={5} label="Průběh" />);
     expect(screen.getByRole('progressbar').firstElementChild).toHaveStyle({ width: '100%' });
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '5');
   });
 });
 

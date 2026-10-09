@@ -10,15 +10,14 @@ import { type Column, EmptyState, PagedList, pagedTotal } from '@/components/pag
 import { sectionTitleClass } from '@/components/section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Progress, progressPercent } from '@/components/ui/progress';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { pathLabel } from '@/features/locations/path';
 import { formatTime, formatTimestamp } from '@/lib/format';
 import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 import { inventoryListQueryOptions } from './api';
 import { shortName } from './people';
-
-const statusBadge = { in_progress: 'info', finished: 'success', cancelled: 'neutral' } as const;
+import { statusBadge } from './status';
 
 /** What a finished run found ("120 nalezeno · 3 jinde · 5 nezvěstných"), or how far a cancelled one got. */
 function useResultLine() {
@@ -59,7 +58,7 @@ function OpenCard({ run }: { run: InventoryListEntryDto }) {
       {expected > 0 && (
         <div className="flex flex-col gap-1.5">
           <p className="text-sm">
-            {t('inventory.progress', { checked, total: expected, percent: Math.round((checked / expected) * 100) })}
+            {t('inventory.progress', { checked, total: expected, percent: progressPercent(checked, expected) })}
           </p>
           <Progress value={checked} max={expected} label={t('inventory.progressLabel')} />
         </div>
