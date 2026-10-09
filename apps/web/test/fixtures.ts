@@ -151,3 +151,20 @@ export function inventory(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+
+/** A row of a run as `GET /inventories/{id}/items` answers it: on the list, not checked yet. */
+export function inventoryRow(over: Record<string, unknown> = {}) {
+  return {
+    id: crypto.randomUUID(),
+    code: 'INV-00042',
+    name: 'Kávovar Linea PB',
+    kind: 'expected',
+    locationId: crypto.randomUUID(),
+    checkedAt: null as string | null,
+    checkedBy: null as unknown,
+    method: null as string | null,
+    registeredPath: [] as unknown[],
+    moved: false,
+    ...over,
+  };
+}
