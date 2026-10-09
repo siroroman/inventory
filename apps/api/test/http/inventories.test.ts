@@ -1,7 +1,13 @@
-import { inventoryListSchema, inventoryPreviewSchema, inventorySchema } from '@inventory/shared';
+import {
+  inventoryListSchema,
+  inventoryPreviewSchema,
+  inventoryRowSchema,
+  inventoryRowsSchema,
+  inventorySchema,
+} from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { auditLog, inventoryItems, locations } from '../../src/db/schema/index.ts';
+import { auditLog, inventoryItems, items, locations } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertInventory, insertItem, insertLocation } from '../helpers/factories.ts';
@@ -250,5 +256,167 @@ describe('POST /inventories/{id}/cancel', () => {
     await expectProblem(await api(app).post(`/inventories/${run.id}/cancel`, { version: 1 }), 401, 'unauthenticated');
     await expectProblem(await write.post(`/inventories/${run.id}/cancel`, {}), 400, 'validation_error');
     expect((await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema)).status).toBe('in_progress');
+  });
+});
+
+/** A run on Centrála Praha with Mixér and Žebřík there and Čepice in Patro. */
+async function startedRun(client: Awaited<ReturnType<typeof setup>>['write']) {
+  const { top, patro } = await praha();
+  const mixer = await insertItem(db().app, { name: 'Mixér', locationId: top.id });
+  const ladder = await insertItem(db().app, { name: 'Žebřík', locationId: top.id });
+  const cap = await insertItem(db().app, { name: 'Čepice', locationId: patro.id });
+  const run = await expectJson(await client.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+  return { run, top, patro, mixer, ladder, cap };
+}
+
+describe('GET /inventories/{id}/items', () => {
+  it('lists the rows by item name, and those of one location', async () => {
+    const { read, write } = await setup();
+    const { run, patro, cap } = await startedRun(write);
+
+    const all = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    // `praha()` adds two items named Konvektomat. Czech order puts Čepice after C, not after Z.
+    expect(all.items.map((r) => r.name)).toEqual(['Čepice', 'Konvektomat', 'Konvektomat', 'Mixér', 'Žebřík']);
+    expect(all.items[0]).toMatchObject({
+      id: cap.id,
+      code: cap.code,
+      kind: 'expected',
+      locationId: patro.id,
+      checkedAt: null,
+      checkedBy: null,
+      method: null,
+      registeredPath: [],
+      moved: false,
+    });
+
+    const inPatro = await expectJson(
+      await read.get(`/inventories/${run.id}/items?locationId=${patro.id}`),
+      200,
+      inventoryRowsSchema,
+    );
+    expect(inPatro.items.map((r) => r.name)).toEqual(['Čepice', 'Konvektomat']);
+  });
+
+  it('hides archived items and shows who checked a row', async () => {
+    const { read, write } = await setup();
+    const { run, mixer, ladder } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+    await db().app.update(items).set({ archivedAt: new Date() }).where(eq(items.id, ladder.id));
+
+    const body = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    expect(body.items.map((r) => r.name)).not.toContain('Žebřík');
+    const row = body.items.find((r) => r.id === mixer.id)!;
+    expect(row.checkedBy).not.toBeNull();
+    expect(row).toMatchObject({ method: 'manual' });
+    expect(row.checkedAt).not.toBeNull();
+  });
+
+  it('answers 404 for an unknown run, 400 for bad ids and 401 for an anonymous caller', async () => {
+    const { app, read } = await setup();
+    await expectProblem(await read.get(`/inventories/${MISSING}/items`), 404, 'not_found');
+    await expectProblem(await read.get('/inventories/nope/items'), 400, 'validation_error');
+    await expectProblem(await read.get(`/inventories/${MISSING}/items?locationId=nope`), 400, 'validation_error');
+    await expectProblem(await api(app).get(`/inventories/${MISSING}/items`), 401, 'unauthenticated');
+  });
+});
+
+describe('POST /inventories/{id}/items/{itemId}/check', () => {
+  it('ticks the row, shows it in the list and the counts, and audits it', async () => {
+    const { read, write } = await setup();
+    const { run, mixer } = await startedRun(write);
+
+    const row = await expectJson(await write.post(`/inventories/${run.id}/items/${mixer.id}/check`), 200, inventoryRowSchema);
+
+    expect(row).toMatchObject({ id: mixer.id, name: 'Mixér', method: 'manual', checkedBy: run.startedBy });
+    expect(row.checkedAt).not.toBeNull();
+    const detail = await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts.checked).toBe(1);
+    expect(detail.version).toBe(run.version);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check']);
+    expect(audit[1]!.changes).toEqual({ itemId: { from: null, to: mixer.id }, method: { from: null, to: 'manual' } });
+  });
+
+  it('leaves a row that is already checked to the person who checked it first', async () => {
+    const { write, admin } = await setup();
+    const { run, mixer } = await startedRun(write);
+    const first = await expectJson(await write.post(`/inventories/${run.id}/items/${mixer.id}/check`), 200, inventoryRowSchema);
+    const second = await expectJson(await admin.post(`/inventories/${run.id}/items/${mixer.id}/check`), 200, inventoryRowSchema);
+    expect(second).toEqual(first);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'check']);
+  });
+
+  it('answers 422 for an item the run does not have, 404 for an unknown run', async () => {
+    const { write } = await setup();
+    const { run } = await startedRun(write);
+    const outside = await insertItem(db().app, { name: 'Jinde' });
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${outside.id}/check`), 422, 'item_not_in_inventory');
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${MISSING}/check`), 422, 'item_not_in_inventory');
+    await expectProblem(await write.post(`/inventories/${MISSING}/items/${outside.id}/check`), 404, 'not_found');
+  });
+
+  it('answers 409 for a run that is closed and for an item archived since the start', async () => {
+    const { write } = await setup();
+    const { run, mixer, ladder } = await startedRun(write);
+    await db().app.update(items).set({ archivedAt: new Date() }).where(eq(items.id, ladder.id));
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${ladder.id}/check`), 409, 'archived');
+
+    await write.post(`/inventories/${run.id}/cancel`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${mixer.id}/check`), 409, 'inventory_closed');
+    const rows = await db().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, run.id));
+    expect(rows.every((row) => row.checkedAt === null)).toBe(true);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'cancel']);
+  });
+
+  it('is for writers and signed-in users, and needs valid ids', async () => {
+    const { app, read, admin, write } = await setup();
+    const { run, mixer, cap } = await startedRun(write);
+    await expectProblem(await read.post(`/inventories/${run.id}/items/${mixer.id}/check`), 403, 'forbidden');
+    await expectProblem(await api(app).post(`/inventories/${run.id}/items/${mixer.id}/check`), 401, 'unauthenticated');
+    await expectProblem(await write.post(`/inventories/${run.id}/items/nope/check`), 400, 'validation_error');
+    await expectJson(await admin.post(`/inventories/${run.id}/items/${cap.id}/check`), 200, inventoryRowSchema);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'check']);
+  });
+});
+
+describe('POST /inventories/{id}/items/{itemId}/uncheck', () => {
+  it('clears the tick, whoever made it, and audits it', async () => {
+    const { write, admin } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+
+    const row = await expectJson(await admin.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 200, inventoryRowSchema);
+
+    expect(row).toMatchObject({ id: mixer.id, checkedAt: null, checkedBy: null, method: null });
+    const detail = await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts.checked).toBe(0);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check', 'uncheck']);
+    expect(audit[2]!.changes).toEqual({ itemId: { from: mixer.id, to: null } });
+  });
+
+  it('changes nothing for a row that is not checked', async () => {
+    const { write } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await expectJson(await write.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 200, inventoryRowSchema);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start']);
+  });
+
+  it('answers 404, 422 and 409 like a check, and refuses readers and anonymous callers', async () => {
+    const { app, read, write } = await setup();
+    const { run, mixer } = await startedRun(write);
+    const outside = await insertItem(db().app, { name: 'Jinde' });
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${outside.id}/uncheck`), 422, 'item_not_in_inventory');
+    await expectProblem(await write.post(`/inventories/${MISSING}/items/${mixer.id}/uncheck`), 404, 'not_found');
+    await expectProblem(await read.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 403, 'forbidden');
+    await expectProblem(await api(app).post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 401, 'unauthenticated');
+    await expectProblem(await write.post(`/inventories/${run.id}/items/nope/uncheck`), 400, 'validation_error');
+
+    await write.post(`/inventories/${run.id}/cancel`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 409, 'inventory_closed');
+    const detail = await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts.checked).toBe(1);
   });
 });

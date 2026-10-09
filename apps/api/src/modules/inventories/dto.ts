@@ -1,5 +1,5 @@
-import type { InventoryDto, InventoryListEntryDto, InventoryPreviewDto } from '@inventory/shared';
-import type { InventoryDetail, InventoryEntry, InventoryPreview } from './service.ts';
+import type { InventoryDto, InventoryListEntryDto, InventoryPreviewDto, InventoryRowDto } from '@inventory/shared';
+import type { InventoryDetail, InventoryEntry, InventoryPreview, InventoryRunItem } from './service.ts';
 
 function runFields(row: InventoryEntry) {
   return {
@@ -34,5 +34,20 @@ export function toInventoryPreviewDto(preview: InventoryPreview): InventoryPrevi
     itemCount: preview.itemCount,
     locationCount: preview.locationCount,
     overlap: preview.overlap && { ...preview.overlap, startedAt: preview.overlap.startedAt.toISOString() },
+  };
+}
+
+export function toInventoryRowDto(row: InventoryRunItem): InventoryRowDto {
+  return {
+    id: row.itemId,
+    code: row.code,
+    name: row.name,
+    kind: row.kind as InventoryRowDto['kind'],
+    locationId: row.locationId,
+    checkedAt: row.checkedAt?.toISOString() ?? null,
+    checkedBy: row.checkedBy,
+    method: row.method as InventoryRowDto['method'],
+    registeredPath: row.registeredPath,
+    moved: row.moved,
   };
 }

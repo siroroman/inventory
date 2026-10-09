@@ -4,13 +4,17 @@ import {
   inventoryListSchema,
   inventoryPreviewQuery,
   inventoryPreviewSchema,
+  inventoryRowParams,
+  inventoryRowSchema,
+  inventoryRowsQuery,
+  inventoryRowsSchema,
   inventorySchema,
   startInventoryBody,
   versionBody,
 } from '@inventory/shared';
 import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
-import { toInventoryDto, toInventoryListEntryDto, toInventoryPreviewDto } from './dto.ts';
+import { toInventoryDto, toInventoryListEntryDto, toInventoryPreviewDto, toInventoryRowDto } from './dto.ts';
 import type { InventoryService } from './service.ts';
 
 const list = defineRoute({
@@ -57,6 +61,39 @@ const get = defineRoute({
   responses: { 200: { description: 'The run', content: jsonContent(inventorySchema) } },
 });
 
+const listItems = defineRoute({
+  method: 'get',
+  path: '/inventories/{id}/items',
+  minRole: 'read',
+  tags: ['inventories'],
+  summary: 'The rows of a run, or of one of its locations (`locationId`): not paged, by item name',
+  request: { params: idParam, query: inventoryRowsQuery },
+  errors: [404],
+  responses: { 200: { description: 'The rows a person sees in the run', content: jsonContent(inventoryRowsSchema) } },
+});
+
+const check = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/items/{itemId}/check',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Tick an item of a run in progress by hand; an item that is already checked is left as it is',
+  request: { params: inventoryRowParams },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'The row, with who checked it and when', content: jsonContent(inventoryRowSchema) } },
+});
+
+const uncheck = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/items/{itemId}/uncheck',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Untick an item of a run in progress; an item found elsewhere or added drops out of the run',
+  request: { params: inventoryRowParams },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'The row, unchecked', content: jsonContent(inventoryRowSchema) } },
+});
+
 const cancel = defineRoute({
   method: 'post',
   path: '/inventories/{id}/cancel',
@@ -87,6 +124,19 @@ export function createInventoryRoutes(inventories: InventoryService) {
     .openapi(get, async (c) => {
       const row = await inventories.get(c.get('actor'), c.req.valid('param').id);
       return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(listItems, async (c) => {
+      const { id } = c.req.valid('param');
+      const rows = await inventories.listItems(c.get('actor'), id, c.req.valid('query').locationId);
+      return c.json({ items: rows.map(toInventoryRowDto) }, 200);
+    })
+    .openapi(check, async (c) => {
+      const { id, itemId } = c.req.valid('param');
+      return c.json(toInventoryRowDto(await inventories.check(c.get('actor'), id, itemId)), 200);
+    })
+    .openapi(uncheck, async (c) => {
+      const { id, itemId } = c.req.valid('param');
+      return c.json(toInventoryRowDto(await inventories.uncheck(c.get('actor'), id, itemId)), 200);
     })
     .openapi(cancel, async (c) => {
       const row = await inventories.cancel(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
