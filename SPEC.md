@@ -388,7 +388,7 @@ CI gate before every deploy: lint, typecheck, all tests, build. Only a green bui
 
 ## 9. Inventory (Inventura) and labels
 
-Specified 2026-10-09, not built yet. Sources: the design brief for the canvas (its "decided" section) and the canvas frames 17–27 (rows "Inventura a štítky"). Where the canvas and the brief disagree, this section records the choice; the points the client settled on 2026-10-09 are marked *Decided*. Everything else follows the brief, and the parts added here that neither source has are marked *Proposed*.
+Specified 2026-10-09; the first slice is built, see "Built so far" in §9.8. Sources: the design brief for the canvas (its "decided" section) and the canvas frames 17–27 (rows "Inventura a štítky"). Where the canvas and the brief disagree, this section records the choice; the points the client settled on 2026-10-09 are marked *Decided*. Everything else follows the brief, and the parts added here that neither source has are marked *Proposed*.
 
 ### 9.1 Scope
 
@@ -645,6 +645,18 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 6. **SPA, scanner:** the scanner with all its sheets and camera states, then the quick scan.
 7. **SPA, documents:** the protocol print view and the CSV export.
 8. **SPA, labels:** label selection and printing; a test print on real sheets.
+
+**Built so far** (2026-10-09), with what differs from the list above:
+
+- **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. Scans, check, uncheck, move, finish, mark found and the histories are not built.
+- **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2) and the run overview (§9.4.3).
+- **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's menu "Další možnosti" / button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
+- **`items.missing_since`** is not added yet; it gets its own migration with the finish step.
+- **The audit action CHECK** now allows `start`, `check`, `uncheck`, `finish` and `cancel` (§9.3 rule 16); `start` and `cancel` are written.
+- **Left out of the overview until their step exists:** "Skenovat" (scanner), "Dokončit inventuru", and the links from the location rows to the checklist.
+- **Progress counts** only `expected` rows whose item is not archived; a location row counts the rows visible there (expected plus checked extras). The overall "84 / 128" therefore never passes 100 %.
+- **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
+- **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
 
 **E2E additions:** start a run, tick items by hand, finish (an unchecked item becomes Nezvěstná), print a protocol; select items and open the label preview. The scanner's decoder is faked in component tests; the camera isn't available in jsdom.
 
