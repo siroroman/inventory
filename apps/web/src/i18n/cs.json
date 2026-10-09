@@ -543,6 +543,37 @@
     "actions": {
       "cancel": "Zrušit inventuru"
     },
+    "checklist": {
+      "searchLabel": "Hledat položky v lokalitě",
+      "searchPlaceholder": "Hledat podle názvu nebo ID…",
+      "unchecked": "Nezkontrolované",
+      "checked": "Zkontrolované",
+      "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
+      "emptyTitle": "Žádné položky",
+      "emptyHint": "V této lokalitě teď nejsou žádné položky ke kontrole.",
+      "moreChecked_one": "… a další {{count}} zkontrolovaná",
+      "moreChecked_few": "… a další {{count}} zkontrolované",
+      "moreChecked_many": "… a další {{count}} zkontrolované",
+      "moreChecked_other": "… a dalších {{count}} zkontrolovaných",
+      "showLess": "Zobrazit méně",
+      "method": {
+        "scan": "sken",
+        "manual": "ručně"
+      },
+      "elsewhere": "Jinde",
+      "new": "Nové",
+      "registeredIn": "Vedeno v: {{path}}",
+      "noLocation": "bez lokality",
+      "moved": "přesunuto",
+      "addedDuringInventory": "přidáno při inventuře",
+      "openItem": "Otevřít detail položky {{name}}",
+      "undo": "Vrátit",
+      "uncheckedToast": "{{name}}: kontrola zrušena",
+      "notSaved": "Zaškrtnutí se neuložilo",
+      "notFoundTitle": "Lokalita v inventuře není",
+      "notFoundHint": "Tato lokalita nemá v inventuře žádné položky ke kontrole.",
+      "toOverview": "Zpět na přehled inventury"
+    },
     "cancel": {
       "title": "Zrušit inventuru?",
       "hint": "Nic se neoznačí jako nezvěstné a inventura zůstane v seznamu jako Zrušená.",

@@ -18,6 +18,28 @@ export const inventoryQueryOptions = (id: string) =>
     refetchInterval: (query) => (query.state.data?.status === 'in_progress' ? inventoryPollMs : false),
   });
 
+export const inventoryItemsQueryKey = (id: string, locationId: string) =>
+  ['inventories', 'items', id, locationId] as const;
+
+/**
+ * Every row of one location of a run (not paged: a location holds at most a few hundred). Fetched
+ * again every few seconds while the run is in progress and its screen is visible, like the run.
+ */
+export const inventoryItemsQueryOptions = (id: string, locationId: string, inProgress: boolean) =>
+  queryOptions({
+    queryKey: inventoryItemsQueryKey(id, locationId),
+    queryFn: () => unwrap(api.api.v1.inventories[':id'].items.$get({ param: { id }, query: { locationId } })),
+    staleTime: 0,
+    refetchInterval: inProgress ? inventoryPollMs : false,
+  });
+
+/** Ticks an item by hand. An item somebody else ticked first is left as it is; the answer says who. */
+export const checkInventoryItem = (id: string, itemId: string) =>
+  unwrap(api.api.v1.inventories[':id'].items[':itemId'].check.$post({ param: { id, itemId } }));
+
+export const uncheckInventoryItem = (id: string, itemId: string) =>
+  unwrap(api.api.v1.inventories[':id'].items[':itemId'].uncheck.$post({ param: { id, itemId } }));
+
 export const cancelInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].cancel.$post({ param: { id }, json: { version } }));
 
