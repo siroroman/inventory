@@ -4,7 +4,7 @@ import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
 import { containsText } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
-import { locationsMatching } from '../locations/repository.ts';
+import { locationsMatching, subtreeOf } from '../locations/repository.ts';
 
 export type Item = typeof items.$inferSelect;
 export type ExternalId = typeof itemExternalIds.$inferSelect;
@@ -42,17 +42,6 @@ export type ExternalIdClash = ExternalIdInput & { itemCode: string };
 
 /** `locationId` includes items anywhere below that location; `archived` lists the archived items instead. */
 export type ItemFilter = { q?: string; locationId?: string; manufacturerId?: string; archived?: boolean };
-
-/** The location and its active descendants; an archived sub-location hides everything below it. */
-function subtreeOf(locationId: string): SQL {
-  return sql`
-    WITH RECURSIVE sub (id) AS (
-      SELECT l.id FROM locations l WHERE l.id = ${locationId}
-      UNION ALL
-      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
-    )
-    SELECT id FROM sub`;
-}
 
 function searchCondition(db: DbExecutor, q: string, archived: boolean): SQL {
   return or(

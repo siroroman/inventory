@@ -44,7 +44,7 @@ const withType = {
  * the locations above it, and at least one word is in its own name or code. "zasedacka hrad" finds
  * Zasedačka in Centrála Hradec Králové, but "hrad" alone finds only Hradec, not everything below it.
  */
-function matchesSearch(q: string): SQL | undefined {
+export function matchesSearch(q: string): SQL | undefined {
   const words = searchWords(q);
   if (words.length === 0) return undefined;
   const own = words.map((word) => or(containsText(locations.name, word), containsText(locations.code, word)));
@@ -78,6 +78,17 @@ export function locationsMatching(q: string, archived: boolean): SQL {
        WHERE ${active} AND ${containsText(locations.name, q)}
       UNION ALL
       SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE ${activeChild}
+    )
+    SELECT id FROM sub`;
+}
+
+/** The location and its active descendants; an archived sub-location hides everything below it. */
+export function subtreeOf(locationId: string): SQL {
+  return sql`
+    WITH RECURSIVE sub (id) AS (
+      SELECT l.id FROM locations l WHERE l.id = ${locationId}
+      UNION ALL
+      SELECT c.id FROM locations c JOIN sub ON c.parent_id = sub.id WHERE c.archived_at IS NULL
     )
     SELECT id FROM sub`;
 }
