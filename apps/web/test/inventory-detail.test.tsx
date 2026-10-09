@@ -92,6 +92,38 @@ describe('inventory run overview', () => {
     expect(within(dilna).queryByText('Hotovo')).not.toBeInTheDocument();
   });
 
+  it('links each location to its checklist', async () => {
+    const sklad = inventoryLocation({ name: 'Sklad', total: 3, checked: 1 });
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      [`GET /api/v1/inventories/${id}`]: () => jsonResponse(inventory({ id, locations: [sklad] })),
+      [`GET /api/v1/inventories/${id}/items`]: () => jsonResponse({ items: [] }),
+    });
+    renderApp(`/inventories/${id}`);
+    const link = await screen.findByRole('link', { name: /Sklad/ });
+    expect(link).toHaveAttribute('href', `/inventories/${id}/locations/${sklad.id}`);
+
+    await userEvent.click(link);
+    expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
+    // Back goes to the overview it came from.
+    await userEvent.click(screen.getByRole('button', { name: 'Zpět' }));
+    expect(await screen.findByRole('link', { name: /Sklad/ })).toBeInTheDocument();
+  });
+
+  it('links the locations of a cancelled run too, where they can be read but not ticked', async () => {
+    const sklad = inventoryLocation({ name: 'Sklad', total: 3, checked: 1 });
+    signedIn(() =>
+      jsonResponse(
+        inventory({ id, status: 'cancelled', endedAt: '2026-10-04T14:02:00.000Z', endedBy: jan, locations: [sklad] }),
+      ),
+    );
+    renderApp(`/inventories/${id}`);
+    expect(await screen.findByRole('link', { name: /Sklad/ })).toHaveAttribute(
+      'href',
+      `/inventories/${id}/locations/${sklad.id}`,
+    );
+  });
+
   it('writes the floor under a room that is more than one level below the root', async () => {
     const root = ref('LOC-001', 'Centrála Praha');
     const patro = ref('LOC-010', 'Patro 2');

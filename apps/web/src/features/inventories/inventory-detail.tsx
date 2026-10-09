@@ -1,6 +1,7 @@
 import type { InventoryDto, InventoryLocationDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
@@ -99,17 +100,24 @@ function LocationRow({ inventory, location, group }: { inventory: InventoryDto; 
   const { t } = useTranslation();
   const via = viaPath(inventory, location);
   return (
-    <li className="flex min-h-11 items-center gap-3 py-2">
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold break-words">{location.name}</p>
-        {via && <p className="text-sm break-words text-muted-foreground">{via}</p>}
-        <p className="text-sm text-muted-foreground">
-          {t('inventory.locations.items', { checked: location.checked, total: location.total })}
-          {group === 'notStarted' && ` · ${t('inventory.locations.nobodyStarted')}`}
-        </p>
-      </div>
-      {group === 'done' && <Badge variant="success">{t('inventory.locations.doneBadge')}</Badge>}
-      <AvatarStack people={location.participants} />
+    <li>
+      <Link
+        to="/inventories/$id/locations/$locationId"
+        params={{ id: inventory.id, locationId: location.id }}
+        className="-mx-2 flex min-h-11 items-center gap-3 rounded-md px-2 py-2 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold break-words">{location.name}</p>
+          {via && <p className="text-sm break-words text-muted-foreground">{via}</p>}
+          <p className="text-sm text-muted-foreground">
+            {t('inventory.locations.items', { checked: location.checked, total: location.total })}
+            {group === 'notStarted' && ` · ${t('inventory.locations.nobodyStarted')}`}
+          </p>
+        </div>
+        {group === 'done' && <Badge variant="success">{t('inventory.locations.doneBadge')}</Badge>}
+        <AvatarStack people={location.participants} />
+        <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
     </li>
   );
 }
