@@ -531,7 +531,6 @@
     "activeNow_few": "{{who}} právě pracují",
     "activeNow_many": "{{who}} právě pracují",
     "activeNow_other": "{{who}} právě pracují",
-    "participants": "Zúčastnění",
     "locations": {
       "inProgress": "Probíhající ({{count}})",
       "notStarted": "Nekontrolované ({{count}})",
