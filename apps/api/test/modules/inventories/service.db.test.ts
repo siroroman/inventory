@@ -6,7 +6,7 @@ import type { DomainError } from '../../../src/errors.ts';
 import { createInventoryRepository } from '../../../src/modules/inventories/repository.ts';
 import { createInventoryService, inventoryRepos } from '../../../src/modules/inventories/service.ts';
 import { useTestDb } from '../../helpers/db.ts';
-import { insertInventory, insertItem, insertLocation, insertUser } from '../../helpers/factories.ts';
+import { insertInventory, insertInventoryItem, insertItem, insertLocation, insertUser } from '../../helpers/factories.ts';
 
 // The rules are unit-tested with fakes; this checks the wiring and the locks against a real database.
 describe('inventory service with the database', () => {
@@ -64,6 +64,67 @@ describe('inventory service with the database', () => {
 
     expect(await t().app.select().from(inventories)).toHaveLength(1);
     expect(await t().app.select().from(inventoryItems)).toHaveLength(1);
+  });
+
+  describe('checks', () => {
+    /** A run with one listed item, and a second writer. */
+    async function run() {
+      const base = await setup();
+      const other = await insertUser(t().app, { name: 'Jan Novák', role: 'write' });
+      const otherActor: Actor = { id: other.id, role: 'write' };
+      const inventory = await insertInventory(t().app, { createdBy: base.actor.id });
+      const item = await insertItem(t().app, { name: 'Kávovar', locationId: inventory.locationId });
+      await insertInventoryItem(t().app, { inventoryId: inventory.id, itemId: item.id, locationId: inventory.locationId });
+      const history = async () =>
+        (await inventoryRepos(t().app).audit.list({ entityType: 'inventory', entityId: inventory.id }, { limit: 20 })).items.map(
+          (e) => e.action,
+        );
+      return { ...base, other, otherActor, inventory, item, history };
+    }
+
+    it('ticks and unticks an item with an audit entry for each, and counts it in the run', async () => {
+      const { actor, service, user, inventory, item, history } = await run();
+
+      const ticked = await service.check(actor, inventory.id, item.id);
+      expect(ticked).toMatchObject({ itemId: item.id, name: 'Kávovar', checkedBy: { id: user.id, name: 'Roman Siro' }, method: 'manual' });
+      expect(await service.get(actor, inventory.id)).toMatchObject({ counts: { checked: 1 }, version: 1 });
+      expect((await service.listItems(actor, inventory.id)).map((r) => r.checkedBy?.id)).toEqual([user.id]);
+
+      await service.uncheck(actor, inventory.id, item.id);
+      expect(await service.get(actor, inventory.id)).toMatchObject({ counts: { checked: 0 } });
+      expect(await history()).toEqual(['uncheck', 'check']);
+    });
+
+    it('let the first of two simultaneous ticks win, with one audit entry', async () => {
+      const { actor, otherActor, service, inventory, item, history } = await run();
+      const settled = await Promise.all([
+        service.check(actor, inventory.id, item.id),
+        service.check(otherActor, inventory.id, item.id),
+      ]);
+      // Both are told who really checked it.
+      expect(settled[0]!.checkedBy!.id).toBe(settled[1]!.checkedBy!.id);
+      expect(await history()).toEqual(['check']);
+    });
+
+    it('never lose a tick to a cancel: a tick is either saved before it or refused after it', async () => {
+      const { actor, otherActor, service, inventory, item, history } = await run();
+      const [tick, cancel] = await Promise.allSettled([
+        service.check(otherActor, inventory.id, item.id),
+        service.cancel(actor, inventory.id, inventory.version),
+      ]);
+      expect(cancel.status).toBe('fulfilled');
+      const stored = (await service.listItems(actor, inventory.id))[0]!;
+      if (tick.status === 'fulfilled') {
+        expect(stored.checkedAt).not.toBeNull();
+        expect(await history()).toEqual(['cancel', 'check']);
+      } else {
+        expect((tick.reason as DomainError).code).toBe('inventory_closed');
+        expect(stored.checkedAt).toBeNull();
+        expect(await history()).toEqual(['cancel']);
+      }
+      // Whichever came first, nothing can be ticked now.
+      await expect(service.check(actor, inventory.id, item.id)).rejects.toMatchObject({ code: 'inventory_closed' });
+    });
   });
 
   describe('simultaneous starts', () => {

@@ -41,6 +41,22 @@ describe('inventory service', () => {
       expect(store.state.inventories[0]!.status).toBe('in_progress');
     });
 
+    it('lets readers see the rows of a run but not tick or untick them', async () => {
+      const { store, service, users, actor, praha } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, item.id, users.write.id);
+      const reader = actor('read', users.read);
+      const auditBefore = store.state.audit.length;
+
+      await expect(service.listItems(reader, run.id)).resolves.toHaveLength(1);
+      await expectCode(service.check(reader, run.id, item.id), 'forbidden');
+      await expectCode(service.uncheck(reader, run.id, item.id), 'forbidden');
+
+      expect(store.state.audit).toHaveLength(auditBefore);
+      expect(store.state.rows[0]!.checkedBy).toBe(users.write.id);
+    });
+
     it('lets writers and admins start and cancel runs', async () => {
       const { store, service, actor, praha, users } = await setup();
       const brno = await store.itemStore.addLocation('Centrála Brno');
@@ -258,6 +274,229 @@ describe('inventory service', () => {
       await expectCode(service.cancel(actor('write'), run.id, 7), 'conflict');
       await expectCode(service.cancel(actor('write'), crypto.randomUUID(), 1), 'not_found');
       expect(store.state.inventories[0]!.status).toBe('in_progress');
+    });
+  });
+
+  describe('listItems', () => {
+    it('lists the rows of the run by item name in Czech order, or those of one location', async () => {
+      const { store, service, actor, praha } = await setup();
+      const patro = await store.itemStore.addLocation('Patro', praha.id);
+      await store.addItem(praha.id, 'Žebřík');
+      await store.addItem(patro.id, 'Čepice');
+      await store.addItem(praha.id, 'Mixér');
+      await store.addItem(patro.id, 'Cukřenka');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+
+      const all = await service.listItems(actor('read'), run.id);
+      expect(all.map((r) => r.name)).toEqual(['Cukřenka', 'Čepice', 'Mixér', 'Žebřík']);
+      expect(all[0]).toMatchObject({ kind: 'expected', locationId: patro.id, checkedAt: null, checkedBy: null, registeredPath: [] });
+      const inPatro = await service.listItems(actor('read'), run.id, patro.id);
+      expect(inPatro.map((r) => r.name)).toEqual(['Cukřenka', 'Čepice']);
+    });
+
+    it('shows who checked a row and how, and where an item found elsewhere was registered', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const brno = await store.itemStore.addLocation('Centrála Brno');
+      const sklad = await store.itemStore.addLocation('Sklad', brno.id);
+      const listed = await store.addItem(praha.id, 'Tiskárna');
+      const stranger = await store.addItem(sklad.id, 'Pokladní systém');
+      const unregistered = await store.addItem(null, 'Stojan na tácy');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, listed.id, users.other.id, clock.now(), 'scan');
+      const found = (itemId: string, registeredLocationId: string | null, extra = {}) =>
+        store.addRow(run.id, itemId, praha.id, {
+          kind: 'elsewhere',
+          registeredLocationId,
+          checkedAt: clock.now(),
+          checkedBy: users.write.id,
+          method: 'manual',
+          ...extra,
+        });
+      found(stranger.id, sklad.id, { movedAt: clock.now(), movedBy: users.write.id });
+      found(unregistered.id, null);
+
+      const rows = new Map((await service.listItems(actor('read'), run.id)).map((r) => [r.name, r]));
+      expect(rows.get('Tiskárna')).toMatchObject({ checkedBy: users.other, method: 'scan', checkedAt: clock.now() });
+      expect(rows.get('Pokladní systém')).toMatchObject({ kind: 'elsewhere', moved: true });
+      expect(rows.get('Pokladní systém')!.registeredPath.map((s) => s.name)).toEqual(['Centrála Brno', 'Sklad']);
+      expect(rows.get('Stojan na tácy')).toMatchObject({ kind: 'elsewhere', moved: false, registeredPath: [] });
+    });
+
+    it('leaves out archived items and found or added items that are not checked', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const gone = await store.addItem(praha.id, 'Vyřazeno');
+      await store.addItem(praha.id, 'Zůstává');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.itemStore.state.items.find((i) => i.id === gone.id)!.archivedAt = new Date();
+      const unticked = await store.addItem(null, 'Odškrtnuto');
+      store.addRow(run.id, unticked.id, praha.id, { kind: 'new' });
+      const added = await store.addItem(praha.id, 'Přidáno');
+      store.addRow(run.id, added.id, praha.id, { kind: 'new', checkedAt: clock.now(), checkedBy: users.write.id, method: 'manual' });
+
+      const rows = await service.listItems(actor('read'), run.id);
+      expect(rows.map((r) => r.name)).toEqual(['Přidáno', 'Zůstává']);
+    });
+
+    it('throws not_found for an unknown run', async () => {
+      const { service, actor } = await setup();
+      await expectCode(service.listItems(actor('read'), crypto.randomUUID()), 'not_found');
+    });
+  });
+
+  describe('check', () => {
+    it('ticks the row for the user at the time of the clock, by hand, and audits it', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const item = await store.addItem(praha.id, 'Tiskárna');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      clock.advance(10 * MINUTE);
+
+      const row = await service.check(actor('write', users.other), run.id, item.id);
+
+      expect(row).toMatchObject({
+        itemId: item.id,
+        name: 'Tiskárna',
+        checkedAt: clock.now(),
+        checkedBy: users.other,
+        method: 'manual',
+      });
+      expect(store.state.rows[0]).toMatchObject({ checkedAt: clock.now(), checkedBy: users.other.id, method: 'manual' });
+      expect(store.state.audit.at(-1)).toMatchObject({
+        userId: users.other.id,
+        entityType: 'inventory',
+        entityId: run.id,
+        action: 'check',
+        changes: { itemId: { from: null, to: item.id }, method: { from: null, to: 'manual' } },
+      });
+      const detail = await service.get(actor('read'), run.id);
+      expect(detail.counts).toMatchObject({ expected: 1, checked: 1 });
+      expect(detail.participants).toEqual([users.write, users.other]);
+    });
+
+    it('does not touch the version of the run', async () => {
+      const { store, service, actor, praha } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      await service.check(actor('write'), run.id, item.id);
+      expect(store.state.inventories[0]!.version).toBe(run.version);
+    });
+
+    it('leaves a row that is already checked as it is: the first check wins, with no new audit entry', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const first = await service.check(actor('write'), run.id, item.id);
+      clock.advance(5 * MINUTE);
+      const auditBefore = store.state.audit.length;
+
+      const second = await service.check(actor('write', users.other), run.id, item.id);
+
+      expect(second).toEqual(first);
+      expect(second.checkedBy).toEqual(users.write);
+      expect(store.state.audit).toHaveLength(auditBefore);
+    });
+
+    it('refuses an item the run does not have, an unknown run and a closed run', async () => {
+      const { store, service, actor, praha } = await setup();
+      const brno = await store.itemStore.addLocation('Centrála Brno');
+      const listed = await store.addItem(praha.id);
+      const outside = await store.addItem(brno.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const later = await store.addItem(praha.id, 'Přidáno po zahájení');
+
+      await expectCode(service.check(actor('write'), run.id, outside.id), 'item_not_in_inventory');
+      await expectCode(service.check(actor('write'), run.id, later.id), 'item_not_in_inventory');
+      await expectCode(service.check(actor('write'), run.id, crypto.randomUUID()), 'item_not_in_inventory');
+      await expectCode(service.check(actor('write'), crypto.randomUUID(), listed.id), 'not_found');
+
+      await service.cancel(actor('write'), run.id, run.version);
+      await expectCode(service.check(actor('write'), run.id, listed.id), 'inventory_closed');
+      expect(store.state.rows.every((r) => r.checkedAt === null)).toBe(true);
+      expect(store.state.audit.map((e) => e.action)).toEqual(['start', 'cancel']);
+    });
+
+    it('refuses an item archived since the start', async () => {
+      const { store, service, actor, praha } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.itemStore.state.items.find((i) => i.id === item.id)!.archivedAt = new Date();
+      await expectCode(service.check(actor('write'), run.id, item.id), 'archived');
+      expect(store.state.rows[0]!.checkedAt).toBeNull();
+    });
+
+    it('ticks an item found elsewhere again after it was unticked', async () => {
+      const { store, service, actor, praha, users } = await setup();
+      const stranger = await store.addItem(null, 'Pokladní systém');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.addRow(run.id, stranger.id, praha.id, { kind: 'elsewhere' });
+
+      expect(await service.listItems(actor('read'), run.id)).toEqual([]);
+      const row = await service.check(actor('write'), run.id, stranger.id);
+      expect(row).toMatchObject({ kind: 'elsewhere', checkedBy: users.write });
+      expect(await service.listItems(actor('read'), run.id)).toHaveLength(1);
+    });
+  });
+
+  describe('uncheck', () => {
+    it('returns the row to unchecked and audits it', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const item = await store.addItem(praha.id, 'Tiskárna');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, item.id, users.other.id, clock.now());
+
+      const row = await service.uncheck(actor('write'), run.id, item.id);
+
+      expect(row).toMatchObject({ name: 'Tiskárna', kind: 'expected', checkedAt: null, checkedBy: null, method: null });
+      expect(store.state.rows[0]).toMatchObject({ checkedAt: null, checkedBy: null, method: null });
+      expect(store.state.audit.at(-1)).toMatchObject({
+        userId: users.write.id,
+        entityType: 'inventory',
+        entityId: run.id,
+        action: 'uncheck',
+        changes: { itemId: { from: item.id, to: null } },
+      });
+      expect((await service.get(actor('read'), run.id)).counts).toMatchObject({ expected: 1, checked: 0 });
+    });
+
+    it('changes nothing for a row that is not checked, and leaves no audit entry', async () => {
+      const { store, service, actor, praha } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const auditBefore = store.state.audit.length;
+      await expect(service.uncheck(actor('write'), run.id, item.id)).resolves.toMatchObject({ checkedAt: null });
+      expect(store.state.audit).toHaveLength(auditBefore);
+    });
+
+    it('drops an item found elsewhere or added out of the rows but keeps its record', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const stranger = await store.addItem(null, 'Pokladní systém');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.addRow(run.id, stranger.id, praha.id, {
+        kind: 'elsewhere',
+        checkedAt: clock.now(),
+        checkedBy: users.write.id,
+        method: 'manual',
+      });
+      expect(await service.listItems(actor('read'), run.id)).toHaveLength(1);
+
+      await service.uncheck(actor('write'), run.id, stranger.id);
+
+      expect(await service.listItems(actor('read'), run.id)).toEqual([]);
+      expect(store.state.rows).toHaveLength(1);
+      expect((await service.get(actor('read'), run.id)).counts).toMatchObject({ elsewhere: 0 });
+    });
+
+    it('refuses an item the run does not have, an unknown run and a closed run', async () => {
+      const { store, service, actor, praha, users, clock } = await setup();
+      const listed = await store.addItem(praha.id);
+      const outside = await store.addItem(null);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, listed.id, users.write.id, clock.now());
+
+      await expectCode(service.uncheck(actor('write'), run.id, outside.id), 'item_not_in_inventory');
+      await expectCode(service.uncheck(actor('write'), crypto.randomUUID(), listed.id), 'not_found');
+      await service.cancel(actor('write'), run.id, run.version);
+      await expectCode(service.uncheck(actor('write'), run.id, listed.id), 'inventory_closed');
+      expect(store.state.rows[0]!.checkedAt).not.toBeNull();
     });
   });
 

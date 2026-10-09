@@ -13,6 +13,7 @@ import {
   type InventoryRepository,
   type InventoryRow,
   type Person,
+  type RunItem,
   type StartPreview,
 } from './repository.ts';
 
@@ -53,6 +54,9 @@ export type InventoryDetail = InventoryEntry & {
   /** Every location of the subtree that has rows in the run, in path order. */
   locations: InventoryLocationEntry[];
 };
+
+/** An item of a run as the checklist shows it: the row with the path to where a found item was registered. */
+export type InventoryRunItem = RunItem & { registeredPath: PathSegment[] };
 
 /** The run in progress that blocks a start. */
 export type InventoryOverlap = {
@@ -111,6 +115,55 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     }));
   }
 
+  async function runItemEntries(rows: RunItem[]): Promise<InventoryRunItem[]> {
+    const registered = rows.flatMap((row) => (row.registeredLocationId ? [row.registeredLocationId] : []));
+    const paths = await repos.locations.findPaths([...new Set(registered)]);
+    return rows.map((row) => ({
+      ...row,
+      registeredPath: (row.registeredLocationId && paths.get(row.registeredLocationId)) || [],
+    }));
+  }
+
+  /**
+   * Ticks or unticks an item by hand. The run's row is locked shared, so ticks go on side by side
+   * but never past a finish or cancel. A tick that changes nothing (already checked, already
+   * unchecked) is not an error and leaves no audit entry; the first check wins.
+   */
+  async function setChecked(actor: Actor, id: string, itemId: string, checked: boolean): Promise<InventoryRunItem> {
+    assertRole(actor, 'write');
+    await transact(async (r) => {
+      const run = await r.inventories.lockShared(id);
+      if (!run) throw new DomainError('not_found');
+      if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+      const row = await r.inventories.findRunItem(id, itemId);
+      if (!row) throw new DomainError('item_not_in_inventory');
+      if (checked) {
+        // An item archived since the start is no longer counted, so it cannot be checked either.
+        if (row.itemArchived) throw new DomainError('archived');
+        const method = 'manual';
+        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) return;
+        await r.audit.record({
+          userId: actor.id,
+          entityType: 'inventory',
+          entityId: id,
+          action: 'check',
+          changes: { itemId: { from: null, to: itemId }, method: { from: null, to: method } },
+        });
+      } else {
+        if (!(await r.inventories.markUnchecked(id, itemId))) return;
+        await r.audit.record({
+          userId: actor.id,
+          entityType: 'inventory',
+          entityId: id,
+          action: 'uncheck',
+          changes: { itemId: { from: itemId, to: null } },
+        });
+      }
+    });
+    const [entry] = await runItemEntries([(await repos.inventories.findRunItem(id, itemId))!]);
+    return entry!;
+  }
+
   async function get(actor: Actor, id: string): Promise<InventoryDetail> {
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
@@ -155,6 +208,19 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     },
 
     get,
+
+    /** The rows of a run, or of one of its locations, that a person sees: not paged, by item name. */
+    async listItems(actor: Actor, id: string, locationId?: string): Promise<InventoryRunItem[]> {
+      assertRole(actor, 'read');
+      if (!(await repos.inventories.findById(id))) throw new DomainError('not_found');
+      return runItemEntries(await repos.inventories.runItems(id, locationId));
+    },
+
+    /** Ticks an item of a run in progress by hand. */
+    check: (actor: Actor, id: string, itemId: string) => setChecked(actor, id, itemId, true),
+
+    /** Clears the tick of an item. An item found elsewhere or added drops out of the run's rows with it. */
+    uncheck: (actor: Actor, id: string, itemId: string) => setChecked(actor, id, itemId, false),
 
     /** What starting a run on `locationId` would check, and the run in progress it would clash with. */
     async preview(actor: Actor, locationId: string): Promise<InventoryPreview> {
