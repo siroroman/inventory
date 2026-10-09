@@ -1,8 +1,8 @@
-import { and, count, desc, eq, getTableColumns, inArray, ne, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { DbExecutor } from '../../db/client.ts';
 import { beforeTimestamp, type Page, toPage } from '../../db/pagination.ts';
-import { inventories, locations, user } from '../../db/schema/index.ts';
+import { inventories, inventoryItems, items, locations, user } from '../../db/schema/index.ts';
 import { updateVersioned } from '../../db/versioned.ts';
 import { matchesSearch, subtreeOf } from '../locations/repository.ts';
 
@@ -31,8 +31,26 @@ export type LocationChecker = { locationId: string } & Person;
 
 export type StartPreview = { itemCount: number; locationCount: number };
 
+/** An item of a run (a row of `inventory_items`) with the item's code, name and state and who checked it. */
+export type RunItem = {
+  itemId: string;
+  code: string;
+  name: string;
+  itemArchived: boolean;
+  kind: string;
+  /** Where the row belongs in the run. */
+  locationId: string;
+  /** Where a found-elsewhere item was registered (null: nowhere). */
+  registeredLocationId: string | null;
+  checkedAt: Date | null;
+  checkedBy: Person | null;
+  method: string | null;
+  moved: boolean;
+};
+
 const starter = user;
 const closer = alias(user, 'closer');
+const checker = alias(user, 'checker');
 
 const rowColumns = {
   ...getTableColumns(inventories),
@@ -40,6 +58,26 @@ const rowColumns = {
   startedBy: { id: starter.id, name: starter.name },
   closedBy: { id: closer.id, name: closer.name },
 };
+
+const runItemColumns = {
+  itemId: inventoryItems.itemId,
+  code: items.code,
+  name: items.name,
+  itemArchivedAt: items.archivedAt,
+  kind: inventoryItems.kind,
+  locationId: inventoryItems.locationId,
+  registeredLocationId: inventoryItems.registeredLocationId,
+  checkedAt: inventoryItems.checkedAt,
+  checkedBy: { id: checker.id, name: checker.name },
+  method: inventoryItems.method,
+  movedAt: inventoryItems.movedAt,
+};
+
+type RunItemRecord = Omit<RunItem, 'itemArchived' | 'moved'> & { itemArchivedAt: Date | null; movedAt: Date | null };
+
+function toRunItem({ itemArchivedAt, movedAt, ...row }: RunItemRecord): RunItem {
+  return { ...row, itemArchived: itemArchivedAt !== null, moved: movedAt !== null };
+}
 
 /** A run in progress on the location, on any location above it, or on any location below it (archived ones too). */
 function overlapWith(locationId: string): SQL {
@@ -71,7 +109,20 @@ function listWhere(db: DbExecutor, filter: InventoryFilter): SQL[] {
 /** Items of the active subtree: active, and in the root or an active location below it. */
 const inSnapshot = (rootId: string) => sql`i.archived_at IS NULL AND i.location_id IN (${subtreeOf(rootId)})`;
 
+/** The rows a person sees: the list taken at the start without the items archived since, plus the items found or added (checked ones). */
+const visibleRow = or(
+  and(eq(inventoryItems.kind, 'expected'), isNull(items.archivedAt)),
+  and(ne(inventoryItems.kind, 'expected'), isNotNull(inventoryItems.checkedAt)),
+);
+
 export function createInventoryRepository(db: DbExecutor) {
+  const selectRunItems = () =>
+    db
+      .select(runItemColumns)
+      .from(inventoryItems)
+      .innerJoin(items, eq(items.id, inventoryItems.itemId))
+      .leftJoin(checker, eq(checker.id, inventoryItems.checkedBy));
+
   const selectRows = () =>
     db
       .select(rowColumns)
@@ -103,6 +154,12 @@ export function createInventoryRepository(db: DbExecutor) {
     /** The run's row, locked until the end of the transaction (finish and cancel). */
     async lock(id: string): Promise<Inventory | undefined> {
       const [row] = await db.select().from(inventories).where(eq(inventories.id, id)).for('update');
+      return row;
+    },
+
+    /** The run's row, shared until the end of the transaction: checks go on side by side, but not past a finish or cancel. */
+    async lockShared(id: string): Promise<Inventory | undefined> {
+      const [row] = await db.select().from(inventories).where(eq(inventories.id, id)).for('share');
       return row;
     },
 
@@ -149,6 +206,64 @@ export function createInventoryRepository(db: DbExecutor) {
         SELECT count(*)::int AS "itemCount", count(DISTINCT i.location_id)::int AS "locationCount"
           FROM items i WHERE ${inSnapshot(rootId)}`);
       return result.rows[0]!;
+    },
+
+    /** The rows a person sees in the run, or in one of its locations, by item name in Czech order. */
+    async runItems(inventoryId: string, locationId?: string): Promise<RunItem[]> {
+      const rows = await selectRunItems()
+        .where(
+          and(
+            eq(inventoryItems.inventoryId, inventoryId),
+            visibleRow,
+            locationId ? eq(inventoryItems.locationId, locationId) : undefined,
+          ),
+        )
+        .orderBy(asc(items.name), asc(items.id));
+      return rows.map(toRunItem);
+    },
+
+    /** The run's row for an item, visible or not. */
+    async findRunItem(inventoryId: string, itemId: string): Promise<RunItem | undefined> {
+      const [row] = await selectRunItems().where(
+        and(eq(inventoryItems.inventoryId, inventoryId), eq(inventoryItems.itemId, itemId)),
+      );
+      return row && toRunItem(row);
+    },
+
+    /** Ticks the row if nobody has yet: false when it was already checked (the first check wins). */
+    async markChecked(
+      inventoryId: string,
+      itemId: string,
+      check: { checkedAt: Date; checkedBy: string; method: 'scan' | 'manual' },
+    ): Promise<boolean> {
+      const updated = await db
+        .update(inventoryItems)
+        .set({ checkedAt: check.checkedAt, checkedBy: check.checkedBy, method: check.method })
+        .where(
+          and(
+            eq(inventoryItems.inventoryId, inventoryId),
+            eq(inventoryItems.itemId, itemId),
+            isNull(inventoryItems.checkedAt),
+          ),
+        )
+        .returning({ id: inventoryItems.id });
+      return updated.length > 0;
+    },
+
+    /** Clears a check: false when the row was not checked. */
+    async markUnchecked(inventoryId: string, itemId: string): Promise<boolean> {
+      const updated = await db
+        .update(inventoryItems)
+        .set({ checkedAt: null, checkedBy: null, method: null })
+        .where(
+          and(
+            eq(inventoryItems.inventoryId, inventoryId),
+            eq(inventoryItems.itemId, itemId),
+            isNotNull(inventoryItems.checkedAt),
+          ),
+        )
+        .returning({ id: inventoryItems.id });
+      return updated.length > 0;
     },
 
     update(id: string, version: number, patch: InventoryPatch): Promise<Inventory | undefined> {

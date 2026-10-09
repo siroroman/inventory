@@ -10,6 +10,7 @@ import type {
   InventoryRepository,
   InventoryRow,
   Person,
+  RunItem,
 } from '../../src/modules/inventories/repository.ts';
 import type { InventoryRepos } from '../../src/modules/inventories/service.ts';
 import type { Location } from '../../src/modules/locations/repository.ts';
@@ -76,6 +77,26 @@ export function createFakeInventoryStore() {
   const newestFirst = (filter: InventoryFilter) => (a: Inventory, b: Inventory) =>
     moment(filter, b).getTime() - moment(filter, a).getTime() || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 
+  const collator = new Intl.Collator('cs');
+  const runItemOf = (row: Row): RunItem => {
+    const item = itemById(row.itemId);
+    return {
+      itemId: row.itemId,
+      code: item.code,
+      name: item.name,
+      itemArchived: item.archivedAt !== null,
+      kind: row.kind,
+      locationId: row.locationId,
+      registeredLocationId: row.registeredLocationId,
+      checkedAt: row.checkedAt,
+      checkedBy: person(row.checkedBy),
+      method: row.method,
+      moved: row.movedAt !== null,
+    };
+  };
+  const findRow = (inventoryId: string, itemId: string) =>
+    state.rows.find((r) => r.inventoryId === inventoryId && r.itemId === itemId);
+
   const visible = (row: Row) =>
     (row.kind === 'expected' && !itemById(row.itemId).archivedAt) || (row.kind !== 'expected' && row.checkedAt !== null);
   const rowsOf = (inventoryId: string) => state.rows.filter((r) => r.inventoryId === inventoryId);
@@ -94,6 +115,10 @@ export function createFakeInventoryStore() {
       return run && rowOf(run);
     },
     async lock(id) {
+      const run = state.inventories.find((r) => r.id === id);
+      return run && { ...run };
+    },
+    async lockShared(id) {
       const run = state.inventories.find((r) => r.id === id);
       return run && { ...run };
     },
@@ -158,6 +183,28 @@ export function createFakeInventoryStore() {
       const inside = new Set(activeSubtree(rootId));
       const items = itemStore.state.items.filter((i) => !i.archivedAt && i.locationId && inside.has(i.locationId));
       return { itemCount: items.length, locationCount: new Set(items.map((i) => i.locationId)).size };
+    },
+    async runItems(inventoryId, locationId) {
+      return rowsOf(inventoryId)
+        .filter((r) => visible(r) && (!locationId || r.locationId === locationId))
+        .map(runItemOf)
+        .sort((a, b) => collator.compare(a.name, b.name) || (a.itemId < b.itemId ? -1 : 1));
+    },
+    async findRunItem(inventoryId, itemId) {
+      const row = findRow(inventoryId, itemId);
+      return row && runItemOf(row);
+    },
+    async markChecked(inventoryId, itemId, check) {
+      const row = findRow(inventoryId, itemId);
+      if (!row || row.checkedAt) return false;
+      Object.assign(row, check);
+      return true;
+    },
+    async markUnchecked(inventoryId, itemId) {
+      const row = findRow(inventoryId, itemId);
+      if (!row?.checkedAt) return false;
+      Object.assign(row, { checkedAt: null, checkedBy: null, method: null });
+      return true;
     },
     async update(id, version, patch) {
       const run = state.inventories.find((r) => r.id === id);
@@ -262,6 +309,32 @@ export function createFakeInventoryStore() {
     },
     addItem: (locationId: string | null, name = 'Kávovar') =>
       itemStore.repos.items.insert({ name, locationId, createdBy: 'setup' }),
+    /** Adds a row for an item the run found elsewhere or the user added; the snapshot only makes `expected` ones. */
+    addRow(
+      inventoryId: string,
+      itemId: string,
+      locationId: string,
+      overrides: Partial<Row> = {},
+    ): Row {
+      const row: Row = {
+        id: randomUUID(),
+        inventoryId,
+        itemId,
+        kind: 'elsewhere',
+        locationId,
+        registeredLocationId: null,
+        checkedAt: null,
+        checkedBy: null,
+        method: null,
+        wasMissing: false,
+        movedAt: null,
+        movedBy: null,
+        outcome: null,
+        ...overrides,
+      };
+      state.rows.push(row);
+      return row;
+    },
     /** Marks the run's row for the item as checked, as a later check service will. */
     check(inventoryId: string, itemId: string, userId: string, at = new Date(), method: 'scan' | 'manual' = 'manual') {
       const row = state.rows.find((r) => r.inventoryId === inventoryId && r.itemId === itemId)!;

@@ -246,6 +246,120 @@ describe('inventory repository', () => {
     });
   });
 
+  describe('run items', () => {
+    async function run() {
+      const { praha, patro, zasedacka, brno } = await tree();
+      const [anna, boris] = [await insertUser(t().app, { name: 'Anna' }), await insertUser(t().app, { name: 'Boris' })];
+      const inventory = await insertInventory(t().app, { locationId: praha.id, createdBy: anna.id, createdAt: at(0) });
+      /** A row for a new item with this name, in the run's location `locationId`. */
+      const row = async (name: string, locationId: string, overrides: Partial<typeof inventoryItems.$inferInsert> = {}) => {
+        const item = await insertItem(t().app, { name, locationId });
+        return insertInventoryItem(t().app, { inventoryId: inventory.id, itemId: item.id, locationId, ...overrides });
+      };
+      const check = (by: string, minutes: number) => ({ checkedAt: at(minutes), checkedBy: by, method: 'manual' as const });
+      return { inventory, praha, patro, zasedacka, brno, anna, boris, row, check };
+    }
+
+    it('lists the rows a person sees by item name in Czech order, with who checked them', async () => {
+      const { inventory, praha, patro, anna, row, check } = await run();
+      await row('Žebřík', praha.id);
+      await row('Mixér', praha.id, { ...check(anna.id, 3), method: 'scan' });
+      await row('Čepice', patro.id);
+      await row('Cukřenka', patro.id);
+
+      const rows = await repo().runItems(inventory.id);
+
+      expect(rows.map((r) => r.name)).toEqual(['Cukřenka', 'Čepice', 'Mixér', 'Žebřík']);
+      expect(rows.find((r) => r.name === 'Mixér')).toMatchObject({
+        code: expect.stringMatching(/^INV-/),
+        kind: 'expected',
+        locationId: praha.id,
+        checkedAt: at(3),
+        checkedBy: { id: anna.id, name: 'Anna' },
+        method: 'scan',
+        itemArchived: false,
+        moved: false,
+        registeredLocationId: null,
+      });
+      expect(rows.find((r) => r.name === 'Žebřík')).toMatchObject({ checkedAt: null, checkedBy: null, method: null });
+    });
+
+    it('can be limited to one location of the run', async () => {
+      const { inventory, praha, patro, row } = await run();
+      await row('Tiskárna', praha.id);
+      await row('Projektor', patro.id);
+      expect((await repo().runItems(inventory.id, patro.id)).map((r) => r.name)).toEqual(['Projektor']);
+      expect((await repo().runItems(inventory.id, praha.id)).map((r) => r.name)).toEqual(['Tiskárna']);
+      expect(await repo().runItems(inventory.id, crypto.randomUUID())).toEqual([]);
+    });
+
+    it('leaves out archived items and found or added items that are not checked, and rows of other runs', async () => {
+      const { inventory, praha, brno, anna, row, check } = await run();
+      await row('Zůstává', praha.id);
+      const archived = await row('Vyřazeno', praha.id, check(anna.id, 1));
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archived.itemId));
+      await row('Nalezeno jinde', praha.id, { kind: 'elsewhere', registeredLocationId: brno.id, ...check(anna.id, 2) });
+      await row('Odškrtnuto', praha.id, { kind: 'elsewhere' });
+      await row('Nová věc', praha.id, { kind: 'new', ...check(anna.id, 3) });
+      await row('Nová neodškrtnutá', praha.id, { kind: 'new' });
+      await insertInventoryItem(t().app, { locationId: praha.id }); // another run
+
+      const rows = await repo().runItems(inventory.id);
+      expect(rows.map((r) => [r.name, r.kind])).toEqual([
+        ['Nalezeno jinde', 'elsewhere'],
+        ['Nová věc', 'new'],
+        ['Zůstává', 'expected'],
+      ]);
+      expect(rows[0]!.registeredLocationId).toBe(brno.id);
+    });
+
+    it('tells a moved item from one that stayed', async () => {
+      const { inventory, praha, anna, row, check } = await run();
+      await row('Přesunuto', praha.id, { kind: 'elsewhere', movedAt: at(4), movedBy: anna.id, ...check(anna.id, 4) });
+      expect((await repo().runItems(inventory.id))[0]).toMatchObject({ moved: true });
+    });
+
+    it('finds the row of an item even when a person would not see it', async () => {
+      const { inventory, praha, row } = await run();
+      const hidden = await row('Odškrtnuto', praha.id, { kind: 'new' });
+      const archived = await row('Vyřazeno', praha.id);
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archived.itemId));
+
+      expect(await repo().findRunItem(inventory.id, hidden.itemId)).toMatchObject({ name: 'Odškrtnuto', kind: 'new' });
+      expect(await repo().findRunItem(inventory.id, archived.itemId)).toMatchObject({ itemArchived: true });
+      expect(await repo().findRunItem(inventory.id, crypto.randomUUID())).toBeUndefined();
+      expect(await repo().findRunItem(crypto.randomUUID(), hidden.itemId)).toBeUndefined();
+    });
+
+    it('lets the first check win and only a check be cleared', async () => {
+      const { inventory, praha, anna, boris, row } = await run();
+      const { itemId } = await row('Mixér', praha.id);
+      const tick = (by: string, minutes: number) =>
+        repo().markChecked(inventory.id, itemId, { checkedAt: at(minutes), checkedBy: by, method: 'manual' });
+
+      expect(await repo().markUnchecked(inventory.id, itemId)).toBe(false);
+      expect(await tick(anna.id, 1)).toBe(true);
+      expect(await tick(boris.id, 2)).toBe(false);
+      expect(await repo().findRunItem(inventory.id, itemId)).toMatchObject({
+        checkedAt: at(1),
+        checkedBy: { id: anna.id },
+        method: 'manual',
+      });
+
+      expect(await repo().markUnchecked(inventory.id, itemId)).toBe(true);
+      expect(await repo().markUnchecked(inventory.id, itemId)).toBe(false);
+      expect(await repo().findRunItem(inventory.id, itemId)).toMatchObject({ checkedAt: null, checkedBy: null, method: null });
+      expect(await tick(boris.id, 3)).toBe(true);
+    });
+
+    it('leaves the version of the run alone', async () => {
+      const { inventory, praha, anna, row } = await run();
+      const { itemId } = await row('Mixér', praha.id);
+      await repo().markChecked(inventory.id, itemId, { checkedAt: at(1), checkedBy: anna.id, method: 'manual' });
+      expect(await repo().findById(inventory.id)).toMatchObject({ version: 1 });
+    });
+  });
+
   describe('lock and update', () => {
     it('updates only with the current version', async () => {
       const user = await insertUser(t().app);
@@ -277,6 +391,35 @@ describe('inventory repository', () => {
       release();
       await Promise.all([first, second]);
       expect(order).toEqual(['first locked', 'first done', 'second locked']);
+    });
+
+    it('lets checks share the row, but makes a finish or cancel wait for them', async () => {
+      const run = await insertInventory(t().app);
+      const order: string[] = [];
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const first = t().app.transaction(async (tx) => {
+        await createInventoryRepository(tx).lockShared(run.id);
+        order.push('first shared');
+        await hold;
+        order.push('first done');
+      });
+      await expect.poll(() => order).toEqual(['first shared']);
+      // Another check goes on at once.
+      await t().app.transaction(async (tx) => {
+        await createInventoryRepository(tx).lockShared(run.id);
+        order.push('second shared');
+      });
+      const exclusive = createInventoryRepository(t().app)
+        .lock(run.id)
+        .then(() => order.push('exclusive'));
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(order).toEqual(['first shared', 'second shared']);
+      release();
+      await Promise.all([first, exclusive]);
+      expect(order).toEqual(['first shared', 'second shared', 'first done', 'exclusive']);
     });
   });
 });
