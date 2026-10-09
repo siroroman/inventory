@@ -3,7 +3,18 @@ import type { DbExecutor } from '../../db/client.ts';
 import { decodeIdCursor, type Page, toPage } from '../../db/pagination.ts';
 import { auditLog, user } from '../../db/schema/index.ts';
 
-export type AuditAction = 'create' | 'update' | 'archive' | 'restore' | 'delete';
+export type AuditAction =
+  | 'create'
+  | 'update'
+  | 'archive'
+  | 'restore'
+  | 'delete'
+  // Inventory runs (SPEC §9.3 rule 16).
+  | 'start'
+  | 'check'
+  | 'uncheck'
+  | 'finish'
+  | 'cancel';
 export type AuditEntityType =
   | 'location'
   | 'location_type'
@@ -13,6 +24,7 @@ export type AuditEntityType =
   | 'service_provider'
   | 'service_record'
   | 'service_record_document'
+  | 'inventory'
   | 'user';
 
 export type AuditEntry = typeof auditLog.$inferSelect;

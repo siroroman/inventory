@@ -11,6 +11,8 @@ const READ_WRITE_DELETE = ['DELETE', 'INSERT', 'SELECT', 'UPDATE'];
 const EXPECTED_GRANTS: Record<string, string[]> = {
   account: READ_WRITE_DELETE,
   audit_log: ['INSERT', 'SELECT'],
+  inventories: READ_WRITE,
+  inventory_items: READ_WRITE,
   item_external_ids: READ_WRITE_DELETE,
   item_photos: READ_WRITE_DELETE,
   items: READ_WRITE,
