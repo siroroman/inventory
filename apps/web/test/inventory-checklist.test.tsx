@@ -402,22 +402,21 @@ describe('inventory checklist', () => {
   });
 
   describe('who may tick', () => {
-    it('shows a reader the states without checkboxes, and no way to cancel the run', async () => {
+    it('shows a reader the states without checkboxes', async () => {
       openChecklist([row('Mixér tyčový'), row('Kávovar', done(roman))], { role: 'read' });
       await rowsLoaded();
 
       expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
       expect(names(group('Nezkontrolované'))).toEqual(['Mixér tyčový']);
       expect(names(group('Zkontrolované'))).toEqual(['Kávovar']);
-      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
       // They can still open the item.
       expect(screen.getAllByRole('link', { name: /^Otevřít detail položky / })).toHaveLength(2);
     });
 
-    it('shows a writer the checkboxes and the button to cancel the run', async () => {
+    it('shows a writer the checkboxes, and leaves cancelling the run to the overview', async () => {
       openChecklist([row('Mixér tyčový')]);
       expect(await screen.findByRole('checkbox', { name: 'Mixér tyčový' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Zrušit inventuru' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
     });
 
     it('shows a cancelled run read-only for everyone', async () => {
@@ -427,12 +426,12 @@ describe('inventory checklist', () => {
       expect(await screen.findByText('Zrušená')).toBeInTheDocument();
       await rowsLoaded();
       expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
       expect(names(group('Nezkontrolované'))).toEqual(['Mixér tyčový']);
     });
 
-    it('stops offering the checkboxes once the run is cancelled from this screen', async () => {
+    it('stops offering the checkboxes once it turns out that somebody cancelled the run', async () => {
       let cancelled = false;
+      const mixer = row('Mixér tyčový');
       stubApi({
         'GET /api/v1/me': () => jsonResponse(me),
         [`GET /api/v1/inventories/${runId}`]: () =>
@@ -446,15 +445,18 @@ describe('inventory checklist', () => {
               locations: [inventoryLocation({ ...kitchen, path: [root, kitchen], total: 1 })],
             }),
           ),
-        [`GET /api/v1/inventories/${runId}/items`]: () => jsonResponse({ items: [row('Mixér tyčový')] }),
-        [`POST /api/v1/inventories/${runId}/cancel`]: () => {
+        [`GET /api/v1/inventories/${runId}/items`]: () => jsonResponse({ items: [mixer] }),
+        // Somebody cancelled the run since this screen last asked.
+        [`POST /api/v1/inventories/${runId}/items/${mixer.id}/check`]: () => {
           cancelled = true;
-          return jsonResponse(inventory({ id: runId, status: 'cancelled' }));
+          return problem(409, 'inventory_closed');
         },
       });
       renderApp(checklistUrl);
-      await userEvent.click(await screen.findByRole('button', { name: 'Zrušit inventuru' }));
-      await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Zrušit inventuru' }));
+
+      await userEvent.click(await screen.findByRole('checkbox', { name: 'Mixér tyčový' }));
+
+      expect(await screen.findByText('Inventura už je ukončená.')).toBeInTheDocument();
       expect(await screen.findByText('Zrušená')).toBeInTheDocument();
       await waitFor(() => expect(screen.queryAllByRole('checkbox')).toHaveLength(0));
     });

@@ -470,7 +470,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 
 #### 9.4.4 Location checklist — `/inventories/$id/locations/$locationId` [25]
 
-- **Top bar:** back (to the overview), the location's name, and the same run actions as the overview.
+- **Top bar:** back (to the overview) and the location's name. The checklist has no cancel button (*Decided* 2026-10-09): "Zrušit inventuru" is on the overview only. Where "Dokončit inventuru" goes is decided with the finish step.
 - **Header:** the path from the root, "24 / 32 zkontrolováno · 75 %" with a bar, the participants.
 - **Search** over name and ID within this location's rows.
 - **Nezkontrolované (N):** all of them, by name in Czech order. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand (and "Zobrazit méně" to fold again). While a search is active, every match is listed.

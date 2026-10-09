@@ -18,7 +18,6 @@ import { pathLabel } from '@/features/locations/path';
 import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
-import { CancelInventory } from './cancel-inventory';
 import { ChecklistRow } from './checklist-row';
 import { groupRows, recentCheckedCount } from './checklist';
 import { statusBadge } from './status';
@@ -166,7 +165,6 @@ function ChecklistBody({
             {t(`inventory.status.${inventory.status}`)}
           </Badge>
         )}
-        {canEdit && <CancelInventory inventory={inventory} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:flex-nowrap">
