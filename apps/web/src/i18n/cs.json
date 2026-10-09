@@ -477,5 +477,44 @@
     "call": "Zavolat: {{name}}",
     "email": "Napsat e-mail: {{name}}",
     "web": "Otevřít web: {{name}}"
+  },
+  "inventory": {
+    "notFoundTitle": "Inventura nenalezena",
+    "notFoundHint": "Inventura neexistuje nebo byla odstraněna.",
+    "status": {
+      "in_progress": "Probíhá",
+      "finished": "Dokončená",
+      "cancelled": "Zrušená"
+    },
+    "startedBy": "Inventura od {{date}} · zahájil {{who}}",
+    "startedOn": "Inventura od {{date}}",
+    "cancelledBy": "Zrušil {{who}} · {{date}} v {{time}}",
+    "cancelledOn": "Zrušeno {{date}} v {{time}}",
+    "progressLabel": "Průběh inventury",
+    "progress": "{{checked}} / {{total}} zkontrolováno · {{percent}} %",
+    "noItems": "V lokalitě nejsou žádné položky.",
+    "activeNow_one": "{{who}} právě pracuje",
+    "activeNow_few": "{{who}} právě pracují",
+    "activeNow_many": "{{who}} právě pracují",
+    "activeNow_other": "{{who}} právě pracují",
+    "participants": "Zúčastnění",
+    "locations": {
+      "inProgress": "Probíhající ({{count}})",
+      "notStarted": "Nekontrolované ({{count}})",
+      "done": "Hotovo ({{count}})",
+      "items": "{{checked}} / {{total}} položek",
+      "nobodyStarted": "Nikdo nezačal",
+      "doneBadge": "Hotovo"
+    },
+    "actions": {
+      "more": "Další možnosti",
+      "cancel": "Zrušit inventuru"
+    },
+    "cancel": {
+      "title": "Zrušit inventuru?",
+      "hint": "Nic se neoznačí jako nezvěstné a inventura zůstane v seznamu jako Zrušená.",
+      "back": "Zpět",
+      "done": "Inventura zrušena"
+    }
   }
 }

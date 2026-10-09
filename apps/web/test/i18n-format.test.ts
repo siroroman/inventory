@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import i18n from '../src/i18n/index.ts';
-import { formatDate, formatFileSize, formatPrice, formatTimestamp } from '../src/lib/format.ts';
+import { formatDate, formatFileSize, formatPrice, formatTime, formatTimestamp } from '../src/lib/format.ts';
 
 describe('Czech plurals', () => {
   it.each([
@@ -54,5 +54,13 @@ describe('formatFileSize', () => {
     [20 * 1024 * 1024, '20 MB'],
   ])('%s bytes', (bytes, text) => {
     expect(formatFileSize(bytes).replace(/\s/g, ' ')).toBe(text);
+  });
+});
+
+describe('formatTime', () => {
+  it('shows the time of day the Czech way, without a leading zero on the hour', () => {
+    const local = new Date(2026, 9, 3, 9, 5).toISOString();
+    expect(formatTime(local)).toBe('9:05');
+    expect(formatTime(new Date(2026, 9, 3, 16, 30).toISOString())).toBe('16:30');
   });
 });

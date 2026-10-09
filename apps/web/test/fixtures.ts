@@ -109,3 +109,45 @@ export function manufacturerDetail(over: Record<string, unknown> = {}) {
     ...over,
   };
 }
+
+export const person = (name = 'Roman Siro') => ({ id: crypto.randomUUID(), name });
+
+const noCounts = { expected: 0, checked: 0, elsewhere: 0, new: 0, missing: 0 };
+
+/** A run as the Inventura tab lists it: in progress, started by Roman Siro, nothing checked yet. */
+export function inventoryEntry(over: Record<string, unknown> = {}) {
+  const root = ref('LOC-001', 'Centrála Praha');
+  const starter = person();
+  return {
+    id: crypto.randomUUID(),
+    status: 'in_progress',
+    location: root,
+    path: [root],
+    startedAt: '2026-10-03T07:15:00.000Z',
+    startedBy: starter,
+    endedAt: null,
+    endedBy: null,
+    counts: { ...noCounts, expected: 128 },
+    participants: [starter],
+    ...over,
+  };
+}
+
+/** A location of a run, with its path from the top (itself last). */
+export function inventoryLocation(over: Record<string, unknown> = {}) {
+  const self = ref('LOC-004', 'Sklad');
+  return { ...self, path: [ref('LOC-001', 'Centrála Praha'), self], total: 10, checked: 0, participants: [] as unknown[], ...over };
+}
+
+/** A run as `GET /inventories/{id}` answers it. */
+export function inventory(over: Record<string, unknown> = {}) {
+  return {
+    ...inventoryEntry(),
+    version: 1,
+    note: null,
+    committee: null,
+    activeNow: [] as unknown[],
+    locations: [] as unknown[],
+    ...over,
+  };
+}

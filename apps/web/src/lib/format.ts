@@ -39,3 +39,10 @@ export function formatFileSize(bytes: number): string {
 
 /** A `tel:` link for a phone number as people write it ("+420 601 123 456"). */
 export const telHref = (phone: string) => `tel:${phone.replace(/\s+/g, '')}`;
+
+const time = new Intl.DateTimeFormat('cs-CZ', { hour: 'numeric', minute: '2-digit' });
+
+/** The time of day of a moment in the user's own time zone: `9:15`. */
+export function formatTime(value: string): string {
+  return time.format(new Date(value));
+}
