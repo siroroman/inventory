@@ -461,7 +461,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 
 #### 9.4.3 Run overview — `/inventories/$id` while in progress [24]
 
-- **Top bar:** back, the root's name. On phones the overflow menu ("Další možnosti") holds Dokončit inventuru / Zrušit inventuru; on desktop they are top-bar buttons. Read users get neither.
+- **Top bar:** back, the root's name. Dokončit inventuru / Zrušit inventuru are top-bar buttons at every width (a run in progress shows no "Probíhá" badge); the overflow menu was dropped. Read users get neither.
 - **Header:** "Inventura od 3. 10. 2026 · zahájil RS", a *Probíhá* badge, "84 / 128 zkontrolováno · 66 %" with a bar, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes).
 - **Locations:** a flat list of every location in the subtree that has items on the list or items found there. A location deeper than one level below the root shows its path under the name, so rooms with the same name on different floors stay apart. Items placed directly in the root appear under the root's own name.
   - Each row: name, "24 / 32 položek", and the avatars of the people who checked items there. The row opens that location's checklist.
@@ -650,7 +650,7 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 
 - **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. Scans, check, uncheck, move, finish, mark found and the histories are not built.
 - **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2) and the run overview (§9.4.3).
-- **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's menu "Další možnosti" / button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
+- **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
 - **`items.missing_since`** is not added yet; it gets its own migration with the finish step.
 - **The audit action CHECK** now allows `start`, `check`, `uncheck`, `finish` and `cancel` (§9.3 rule 16); `start` and `cancel` are written.
 - **Left out of the overview until their step exists:** "Skenovat" (scanner), "Dokončit inventuru", and the links from the location rows to the checklist.

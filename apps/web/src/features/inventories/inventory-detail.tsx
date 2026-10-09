@@ -130,9 +130,11 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
           <h1 className="text-2xl font-semibold break-words">{inventory.location.name}</h1>
           {above.length > 0 && <p className="text-sm break-words text-muted-foreground">{pathLabel(above)}</p>}
         </div>
-        <Badge variant={statusBadge[inventory.status]} className="mt-2">
-          {t(`inventory.status.${inventory.status}`)}
-        </Badge>
+        {inventory.status !== 'in_progress' && (
+          <Badge variant={statusBadge[inventory.status]} className="mt-2">
+            {t(`inventory.status.${inventory.status}`)}
+          </Badge>
+        )}
         {canWrite && inventory.status === 'in_progress' && <CancelInventory inventory={inventory} />}
       </div>
 
