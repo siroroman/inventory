@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codeRef, pageOf, timestamp } from './fields.ts';
+import { codeRef, humanCode, pageOf, timestamp } from './fields.ts';
 import { searchPageQuery } from './http.ts';
 
 // Inventory runs (SPEC §9): a physical check of a location and everything below it.
@@ -128,3 +128,60 @@ export type InventoryRowsDto = z.infer<typeof inventoryRowsSchema>;
 export const inventoryRowsQuery = z.object({ locationId: z.uuid().optional() });
 
 export const inventoryRowParams = z.object({ id: z.uuid(), itemId: z.uuid() });
+
+/**
+ * A check by the code on a label, which is the item's ID. `locationId` is the location whose
+ * checklist the scanner was opened from; without it the run's root is the context and no item
+ * counts as being in the wrong place. `manual` is a code typed by hand.
+ */
+export const scanInventoryBody = z.strictObject({
+  code: humanCode,
+  locationId: z.uuid().optional(),
+  method: checkMethod.default('scan'),
+});
+export type ScanInventoryBody = z.input<typeof scanInventoryBody>;
+
+/** The scanned item as the result sheet shows it. */
+export const scannedItemSchema = z.object({
+  /** The item's id. */
+  id: z.uuid(),
+  code: z.string(),
+  name: z.string(),
+  /** Where the item is registered now, from the top (the location last); empty when it has no location. */
+  path: z.array(codeRef),
+});
+export type ScannedItemDto = z.infer<typeof scannedItemSchema>;
+
+export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'archived', 'unknown_code'] as const;
+
+/**
+ * What a scan did, by `outcome`:
+ * - `found`: an item of the list was checked. `misplaced`: the scanner was opened from a location
+ *   other than the one the item is registered in (`item.path` says where).
+ * - `found_elsewhere`: an item that is not on the list was added to the run, checked, at the context
+ *   location; `item.path` is where it is registered.
+ * - `already_checked`: nothing changed, `row` says who checked it and when.
+ * - `archived`: nothing recorded, the item is not counted.
+ * - `unknown_code`: no item has this ID, nothing recorded.
+ *
+ * `wasMissing` is for a check that cleared the Nezvěstná status (always false until that exists).
+ */
+export const scanResultSchema = z.discriminatedUnion('outcome', [
+  z.object({
+    outcome: z.literal('found'),
+    item: scannedItemSchema,
+    row: inventoryRowSchema,
+    misplaced: z.boolean(),
+    wasMissing: z.boolean(),
+  }),
+  z.object({
+    outcome: z.literal('found_elsewhere'),
+    item: scannedItemSchema,
+    row: inventoryRowSchema,
+    wasMissing: z.boolean(),
+  }),
+  z.object({ outcome: z.literal('already_checked'), item: scannedItemSchema, row: inventoryRowSchema }),
+  z.object({ outcome: z.literal('archived'), item: scannedItemSchema }),
+  z.object({ outcome: z.literal('unknown_code') }),
+]);
+export type ScanResultDto = z.infer<typeof scanResultSchema>;

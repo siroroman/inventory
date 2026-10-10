@@ -31,6 +31,9 @@ export type LocationChecker = { locationId: string } & Person;
 
 export type StartPreview = { itemCount: number; locationCount: number };
 
+/** The item a label names, with what a scan needs to decide: its state and where it is registered. */
+export type ScanTarget = { id: string; code: string; name: string; archived: boolean; locationId: string | null };
+
 /** An item of a run (a row of `inventory_items`) with the item's code, name and state and who checked it. */
 export type RunItem = {
   itemId: string;
@@ -264,6 +267,45 @@ export function createInventoryRepository(db: DbExecutor) {
         )
         .returning({ id: inventoryItems.id });
       return updated.length > 0;
+    },
+
+    /** The item with this ID (case ignored, archived ones too). */
+    async findItemByCode(code: string): Promise<ScanTarget | undefined> {
+      const [row] = await db
+        .select({ id: items.id, code: items.code, name: items.name, archivedAt: items.archivedAt, locationId: items.locationId })
+        .from(items)
+        .where(sql`upper(${items.code}) = ${code.trim().toUpperCase()}`)
+        .orderBy(items.code)
+        .limit(1);
+      return row && { id: row.id, code: row.code, name: row.name, archived: row.archivedAt !== null, locationId: row.locationId };
+    },
+
+    /**
+     * Adds an item that is not on the list to the run, checked, or checks a found item again that
+     * was unticked (such rows are kept). False when the row is there and already checked, or is not
+     * a found item: a check by somebody else came first, and the caller reads the row back.
+     */
+    async recordFound(
+      inventoryId: string,
+      itemId: string,
+      found: {
+        locationId: string;
+        registeredLocationId: string | null;
+        checkedAt: Date;
+        checkedBy: string;
+        method: 'scan' | 'manual';
+      },
+    ): Promise<boolean> {
+      const rows = await db
+        .insert(inventoryItems)
+        .values({ inventoryId, itemId, kind: 'elsewhere', ...found })
+        .onConflictDoUpdate({
+          target: [inventoryItems.inventoryId, inventoryItems.itemId],
+          set: found,
+          setWhere: and(isNull(inventoryItems.checkedAt), eq(inventoryItems.kind, 'elsewhere')),
+        })
+        .returning({ id: inventoryItems.id });
+      return rows.length > 0;
     },
 
     update(id: string, version: number, patch: InventoryPatch): Promise<Inventory | undefined> {

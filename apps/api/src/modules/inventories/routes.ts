@@ -9,12 +9,20 @@ import {
   inventoryRowsQuery,
   inventoryRowsSchema,
   inventorySchema,
+  scanInventoryBody,
+  scanResultSchema,
   startInventoryBody,
   versionBody,
 } from '@inventory/shared';
 import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
-import { toInventoryDto, toInventoryListEntryDto, toInventoryPreviewDto, toInventoryRowDto } from './dto.ts';
+import {
+  toInventoryDto,
+  toInventoryListEntryDto,
+  toInventoryPreviewDto,
+  toInventoryRowDto,
+  toScanResultDto,
+} from './dto.ts';
 import type { InventoryService } from './service.ts';
 
 const list = defineRoute({
@@ -70,6 +78,19 @@ const listItems = defineRoute({
   request: { params: idParam, query: inventoryRowsQuery },
   errors: [404],
   responses: { 200: { description: 'The rows a person sees in the run', content: jsonContent(inventoryRowsSchema) } },
+});
+
+const scan = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/scans',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Check an item of a run in progress by the code on its label. The answer says what happened (`outcome`): ' +
+    'an item that is not on the list is added to the run as found elsewhere',
+  request: { params: idParam, body: { required: true, content: jsonContent(scanInventoryBody) } },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'What the scan did', content: jsonContent(scanResultSchema) } },
 });
 
 const check = defineRoute({
@@ -129,6 +150,10 @@ export function createInventoryRoutes(inventories: InventoryService) {
       const { id } = c.req.valid('param');
       const rows = await inventories.listItems(c.get('actor'), id, c.req.valid('query').locationId);
       return c.json({ items: rows.map(toInventoryRowDto) }, 200);
+    })
+    .openapi(scan, async (c) => {
+      const result = await inventories.scan(c.get('actor'), c.req.valid('param').id, c.req.valid('json'));
+      return c.json(toScanResultDto(result), 200);
     })
     .openapi(check, async (c) => {
       const { id, itemId } = c.req.valid('param');

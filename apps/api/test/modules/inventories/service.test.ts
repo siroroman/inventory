@@ -52,6 +52,7 @@ describe('inventory service', () => {
       await expect(service.listItems(reader, run.id)).resolves.toHaveLength(1);
       await expectCode(service.check(reader, run.id, item.id), 'forbidden');
       await expectCode(service.uncheck(reader, run.id, item.id), 'forbidden');
+      await expectCode(service.scan(reader, run.id, { code: item.code }), 'forbidden');
 
       expect(store.state.audit).toHaveLength(auditBefore);
       expect(store.state.rows[0]!.checkedBy).toBe(users.write.id);
@@ -497,6 +498,302 @@ describe('inventory service', () => {
       await service.cancel(actor('write'), run.id, run.version);
       await expectCode(service.uncheck(actor('write'), run.id, listed.id), 'inventory_closed');
       expect(store.state.rows[0]!.checkedAt).not.toBeNull();
+    });
+  });
+
+  describe('scan', () => {
+    it('checks an item of the list by its code, case ignored, and audits it as a scan', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const patro = await store.itemStore.addLocation('Patro', praha.id);
+      const item = await store.addItem(patro.id, 'Kávovar');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      clock.advance(10 * MINUTE);
+
+      const result = await service.scan(actor('write', users.other), run.id, { code: item.code.toLowerCase() });
+
+      expect(result).toMatchObject({
+        outcome: 'found',
+        misplaced: false,
+        wasMissing: false,
+        item: { id: item.id, code: item.code, name: 'Kávovar', path: [{ name: 'Centrála Praha' }, { name: 'Patro' }] },
+        row: { itemId: item.id, kind: 'expected', checkedAt: clock.now(), checkedBy: users.other, method: 'scan' },
+      });
+      expect(store.state.rows[0]).toMatchObject({ checkedBy: users.other.id, method: 'scan', locationId: patro.id });
+      expect(store.state.audit.at(-1)).toMatchObject({
+        userId: users.other.id,
+        entityType: 'inventory',
+        entityId: run.id,
+        action: 'check',
+        changes: { itemId: { from: null, to: item.id }, method: { from: null, to: 'scan' } },
+      });
+      expect(store.state.inventories[0]!.version).toBe(run.version);
+      expect((await service.get(actor('read'), run.id)).counts).toMatchObject({ expected: 1, checked: 1 });
+    });
+
+    it('records a code typed by hand as a hand check', async () => {
+      const { store, service, actor, praha } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+
+      await service.scan(actor('write'), run.id, { code: item.code, method: 'manual' });
+
+      expect(store.state.rows[0]).toMatchObject({ method: 'manual' });
+      expect(store.state.audit.at(-1)!.changes).toMatchObject({ method: { from: null, to: 'manual' } });
+    });
+
+    describe('where the user stands', () => {
+      it('is not misplaced without a context location, wherever the item is registered', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        const item = await store.addItem(patro.id);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        await expect(service.scan(actor('write'), run.id, { code: item.code })).resolves.toMatchObject({
+          outcome: 'found',
+          misplaced: false,
+        });
+      });
+
+      it('is not misplaced from the checklist of the location the item is registered in', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        const item = await store.addItem(patro.id);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        await expect(
+          service.scan(actor('write'), run.id, { code: item.code, locationId: patro.id }),
+        ).resolves.toMatchObject({ outcome: 'found', misplaced: false });
+      });
+
+      it('is misplaced from the checklist of another location of the run, and still counts where it is registered', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        const sklad = await store.itemStore.addLocation('Sklad', praha.id);
+        const item = await store.addItem(sklad.id, 'Vozík');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+
+        const result = await service.scan(actor('write'), run.id, { code: item.code, locationId: patro.id });
+
+        expect(result).toMatchObject({
+          outcome: 'found',
+          misplaced: true,
+          item: { path: [{ name: 'Centrála Praha' }, { name: 'Sklad' }] },
+        });
+        // No move: the row stays in the location it was listed in.
+        expect(store.state.rows[0]).toMatchObject({ kind: 'expected', locationId: sklad.id });
+      });
+    });
+
+    describe('an item that is not on the list', () => {
+      it('adds it to the run as found elsewhere at the root, remembering where it is registered', async () => {
+        const { store, service, clock, actor, praha, users } = await setup();
+        const brno = await store.itemStore.addLocation('Centrála Brno');
+        const sklad = await store.itemStore.addLocation('Sklad', brno.id);
+        const stranger = await store.addItem(sklad.id, 'Pokladní systém');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        clock.advance(MINUTE);
+
+        const result = await service.scan(actor('write'), run.id, { code: stranger.code });
+
+        expect(result).toMatchObject({
+          outcome: 'found_elsewhere',
+          wasMissing: false,
+          item: { id: stranger.id, path: [{ name: 'Centrála Brno' }, { name: 'Sklad' }] },
+          row: {
+            kind: 'elsewhere',
+            locationId: praha.id,
+            checkedAt: clock.now(),
+            checkedBy: users.write,
+            method: 'scan',
+            registeredPath: [{ name: 'Centrála Brno' }, { name: 'Sklad' }],
+          },
+        });
+        expect(store.state.rows[0]).toMatchObject({ kind: 'elsewhere', registeredLocationId: sklad.id });
+        expect(store.state.audit.at(-1)).toMatchObject({
+          action: 'check',
+          entityId: run.id,
+          changes: {
+            itemId: { to: stranger.id },
+            kind: { from: null, to: 'elsewhere' },
+            locationId: { to: praha.id },
+            registeredLocationId: { to: sklad.id },
+          },
+        });
+        expect((await service.listItems(actor('read'), run.id)).map((r) => r.itemId)).toEqual([stranger.id]);
+        expect((await service.get(actor('read'), run.id)).counts).toMatchObject({ expected: 0, elsewhere: 1 });
+      });
+
+      it('records it at the location of the checklist the scanner was opened from', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        const stranger = await store.addItem(null, 'Pokladní systém');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+
+        const result = await service.scan(actor('write'), run.id, { code: stranger.code, locationId: patro.id });
+
+        expect(result).toMatchObject({ outcome: 'found_elsewhere', item: { path: [] }, row: { registeredPath: [] } });
+        expect(store.state.rows[0]).toMatchObject({ locationId: patro.id, registeredLocationId: null });
+        const detail = await service.get(actor('read'), run.id);
+        expect(detail.locations.map((l) => [l.name, l.total, l.checked])).toEqual([['Patro', 1, 1]]);
+      });
+
+      it('takes an item moved into the run by an ordinary edit after the start', async () => {
+        const { store, service, actor, praha } = await setup();
+        const item = await store.addItem(null, 'Přenosný projektor');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        store.itemStore.state.items.find((i) => i.id === item.id)!.locationId = praha.id;
+
+        await expect(service.scan(actor('write'), run.id, { code: item.code })).resolves.toMatchObject({
+          outcome: 'found_elsewhere',
+          item: { path: [{ name: 'Centrála Praha' }] },
+        });
+      });
+
+      it('checks a found item again after it was unticked, at the location it is found in now', async () => {
+        const { store, service, actor, praha, users } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        const stranger = await store.addItem(null, 'Pokladní systém');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        await service.scan(actor('write'), run.id, { code: stranger.code });
+        await service.uncheck(actor('write'), run.id, stranger.id);
+        expect(await service.listItems(actor('read'), run.id)).toEqual([]);
+
+        const result = await service.scan(actor('write', users.other), run.id, {
+          code: stranger.code,
+          locationId: patro.id,
+        });
+
+        expect(result).toMatchObject({ outcome: 'found_elsewhere', row: { checkedBy: users.other } });
+        expect(store.state.rows).toHaveLength(1);
+        expect(store.state.rows[0]).toMatchObject({ kind: 'elsewhere', locationId: patro.id });
+        expect(store.state.audit.map((e) => e.action)).toEqual(['start', 'check', 'uncheck', 'check']);
+      });
+
+      it('checks an item added during the run again after it was unticked, keeping it as added', async () => {
+        const { store, service, actor, praha } = await setup();
+        const added = await store.addItem(praha.id, 'Nový stůl');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        // As the item form will add it (rule 9): created after the start, in the run as new.
+        store.state.rows.length = 0;
+        store.addRow(run.id, added.id, praha.id, { kind: 'new' });
+
+        await expect(service.scan(actor('write'), run.id, { code: added.code })).resolves.toMatchObject({
+          outcome: 'found',
+          row: { kind: 'new' },
+        });
+        expect(store.state.rows).toHaveLength(1);
+        expect(store.state.rows[0]).toMatchObject({ kind: 'new', locationId: praha.id });
+      });
+    });
+
+    describe('nothing to record', () => {
+      it('leaves a row that is already checked as it is: the first check wins, who and when are answered', async () => {
+        const { store, service, clock, actor, praha, users } = await setup();
+        const item = await store.addItem(praha.id);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        const first = await service.scan(actor('write'), run.id, { code: item.code });
+        clock.advance(5 * MINUTE);
+        const auditBefore = store.state.audit.length;
+
+        const second = await service.scan(actor('write', users.other), run.id, { code: item.code });
+
+        expect(first.outcome).toBe('found');
+        expect(second).toMatchObject({ outcome: 'already_checked', row: { checkedBy: users.write } });
+        expect('row' in first && 'row' in second && second.row).toEqual('row' in first && first.row);
+        expect(store.state.audit).toHaveLength(auditBefore);
+      });
+
+      it('answers already checked for a found item that is scanned twice', async () => {
+        const { store, service, actor, praha, users } = await setup();
+        const stranger = await store.addItem(null);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        await service.scan(actor('write'), run.id, { code: stranger.code });
+        const again = await service.scan(actor('write', users.other), run.id, { code: stranger.code });
+        expect(again).toMatchObject({ outcome: 'already_checked', row: { kind: 'elsewhere', checkedBy: users.write } });
+        expect(store.state.rows).toHaveLength(1);
+      });
+
+      it('reports an archived item and does not count it, listed or not', async () => {
+        const { store, service, actor, praha } = await setup();
+        const listed = await store.addItem(praha.id, 'Stará tiskárna');
+        const stranger = await store.addItem(null, 'Starý server');
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        for (const item of [listed, stranger]) {
+          store.itemStore.state.items.find((i) => i.id === item.id)!.archivedAt = new Date();
+        }
+        const auditBefore = store.state.audit.length;
+
+        await expect(service.scan(actor('write'), run.id, { code: listed.code })).resolves.toMatchObject({
+          outcome: 'archived',
+          item: { id: listed.id, name: 'Stará tiskárna' },
+        });
+        await expect(service.scan(actor('write'), run.id, { code: stranger.code })).resolves.toMatchObject({
+          outcome: 'archived',
+        });
+
+        expect(store.state.rows).toHaveLength(1);
+        expect(store.state.rows[0]!.checkedAt).toBeNull();
+        expect(store.state.audit).toHaveLength(auditBefore);
+      });
+
+      it('answers an unknown code and records nothing', async () => {
+        const { store, service, actor, praha } = await setup();
+        await store.addItem(praha.id);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        const auditBefore = store.state.audit.length;
+
+        await expect(service.scan(actor('write'), run.id, { code: 'INV-99999' })).resolves.toEqual({
+          outcome: 'unknown_code',
+        });
+
+        expect(store.state.rows).toHaveLength(1);
+        expect(store.state.rows[0]!.checkedAt).toBeNull();
+        expect(store.state.audit).toHaveLength(auditBefore);
+      });
+    });
+
+    describe('refusals', () => {
+      it('refuses an unknown run and a run that has ended, whatever the code', async () => {
+        const { store, service, actor, praha } = await setup();
+        const item = await store.addItem(praha.id);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        await expectCode(service.scan(actor('write'), crypto.randomUUID(), { code: item.code }), 'not_found');
+
+        await service.cancel(actor('write'), run.id, run.version);
+        await expectCode(service.scan(actor('write'), run.id, { code: item.code }), 'inventory_closed');
+        await expectCode(service.scan(actor('write'), run.id, { code: 'INV-99999' }), 'inventory_closed');
+        expect(store.state.rows[0]!.checkedAt).toBeNull();
+        expect(store.state.audit.map((e) => e.action)).toEqual(['start', 'cancel']);
+      });
+
+      it('refuses a context location that is not in the run, or does not exist', async () => {
+        const { store, service, actor, praha } = await setup();
+        const brno = await store.itemStore.addLocation('Centrála Brno');
+        const above = await store.itemStore.addLocation('Budova A');
+        const patro = await store.itemStore.addLocation('Patro', above.id);
+        const item = await store.addItem(patro.id);
+        const run = await service.start(actor('write'), { locationId: patro.id });
+
+        await expectCode(service.scan(actor('write'), run.id, { code: item.code, locationId: brno.id }), 'location_outside_inventory');
+        // The parent of the root is not part of the run either.
+        await expectCode(service.scan(actor('write'), run.id, { code: item.code, locationId: above.id }), 'location_outside_inventory');
+        await expectCode(service.scan(actor('write'), run.id, { code: item.code, locationId: praha.id }), 'location_outside_inventory');
+        await expectCode(service.scan(actor('write'), run.id, { code: item.code, locationId: crypto.randomUUID() }), 'location_not_found');
+        expect(store.state.rows[0]!.checkedAt).toBeNull();
+      });
+
+      it('accepts the root, a sub-location of any depth and an archived one as the context', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        const zasedacka = await store.itemStore.addLocation('Zasedačka', patro.id);
+        const stranger = await store.addItem(null);
+        const run = await service.start(actor('write'), { locationId: praha.id });
+        store.itemStore.locationStore.state.locations.find((l) => l.id === zasedacka.id)!.archivedAt = new Date();
+
+        for (const locationId of [praha.id, patro.id, zasedacka.id]) {
+          await expect(service.scan(actor('write'), run.id, { code: stranger.code, locationId })).resolves.toMatchObject({
+            outcome: expect.stringMatching(/found_elsewhere|already_checked/),
+          });
+        }
+      });
     });
   });
 
