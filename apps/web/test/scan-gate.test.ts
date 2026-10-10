@@ -62,4 +62,11 @@ describe('createScanGate', () => {
     gate.reset();
     expect(gate.accept('INV-1')).toBe(true);
   });
+
+  it('counts a forgotten code as new again', () => {
+    const { gate } = setup();
+    expect(gate.accept('INV-1')).toBe(true);
+    gate.forget('INV-1');
+    expect(gate.accept('INV-1')).toBe(true);
+  });
 });

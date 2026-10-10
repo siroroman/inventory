@@ -40,8 +40,16 @@ describe('createQrDecoder', () => {
     const decode = await createQrDecoder();
     const picture = video(720, 1280);
     expect(await decode(picture)).toBe('INV-00042');
-    expect(detect).toHaveBeenCalledWith(picture);
+    // It is given the middle square, like jsQR, so a label outside the viewfinder is not read.
+    expect(drawImage).toHaveBeenCalledWith(picture, 0, 280, 720, 720, 0, 0, 640, 640);
+    expect(detect).toHaveBeenCalledWith(expect.any(HTMLCanvasElement));
     expect(jsQR).not.toHaveBeenCalled();
+  });
+
+  it('answers null while the video has no picture yet, without asking the native detector', async () => {
+    const detect = stubDetector(['qr_code'], ['INV-00042']);
+    expect(await (await createQrDecoder())(video(0, 0))).toBeNull();
+    expect(detect).not.toHaveBeenCalled();
   });
 
   it('answers null when the native detector sees nothing', async () => {

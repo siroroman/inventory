@@ -176,10 +176,15 @@ function ScannerCamera({ inventory, location }: { inventory: InventoryDto; locat
     // A failed scan waits for the person: reading on would only pile up more of them.
     paused: shown?.sheet.kind === 'error',
     onCode: ({ code }) => {
-      if (scan.isPending) return;
-      if (code === null) return show({ kind: 'foreign' });
-      lastCode.current = code;
-      scan.mutate(code);
+      // One at a time; the reader offers this label again at its next look.
+      if (scan.isPending) return false;
+      if (code === null) {
+        show({ kind: 'foreign' });
+      } else {
+        lastCode.current = code;
+        scan.mutate(code);
+      }
+      return true;
     },
   });
 

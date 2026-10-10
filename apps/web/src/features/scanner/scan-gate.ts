@@ -28,6 +28,10 @@ export function createScanGate(now: () => number = Date.now) {
       lastSeen.set(code, at);
       return !known;
     },
+    /** Forgets one code, so its next reading counts again: the reading was not acted on. */
+    forget(code: string) {
+      lastSeen.delete(code);
+    },
     /** Forgets everything, so the next reading of any code counts again. */
     reset() {
       lastSeen.clear();

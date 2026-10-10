@@ -6,6 +6,8 @@ const control = vi.hoisted(() => ({
   /** What the decoder sees on each look: the next value, or nothing once the script is used up. */
   script: [] as (string | null)[],
   loads: 0,
+  /** How many loads of the decoder fail before one works. */
+  failLoads: 0,
 }));
 
 vi.mock('../src/features/scanner/use-camera.ts', () => ({
@@ -19,13 +21,17 @@ vi.mock('../src/features/scanner/use-camera.ts', () => ({
 vi.mock('../src/features/scanner/qr-decoder.ts', () => ({
   createQrDecoder: async () => {
     control.loads += 1;
+    if (control.failLoads > 0) {
+      control.failLoads -= 1;
+      throw new Error('chunk failed to load');
+    }
     return async () => (control.script.length > 0 ? control.script.shift()! : null);
   },
 }));
 
 import { type CodeReading, decodeIntervalMs, useCodeReader } from '../src/features/scanner/use-code-reader.ts';
 
-function Reader({ paused = false, onCode }: { paused?: boolean; onCode: (reading: CodeReading) => void }) {
+function Reader({ paused = false, onCode }: { paused?: boolean; onCode: (reading: CodeReading) => boolean | undefined }) {
   useCodeReader({ paused, onCode });
   return null;
 }
@@ -39,6 +45,7 @@ describe('useCodeReader', () => {
     control.status = 'running';
     control.script = [];
     control.loads = 0;
+    control.failLoads = 0;
   });
 
   afterEach(() => {
@@ -110,6 +117,25 @@ describe('useCodeReader', () => {
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledOnce();
     expect(control.loads).toBe(1);
+  });
+
+  it('asks for the decoder again at the next look when it failed to load', async () => {
+    const onCode = vi.fn();
+    control.failLoads = 1;
+    control.script = ['INV-1'];
+    render(<Reader onCode={onCode} />);
+    await looks(4);
+    expect(control.loads).toBe(2);
+    expect(onCode).toHaveBeenCalledOnce();
+  });
+
+  it('offers a label again at the next look when the handler could not take it', async () => {
+    const onCode = vi.fn().mockReturnValueOnce(false).mockReturnValue(true);
+    control.script = ['INV-1', 'INV-1', 'INV-1'];
+    render(<Reader onCode={onCode} />);
+    await looks(5);
+    // Declined once, taken once, then ignored while it stays in view.
+    expect(onCode).toHaveBeenCalledTimes(2);
   });
 
   it('stops looking when the screen is left', async () => {
