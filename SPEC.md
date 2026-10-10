@@ -612,14 +612,16 @@ The endpoints are listed in §7. Scan answers (`POST /inventories/{id}/scans` wi
 
 | outcome | Recorded | Extra fields |
 | --- | --- | --- |
-| `found` | the row is checked | `item`, `row`; `registeredLocation` when rule 7 applies; `wasMissing` |
-| `found_elsewhere` | a new `elsewhere` row, checked | `item` (with `version` for a move), `row`, `registeredLocation` (null = no location), `wasMissing` |
-| `already_checked` | nothing | `row` with who and when |
+| `found` | the row is checked | `item`, `row`, `misplaced` (rule 7: the scanner was opened from a checklist of a location other than the one the item is registered in), `wasMissing` |
+| `found_elsewhere` | a new `elsewhere` row, checked (an unticked one is checked again) | `item`, `row`, `wasMissing` |
+| `already_checked` | nothing | `item`, `row` with who and when |
 | `archived` | nothing | `item` |
 | `unknown_code` | nothing | — |
 
+`item` is `{id, code, name, path}`; `path` is where the item is registered now, from the top (empty = no location), which is the "Vedeno v: …" line. `misplaced` is only ever true when the request carried a `locationId` (the scanner was opened from a checklist); from the overview the context is the root and nothing is misplaced. `item.version`, for a move, comes with the move endpoint.
+
 - The SPA checks the code's form (`humanCode`: A–Z, 0–9, `. _ -`, at most 30 characters, case ignored) before calling. Anything else is a foreign code and never reaches the API.
-- New error codes: `inventory_overlap` (409), `inventory_closed` (409: the run is finished or cancelled), `location_outside_inventory` (422: a move or context location not in the run), `item_not_in_inventory` (422: uncheck or move of an item the run doesn't have).
+- New error codes: `inventory_overlap` (409), `inventory_closed` (409: the run is finished or cancelled), `location_outside_inventory` (422: a move or context location that is not the run's root or below it, archived locations included), `item_not_in_inventory` (422: uncheck or move of an item the run doesn't have). A context location that does not exist is `location_not_found` (422).
 
 ### 9.7 Technical notes
 
@@ -649,7 +651,7 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 
 **Built so far** (2026-10-09), with what differs from the list above:
 
-- **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. The rows of a run (`GET /inventories/{id}/items`) and the hand **check** and **uncheck** are built, with the error code `item_not_in_inventory`; scans, move, finish, mark found and the histories are not.
+- **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. The rows of a run (`GET /inventories/{id}/items`) and the hand **check** and **uncheck** are built, with the error code `item_not_in_inventory`; move, finish, mark found and the histories are not. **Scans** are built (`POST /inventories/{id}/scans`, §9.6, with the error code `location_outside_inventory`) without a move; the scanner screen is not.
 - **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2), the run overview (§9.4.3) and the location checklist (§9.4.4) with hand checks and polling. "+ Přidat položku, která není v evidenci" (rule 9) is left for its own change: it needs `POST /items` with `inventoryId` and the item form's `inventoryId` / `code` parameters.
 - **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
 - **`items.missing_since`** is not added yet; it gets its own migration with the finish step.
