@@ -515,10 +515,18 @@ describe('inventory checklist', () => {
       expect(posts(calls)).toHaveLength(1);
     });
 
-    it('lets a tap anywhere on the row tick it', async () => {
+    it('is the checkbox that ticks, not the rest of the row', async () => {
       const { calls } = openChecklist([row('Mixér tyčový', { code: 'INV-00046' })]);
       await rowsLoaded();
+      const box = screen.getByRole('checkbox', { name: 'Mixér tyčový' });
+      // The ID, the name's line and the row itself do nothing; only the checkbox's own label ticks.
       await userEvent.click(screen.getByText('INV-00046'));
+      await userEvent.click(box.closest('li')!);
+      expect(box).not.toBeChecked();
+      expect(posts(calls)).toHaveLength(0);
+
+      await userEvent.click(box.closest('label')!);
+
       await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
       expect(posts(calls)).toHaveLength(1);
     });
