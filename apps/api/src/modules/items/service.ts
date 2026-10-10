@@ -5,6 +5,8 @@ import type { Transact } from '../../db/transaction.ts';
 import { DomainError } from '../../errors.ts';
 import { changedFields, initialFields } from '../audit/changes.ts';
 import { type AuditRepository, createAuditRepository } from '../audit/repository.ts';
+import type { InventoryRepository } from '../inventories/repository.ts';
+import { createInventoryRepository } from '../inventories/repository.ts';
 import { createLocationRepository, type LocationRepository, type PathSegment } from '../locations/repository.ts';
 import { createManufacturerRepository, type ManufacturerRepository } from '../manufacturers/repository.ts';
 import {
@@ -23,18 +25,24 @@ export type ItemRepos = {
   locations: LocationRepository;
   /** Read-only here: the manufacturer is checked before it is linked. */
   manufacturers: ManufacturerRepository;
+  /** An item created from an inventory checklist is added to the run (rule 9 of SPEC §9.3). */
+  inventories: ItemInventories;
   audit: AuditRepository;
 };
+
+/** What creating an item needs of the inventory runs: the run's row, locked, and a way to add a row. */
+export type ItemInventories = Pick<InventoryRepository, 'lockShared' | 'recordNew'>;
 
 export const itemRepos = (db: DbExecutor): ItemRepos => ({
   items: createItemRepository(db),
   locations: createLocationRepository(db),
   manufacturers: createManufacturerRepository(db),
+  inventories: createInventoryRepository(db),
   audit: createAuditRepository(db),
 });
 
-/** `repos` serves reads; every write runs through `transact` together with its audit entry. */
-export type ItemDeps = { repos: ItemRepos; transact: Transact<ItemRepos> };
+/** `repos` serves reads; every write runs through `transact` together with its audit entry. `now` is the clock. */
+export type ItemDeps = { repos: ItemRepos; transact: Transact<ItemRepos>; now?: () => Date };
 
 /** An item with its external IDs and the path of its location (the location itself last). */
 export type ItemDetail = ItemWithManufacturer & { externalIds: ExternalId[]; path: PathSegment[] };
@@ -43,6 +51,8 @@ export type ItemListEntry = ItemListRow & { path: PathSegment[] };
 export type CreateItemInput = {
   /** Chosen by the user; the database assigns the next INV-nnnnn when missing. */
   code?: string;
+  /** The inventory run the item is created for; see `createItemBody`. */
+  inventoryId?: string;
   name: string;
   /** Missing or null = the item has no location yet. */
   locationId?: string | null;
@@ -62,7 +72,10 @@ export type CreateItemInput = {
 };
 
 /** Only the fields present change; `null` clears one. Sending `externalIds` replaces the whole list. */
-export type UpdateItemInput = Partial<Omit<CreateItemInput, 'code'>> & { version: number };
+export type UpdateItemInput = Partial<Omit<CreateItemInput, 'code' | 'inventoryId'>> & { version: number };
+
+/** A created item, and whether it was added to the inventory run it was created for. */
+export type CreatedItem = ItemDetail & { addedToInventory: boolean };
 
 const AUDITED = [
   'code',
@@ -142,7 +155,41 @@ async function reload(r: ItemRepos, id: string): Promise<ItemDetail> {
   return detailOf(r, (await r.items.findById(id))!);
 }
 
-export function createItemService({ repos, transact }: ItemDeps) {
+/**
+ * Adds a just-created item to the run it was created for, checked by its creator, as an item added
+ * during the inventory. Only a run that is still in progress takes it, and only into a location of
+ * the run (the root or anything below it); otherwise nothing is recorded and the item is just
+ * created. The run's row is locked shared, so this never lands after a finish or cancel.
+ */
+async function addToInventory(
+  r: ItemRepos,
+  actor: Actor,
+  inventoryId: string,
+  itemId: string,
+  locationId: string | null,
+  at: Date,
+): Promise<boolean> {
+  const run = await r.inventories.lockShared(inventoryId);
+  if (run?.status !== 'in_progress' || !locationId) return false;
+  const path = (await r.locations.findPaths([locationId])).get(locationId);
+  if (!path?.some((segment) => segment.id === run.locationId)) return false;
+  await r.inventories.recordNew(inventoryId, itemId, { locationId, checkedAt: at, checkedBy: actor.id, method: 'manual' });
+  await r.audit.record({
+    userId: actor.id,
+    entityType: 'inventory',
+    entityId: inventoryId,
+    action: 'check',
+    changes: {
+      itemId: { from: null, to: itemId },
+      method: { from: null, to: 'manual' },
+      kind: { from: null, to: 'new' },
+      locationId: { from: null, to: locationId },
+    },
+  });
+  return true;
+}
+
+export function createItemService({ repos, transact, now = () => new Date() }: ItemDeps) {
   async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<ItemDetail> {
     assertRole(actor, 'write');
     return transact(async (r) => {
@@ -201,7 +248,7 @@ export function createItemService({ repos, transact }: ItemDeps) {
       return list(actor, { ...filter, locationId }, page);
     },
 
-    async create(actor: Actor, input: CreateItemInput): Promise<ItemDetail> {
+    async create(actor: Actor, input: CreateItemInput): Promise<CreatedItem> {
       assertRole(actor, 'write');
       const externalIds = input.externalIds ?? [];
       assertDistinct(externalIds);
@@ -237,7 +284,10 @@ export function createItemService({ repos, transact }: ItemDeps) {
             ...(saved.length > 0 && { externalIds: { from: null, to: labels(saved) } }),
           },
         });
-        return reload(r, row.id);
+        const addedToInventory = input.inventoryId
+          ? await addToInventory(r, actor, input.inventoryId, row.id, row.locationId, now())
+          : false;
+        return { ...(await reload(r, row.id)), addedToInventory };
       });
     },
 

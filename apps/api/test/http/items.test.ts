@@ -1,7 +1,7 @@
-import { itemDetailSchema, itemListSchema, itemSchema } from '@inventory/shared';
+import { createdItemSchema, inventoryRowsSchema, itemDetailSchema, itemListSchema, itemSchema } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { auditLog, locations, manufacturers } from '../../src/db/schema/index.ts';
+import { auditLog, inventoryItems, locations, manufacturers } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertItem, insertLocation, insertManufacturer } from '../helpers/factories.ts';
@@ -266,6 +266,87 @@ describe('POST /items', () => {
       version: 1,
     });
     expect(body.code).toMatch(/^INV-\d{5}$/);
+  });
+
+  describe('for an inventory run', () => {
+    async function run(client: Awaited<ReturnType<typeof setup>>['write']) {
+      const top = await insertLocation(db().app, { name: 'Centrála Praha' });
+      const patro = await insertLocation(db().app, { name: 'Patro', parentId: top.id });
+      const started = await client.post('/inventories', { locationId: top.id });
+      expect(started.status).toBe(201);
+      const { id } = (await started.json()) as { id: string };
+      return { id, top, patro };
+    }
+
+    it('adds the new item to the run, checked by its creator, and the checklist lists it as new', async () => {
+      const { read, write } = await setup();
+      const { id, patro } = await run(write);
+
+      const body = await expectJson(
+        await write.post('/items', { name: 'Nová police', locationId: patro.id, inventoryId: id }),
+        201,
+        createdItemSchema,
+      );
+
+      expect(body.addedToInventory).toBe(true);
+      const [row] = await db().app.select().from(inventoryItems).where(eq(inventoryItems.itemId, body.id));
+      expect(row).toMatchObject({ inventoryId: id, kind: 'new', locationId: patro.id, method: 'manual', registeredLocationId: null });
+      expect(row!.checkedAt).not.toBeNull();
+      const rows = await expectJson(await read.get(`/inventories/${id}/items?locationId=${patro.id}`), 200, inventoryRowsSchema);
+      expect(rows.items).toMatchObject([{ id: body.id, kind: 'new', registeredElsewhere: false, checkedBy: { name: expect.any(String) } }]);
+      const detail = (await (await read.get(`/inventories/${id}`)).json()) as { counts: { new: number; expected: number } };
+      expect(detail.counts).toMatchObject({ new: 1, expected: 0 });
+      const audit = await db()
+        .app.select()
+        .from(auditLog)
+        .where(and(eq(auditLog.entityType, 'inventory'), eq(auditLog.entityId, id)))
+        .orderBy(auditLog.id);
+      expect(audit.map((e) => e.action)).toEqual(['start', 'check']);
+      expect(audit[1]!.changes).toMatchObject({ kind: { from: null, to: 'new' }, itemId: { from: null, to: body.id } });
+    });
+
+    it('only creates the item when the run has ended or the location is outside it', async () => {
+      const { write } = await setup();
+      const { id, patro } = await run(write);
+      const outside = await insertLocation(db().app, { name: 'Brno' });
+
+      const elsewhere = await expectJson(
+        await write.post('/items', { name: 'Jinde', locationId: outside.id, inventoryId: id }),
+        201,
+        createdItemSchema,
+      );
+      expect(elsewhere.addedToInventory).toBe(false);
+
+      await write.post(`/inventories/${id}/cancel`, { version: 1 });
+      const late = await expectJson(
+        await write.post('/items', { name: 'Pozdě', locationId: patro.id, inventoryId: id }),
+        201,
+        createdItemSchema,
+      );
+      expect(late.addedToInventory).toBe(false);
+      expect(await db().app.select().from(inventoryItems)).toEqual([]);
+    });
+
+    it('says nothing was added when no run is named, and refuses an id that is no uuid', async () => {
+      const { write } = await setup();
+      const loc = await insertLocation(db().app, { name: 'Sklad' });
+      const plain = await expectJson(await write.post('/items', { name: 'Váha', locationId: loc.id }), 201, createdItemSchema);
+      expect(plain.addedToInventory).toBe(false);
+      await expectProblem(await write.post('/items', { name: 'Váha', locationId: loc.id, inventoryId: 'x' }), 400, 'validation_error');
+    });
+
+    it('does not take an item that clashes: nothing is added and the item is not created', async () => {
+      const { write } = await setup();
+      const { id, patro } = await run(write);
+      await write.post('/items', { name: 'První', locationId: patro.id, code: 'POL-1', inventoryId: id });
+
+      await expectProblem(
+        await write.post('/items', { name: 'Druhá', locationId: patro.id, code: 'pol-1', inventoryId: id }),
+        409,
+        'duplicate_item_code',
+      );
+      expect(await db().app.select().from(inventoryItems)).toHaveLength(1);
+    });
   });
 
   it('takes the ID the user chose, upper-cased and trimmed, and leaves the generated ones alone', async () => {

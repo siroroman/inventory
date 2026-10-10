@@ -1,4 +1,5 @@
 import {
+  createdItemSchema,
   createItemBody,
   idParam,
   itemDetailSchema,
@@ -42,10 +43,14 @@ const create = defineRoute({
   path: '/items',
   minRole: 'write',
   tags: ['items'],
-  summary: 'Create an item; the database assigns its INV code',
+  summary:
+    'Create an item; the database assigns its INV code. With `inventoryId` the item is also added to that run ' +
+    'as an item added during the inventory, when the run is in progress and the location is in it',
   request: { body: { required: true, content: jsonContent(createItemBody) } },
   errors: [409, 422],
-  responses: { 201: { description: 'The new item', content: jsonContent(itemSchema) } },
+  responses: {
+    201: { description: 'The new item, and whether it was added to the run', content: jsonContent(createdItemSchema) },
+  },
 });
 
 const update = defineRoute({
@@ -99,8 +104,8 @@ export function createItemRoutes({ items, photos }: ItemServices) {
       return c.json({ ...toItemDto(row), photos: gallery.map(toPhotoDto) }, 200);
     })
     .openapi(create, async (c) => {
-      const row = await items.create(c.get('actor'), c.req.valid('json'));
-      return c.json(toItemDto(row), 201);
+      const { addedToInventory, ...row } = await items.create(c.get('actor'), c.req.valid('json'));
+      return c.json({ ...toItemDto(row), addedToInventory }, 201);
     })
     .openapi(update, async (c) => {
       const row = await items.update(c.get('actor'), c.req.valid('param').id, c.req.valid('json'));

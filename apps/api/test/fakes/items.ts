@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type { ExternalId, Item, ItemRepository } from '../../src/modules/items/repository.ts';
-import type { ItemRepos } from '../../src/modules/items/service.ts';
+import type { ItemInventories, ItemRepos } from '../../src/modules/items/service.ts';
 import { createFakeAuditRepository } from './audit.ts';
 import { createFakeCatalogStore } from './catalog.ts';
 import { bumpVersion as bump, fakeContains, fakePageByName, fakeTransact } from './common.ts';
@@ -11,7 +11,22 @@ import { createFakeLocationStore } from './locations.ts';
 export function createFakeItemStore() {
   const locationStore = createFakeLocationStore();
   const catalog = createFakeCatalogStore();
-  const state = { items: [] as Item[], externalIds: [] as ExternalId[], audit: [] as AuditEntry[] };
+  const state = {
+    items: [] as Item[],
+    externalIds: [] as ExternalId[],
+    audit: [] as AuditEntry[],
+    /** Inventory runs an item can be created for (the root and the state are all the items need). */
+    runs: [] as { id: string; locationId: string; status: 'in_progress' | 'finished' | 'cancelled' }[],
+    /** The rows `recordNew` added to runs. */
+    addedToRuns: [] as {
+      inventoryId: string;
+      itemId: string;
+      locationId: string;
+      checkedAt: Date;
+      checkedBy: string;
+      method: string;
+    }[],
+  };
   const { locations } = locationStore.repos;
   const { manufacturers } = catalog.repos;
 
@@ -129,7 +144,17 @@ export function createFakeItemStore() {
     },
   };
 
-  const repos: ItemRepos = { items, locations, manufacturers, audit: createFakeAuditRepository(state.audit) };
+  const inventories: ItemInventories = {
+    async lockShared(id) {
+      const run = state.runs.find((r) => r.id === id);
+      return run && ({ ...run } as Awaited<ReturnType<ItemInventories['lockShared']>>);
+    },
+    async recordNew(inventoryId, itemId, added) {
+      state.addedToRuns.push({ inventoryId, itemId, ...added });
+    },
+  };
+
+  const repos: ItemRepos = { items, locations, manufacturers, inventories, audit: createFakeAuditRepository(state.audit) };
 
   const snapshot = () => {
     const copy = structuredClone(state);

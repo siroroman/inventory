@@ -12,6 +12,13 @@ describe('createItemBody', () => {
     }
   });
 
+  it('takes the inventory run the item is created for, which must be an id', () => {
+    expect(createItemBody.parse({ ...base, inventoryId: ID })).toEqual({ ...base, inventoryId: ID });
+    for (const inventoryId of ['', 'INV-1', 42, null]) {
+      expect(createItemBody.safeParse({ ...base, inventoryId }).success, String(inventoryId)).toBe(false);
+    }
+  });
+
   it('needs a name and a location; the rest is optional', () => {
     expect(createItemBody.parse({ name: ' Konvektomat ', locationId: ID })).toEqual(base);
     expect(

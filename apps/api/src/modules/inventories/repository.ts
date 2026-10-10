@@ -336,6 +336,15 @@ export function createInventoryRepository(db: DbExecutor) {
       return result.rows.filter((row) => row.outcome === 'missing').length;
     },
 
+    /** Adds an item created during the run to it as a checked `new` row, at the item's location. */
+    async recordNew(
+      inventoryId: string,
+      itemId: string,
+      added: { locationId: string; checkedAt: Date; checkedBy: string; method: 'scan' | 'manual' },
+    ): Promise<void> {
+      await db.insert(inventoryItems).values({ inventoryId, itemId, kind: 'new', ...added });
+    },
+
     update(id: string, version: number, patch: InventoryPatch): Promise<Inventory | undefined> {
       return updateVersioned(db, inventories, id, version, patch);
     },

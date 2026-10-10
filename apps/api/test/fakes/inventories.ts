@@ -233,6 +233,20 @@ export function createFakeInventoryStore() {
       Object.assign(row, found);
       return true;
     },
+    async recordNew(inventoryId, itemId, added) {
+      state.rows.push({
+        id: randomUUID(),
+        inventoryId,
+        itemId,
+        kind: 'new',
+        registeredLocationId: null,
+        wasMissing: false,
+        movedAt: null,
+        movedBy: null,
+        outcome: null,
+        ...added,
+      });
+    },
     async settleUnchecked(inventoryId) {
       let missing = 0;
       for (const row of rowsOf(inventoryId)) {
