@@ -523,11 +523,14 @@ describe('inventory run overview', () => {
       expect(screen.getByText('Dokončená')).toBeInTheDocument();
     });
 
-    it('does not offer to reopen a cancelled run', async () => {
+    it('offers to reopen a cancelled run, and to archive it', async () => {
       signedIn(() => jsonResponse(inventory({ id, status: 'cancelled', ...ended })));
       renderApp(`/inventories/${id}`);
       await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
-      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Archivovat']);
+      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+        'Znovu otevřít inventuru',
+        'Archivovat',
+      ]);
     });
 
     it('archives an ended run after a question, and restores an archived one at once', async () => {

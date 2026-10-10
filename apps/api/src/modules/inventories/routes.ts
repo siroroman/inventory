@@ -171,7 +171,7 @@ const reopen = defineRoute({
   minRole: 'write',
   tags: ['inventories'],
   summary:
-    'Take a finished run back into progress; checks and missing flags stay. ' +
+    'Take a finished or cancelled run back into progress; checks and missing flags stay. ' +
     'Refused while another run is in progress on the location',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],

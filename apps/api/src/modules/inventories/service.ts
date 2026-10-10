@@ -526,10 +526,10 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     finish: (actor: Actor, id: string, version: number) => close(actor, id, version, 'finished'),
 
     /**
-     * Takes a finished run back into progress, so that more can be checked and finished again.
-     * Checks and the flags people set stay; what the finish set on items archived since is taken
-     * back. The location must be free of another run in progress, as for a start. A cancelled
-     * run is final, and an archived one is restored first.
+     * Takes a finished or cancelled run back into progress, so that more can be checked and
+     * finished again. Checks and the flags people set stay; what the finish set on items archived
+     * since is taken back. The location must be free of another run in progress, as for a start.
+     * An archived run is restored first.
      */
     async reopen(actor: Actor, id: string, version: number): Promise<InventoryDetail> {
       assertRole(actor, 'write');
@@ -539,7 +539,6 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         const current = await r.inventories.lock(id);
         if (!current) throw new DomainError('not_found');
         if (current.status === 'in_progress') throw new DomainError('inventory_in_progress');
-        if (current.status !== 'finished') throw new DomainError('inventory_not_finished');
         if (current.archivedAt) throw new DomainError('archived');
         if (current.version !== version) throw new DomainError('conflict');
         const overlapping = await r.inventories.findOverlapping(current.locationId);

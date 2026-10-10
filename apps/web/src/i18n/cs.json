@@ -282,7 +282,6 @@
     "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
     "inventory_closed": "Inventura už je ukončená.",
     "inventory_in_progress": "Inventura ještě probíhá. Tohle jde až u ukončené inventury.",
-    "inventory_not_finished": "Znovu otevřít jde jen dokončená inventura.",
     "item_not_in_inventory": "Tato položka v inventuře není.",
     "location_outside_inventory": "Tato lokalita do inventury nepatří.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",

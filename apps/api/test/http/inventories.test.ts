@@ -376,14 +376,37 @@ describe('POST /inventories/{id}/reopen', () => {
     expect(problem.details).toEqual({ inventoryId: other.id });
   });
 
-  it('answers 409 for a run in progress, a cancelled one, an archived one and a stale version', async () => {
+  it('takes a cancelled run back into progress too', async () => {
+    const { write, read } = await setup();
+    const { top } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    const cancelled = await expectJson(
+      await write.post(`/inventories/${run.id}/cancel`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+
+    const body = await expectJson(
+      await write.post(`/inventories/${run.id}/reopen`, { version: cancelled.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(body).toMatchObject({ status: 'in_progress', version: cancelled.version + 1, endedAt: null, endedBy: null });
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'cancel', 'reopen']);
+    expect(audit[2]!.changes).toEqual({ status: { from: 'cancelled', to: 'in_progress' } });
+    const open = await expectJson(await read.get('/inventories?state=open'), 200, inventoryListSchema);
+    expect(open.items.map((r) => r.id)).toEqual([run.id]);
+  });
+
+  it('answers 409 for a run in progress, an archived one and a stale version', async () => {
     const { write } = await setup();
     const { top } = await praha();
     const open = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
     await expectProblem(await write.post(`/inventories/${open.id}/reopen`, { version: open.version }), 409, 'inventory_in_progress');
 
     await write.post(`/inventories/${open.id}/cancel`, { version: open.version });
-    await expectProblem(await write.post(`/inventories/${open.id}/reopen`, { version: 2 }), 409, 'inventory_not_finished');
 
     const second = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
     const finished = await expectJson(
