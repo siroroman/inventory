@@ -106,6 +106,30 @@ describe('inventory service with the database', () => {
       expect(await history()).toEqual(['check']);
     });
 
+    it('tell the loser of two ticks who really checked it, also when it read the row before the winner committed', async () => {
+      const { actor, otherActor, service, inventory, item } = await run();
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      // The winner is half-way: it has ticked the row but not committed.
+      const winner = t().app.transaction(async (tx) => {
+        const repo = createInventoryRepository(tx);
+        await repo.lockShared(inventory.id);
+        await repo.markChecked(inventory.id, item.id, { checkedAt: new Date(), checkedBy: actor.id, method: 'manual' });
+        await hold;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // The loser reads the row unchecked, then waits for the winner's row lock.
+      const loser = service.check(otherActor, inventory.id, item.id);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      release();
+      await winner;
+
+      expect(await loser).toMatchObject({ itemId: item.id, checkedBy: { id: actor.id } });
+    });
+
     it('never lose a tick to a cancel: a tick is either saved before it or refused after it', async () => {
       const { actor, otherActor, service, inventory, item, history } = await run();
       const [tick, cancel] = await Promise.allSettled([

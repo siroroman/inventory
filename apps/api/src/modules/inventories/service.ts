@@ -152,7 +152,10 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         // An item archived since the start is no longer counted, so it cannot be checked either.
         if (row.itemArchived) throw new DomainError('archived');
         const method = 'manual';
-        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) return row;
+        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) {
+          // Somebody ticked it between our read and our update: answer with their check, not our stale read.
+          return (await r.inventories.findRunItem(id, itemId))!;
+        }
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
@@ -161,7 +164,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
           changes: { itemId: { from: null, to: itemId }, method: { from: null, to: method } },
         });
       } else {
-        if (!(await r.inventories.markUnchecked(id, itemId))) return row;
+        if (!(await r.inventories.markUnchecked(id, itemId))) return (await r.inventories.findRunItem(id, itemId))!;
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
