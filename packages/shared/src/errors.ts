@@ -37,6 +37,7 @@ export const domainErrorCodes = [
   'document_type_not_allowed',
   'inventory_overlap',
   'inventory_closed',
+  'inventory_in_progress',
   'item_not_in_inventory',
   'location_outside_inventory',
   'email_taken',

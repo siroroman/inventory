@@ -1,0 +1,2 @@
+ALTER TABLE "inventories" ADD COLUMN "archived_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "inventories" ADD CONSTRAINT "inventories_archived_when_closed" CHECK ("inventories"."archived_at" is null or "inventories"."status" <> 'in_progress');

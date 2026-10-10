@@ -17,6 +17,7 @@ function runFields(row: InventoryEntry) {
     startedBy: row.startedBy,
     endedAt: row.endedAt?.toISOString() ?? null,
     endedBy: row.closedBy,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
     counts: row.counts,
     participants: row.participants,
   };

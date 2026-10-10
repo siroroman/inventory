@@ -346,6 +346,30 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     return get(actor, id);
   }
 
+  /**
+   * Archives or restores an ended run (a run in progress cannot be archived). Like cancel and
+   * finish, the run's row is locked first, and a stale version is a conflict.
+   */
+  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<InventoryDetail> {
+    assertRole(actor, 'write');
+    await transact(async (r) => {
+      const current = await r.inventories.lock(id);
+      if (!current) throw new DomainError('not_found');
+      if (archive && current.status === 'in_progress') throw new DomainError('inventory_in_progress');
+      if (archive && current.archivedAt) throw new DomainError('archived');
+      if (!archive && !current.archivedAt) throw new DomainError('not_archived');
+      if (current.version !== version) throw new DomainError('conflict');
+      if (!(await r.inventories.setArchived(id, version, archive, actor.id))) throw new DomainError('conflict');
+      await r.audit.record({
+        userId: actor.id,
+        entityType: 'inventory',
+        entityId: id,
+        action: archive ? 'archive' : 'restore',
+      });
+    });
+    return get(actor, id);
+  }
+
   async function get(actor: Actor, id: string): Promise<InventoryDetail> {
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
@@ -455,6 +479,10 @@ export function createInventoryService({ repos, transact, now = () => new Date()
      * are refused afterwards (`inventory_closed`).
      */
     finish: (actor: Actor, id: string, version: number) => close(actor, id, version, 'finished'),
+
+    /** Takes an ended run out of the lists. It can be restored; nothing about the run changes. */
+    archive: (actor: Actor, id: string, version: number) => setArchived(actor, id, version, true),
+    restore: (actor: Actor, id: string, version: number) => setArchived(actor, id, version, false),
   };
 }
 

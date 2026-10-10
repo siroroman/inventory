@@ -23,6 +23,12 @@ describe('inventoryListQuery', () => {
     expect(inventoryListQuery.safeParse({ state: 'all' }).success).toBe(false);
     expect(inventoryListQuery.parse({ q: '  ' }).q).toBeUndefined();
   });
+
+  it('lists the archived runs only when asked, with archived=true', () => {
+    expect(inventoryListQuery.parse({}).archived).toBeUndefined();
+    expect(inventoryListQuery.parse({ state: 'closed', archived: 'true' })).toMatchObject({ archived: 'true' });
+    expect(inventoryListQuery.safeParse({ archived: 'false' }).success).toBe(false);
+  });
 });
 
 describe('inventoryPreviewQuery and startInventoryBody', () => {

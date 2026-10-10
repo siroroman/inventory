@@ -30,7 +30,9 @@ const list = defineRoute({
   path: '/inventories',
   minRole: 'read',
   tags: ['inventories'],
-  summary: 'Inventory runs: `state=open` the ones in progress, `state=closed` the finished and cancelled ones',
+  summary:
+    'Inventory runs: `state=open` the ones in progress, `state=closed` the finished and cancelled ones; ' +
+    '`archived=true` lists the archived ones instead',
   request: { query: inventoryListQuery },
   responses: { 200: { description: 'One page of runs', content: jsonContent(inventoryListSchema) } },
 });
@@ -139,12 +141,34 @@ const finish = defineRoute({
   responses: { 200: { description: 'The finished run', content: jsonContent(inventorySchema) } },
 });
 
+const archive = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/archive',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Archive a finished or cancelled run: it leaves the lists and can be restored',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The archived run', content: jsonContent(inventorySchema) } },
+});
+
+const restore = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/restore',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Restore an archived run',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The restored run', content: jsonContent(inventorySchema) } },
+});
+
 /** Inventory runs. Mounted under /api/v1. */
 export function createInventoryRoutes(inventories: InventoryService) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { state, q, limit, cursor } = c.req.valid('query');
-      const page = await inventories.list(c.get('actor'), { state, q }, { limit, cursor });
+      const { state, q, archived, limit, cursor } = c.req.valid('query');
+      const page = await inventories.list(c.get('actor'), { state, q, archived: archived === 'true' }, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toInventoryListEntryDto) }, 200);
     })
     .openapi(preview, async (c) => {
@@ -182,6 +206,14 @@ export function createInventoryRoutes(inventories: InventoryService) {
     })
     .openapi(finish, async (c) => {
       const row = await inventories.finish(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(archive, async (c) => {
+      const row = await inventories.archive(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(restore, async (c) => {
+      const row = await inventories.restore(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
       return c.json(toInventoryDto(row), 200);
     });
 }

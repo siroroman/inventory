@@ -71,6 +71,7 @@ export function createFakeInventoryStore() {
   const matching = (filter: InventoryFilter) =>
     state.inventories.filter((run) => {
       if ((run.status === 'in_progress') !== (filter.state === 'open')) return false;
+      if ((run.archivedAt !== null) !== !!filter.archived) return false;
       return !filter.q || matchesSearch(locationById(run.locationId)!, filter.q);
     });
   /** Newest first, ties by id descending, like `ORDER BY moment DESC, id DESC`. */
@@ -147,6 +148,7 @@ export function createFakeInventoryStore() {
         status: 'in_progress',
         endedAt: null,
         endedBy: null,
+        archivedAt: null,
         note: null,
         committee: null,
         createdAt: values.createdAt,
@@ -244,6 +246,10 @@ export function createFakeInventoryStore() {
     async update(id, version, patch) {
       const run = state.inventories.find((r) => r.id === id);
       return run && bump(run, version, patch);
+    },
+    async setArchived(id, version, archived, by) {
+      const run = state.inventories.find((r) => r.id === id);
+      return run && bump(run, version, { archivedAt: archived ? new Date() : null, updatedBy: by });
     },
     async counts(ids) {
       const counts = new Map<string, InventoryCounts>();

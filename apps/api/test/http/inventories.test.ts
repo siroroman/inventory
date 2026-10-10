@@ -309,6 +309,71 @@ describe('POST /inventories/{id}/finish', () => {
   });
 });
 
+describe('POST /inventories/{id}/archive and /restore', () => {
+  async function finishedRun(write: Awaited<ReturnType<typeof setup>>['write']) {
+    const { top } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    return expectJson(await write.post(`/inventories/${run.id}/finish`, { version: run.version }), 200, inventorySchema);
+  }
+
+  it('archives an ended run out of the list, restores it and audits both', async () => {
+    const { read, write } = await setup();
+    const run = await finishedRun(write);
+
+    const archived = await expectJson(
+      await write.post(`/inventories/${run.id}/archive`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(archived.archivedAt).not.toBeNull();
+    expect(archived.version).toBe(run.version + 1);
+    expect(archived.status).toBe('finished');
+    const active = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(active).toMatchObject({ items: [], total: 0 });
+    const inArchive = await expectJson(await read.get('/inventories?state=closed&archived=true'), 200, inventoryListSchema);
+    expect(inArchive).toMatchObject({ items: [{ id: run.id }], total: 1 });
+    expect(inArchive.items[0]!.archivedAt).not.toBeNull();
+    // An archived run is still there to read and to restore.
+    expect((await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema)).archivedAt).not.toBeNull();
+
+    const restored = await expectJson(
+      await write.post(`/inventories/${run.id}/restore`, { version: archived.version }),
+      200,
+      inventorySchema,
+    );
+    expect(restored.archivedAt).toBeNull();
+    const again = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(again.items.map((r) => r.id)).toEqual([run.id]);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'finish', 'archive', 'restore']);
+  });
+
+  it('refuses a run in progress, a second archive, a restore of an active run and a stale version', async () => {
+    const { write } = await setup();
+    const { top } = await praha();
+    const open = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    await expectProblem(await write.post(`/inventories/${open.id}/archive`, { version: open.version }), 409, 'inventory_in_progress');
+
+    const run = await finishedRun(write);
+    await expectProblem(await write.post(`/inventories/${run.id}/restore`, { version: run.version }), 409, 'not_archived');
+    await expectProblem(await write.post(`/inventories/${run.id}/archive`, { version: 99 }), 409, 'conflict');
+    await write.post(`/inventories/${run.id}/archive`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/archive`, { version: run.version + 1 }), 409, 'archived');
+    await expectProblem(await write.post(`/inventories/${MISSING}/archive`, { version: 1 }), 404, 'not_found');
+  });
+
+  it('is for writers and signed-in users, and needs a version', async () => {
+    const { app, read, write } = await setup();
+    const run = await finishedRun(write);
+    for (const action of ['archive', 'restore']) {
+      await expectProblem(await read.post(`/inventories/${run.id}/${action}`, { version: 1 }), 403, 'forbidden');
+      await expectProblem(await api(app).post(`/inventories/${run.id}/${action}`, { version: 1 }), 401, 'unauthenticated');
+      await expectProblem(await write.post(`/inventories/${run.id}/${action}`, {}), 400, 'validation_error');
+    }
+    await expectProblem(await read.get('/inventories?archived=false'), 400, 'validation_error');
+  });
+});
+
 /** A run on Centrála Praha with Mixér and Žebřík there and Čepice in Patro. */
 async function startedRun(client: Awaited<ReturnType<typeof setup>>['write']) {
   const { top, patro } = await praha();

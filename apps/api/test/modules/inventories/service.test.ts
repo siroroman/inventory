@@ -369,6 +369,66 @@ describe('inventory service', () => {
     });
   });
 
+  describe('archive and restore', () => {
+    async function endedRun() {
+      const ctx = await setup();
+      const run = await ctx.service.start(ctx.actor('write'), { locationId: ctx.praha.id });
+      const finished = await ctx.service.finish(ctx.actor('write'), run.id, run.version);
+      return { ...ctx, run: finished };
+    }
+
+    it('takes an ended run out of the lists and brings it back, auditing both', async () => {
+      const { store, service, actor, run, users } = await endedRun();
+      const active = { state: 'closed' as const };
+      const archivedOnly = { state: 'closed' as const, archived: true };
+
+      const archived = await service.archive(actor('write', users.other), run.id, run.version);
+
+      expect(archived).toMatchObject({ status: 'finished', archivedAt: expect.any(Date), version: run.version + 1 });
+      expect((await service.list(actor('read'), active, { limit: 20 })).items).toEqual([]);
+      expect((await service.list(actor('read'), archivedOnly, { limit: 20 })).items.map((r) => r.id)).toEqual([run.id]);
+      expect(store.state.audit.at(-1)).toMatchObject({ userId: users.other.id, entityId: run.id, action: 'archive' });
+
+      const restored = await service.restore(actor('write'), run.id, archived.version);
+
+      expect(restored.archivedAt).toBeNull();
+      expect((await service.list(actor('read'), active, { limit: 20 })).items.map((r) => r.id)).toEqual([run.id]);
+      expect((await service.list(actor('read'), archivedOnly, { limit: 20 })).items).toEqual([]);
+      expect(store.state.audit.at(-1)).toMatchObject({ action: 'restore' });
+    });
+
+    it('archives a cancelled run too, and an archived run can still be read', async () => {
+      const { service, actor, praha } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const cancelled = await service.cancel(actor('write'), run.id, run.version);
+
+      await service.archive(actor('write'), run.id, cancelled.version);
+
+      expect(await service.get(actor('read'), run.id)).toMatchObject({ status: 'cancelled', archivedAt: expect.any(Date) });
+    });
+
+    it('does not archive a run in progress', async () => {
+      const { service, actor, praha } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      await expectCode(service.archive(actor('write'), run.id, run.version), 'inventory_in_progress');
+    });
+
+    it('refuses to archive twice, to restore what is not archived, a stale version and an unknown run', async () => {
+      const { service, actor, run } = await endedRun();
+      await expectCode(service.restore(actor('write'), run.id, run.version), 'not_archived');
+      const archived = await service.archive(actor('write'), run.id, run.version);
+      await expectCode(service.archive(actor('write'), run.id, archived.version), 'archived');
+      await expectCode(service.restore(actor('write'), run.id, run.version), 'conflict');
+      await expectCode(service.archive(actor('write'), crypto.randomUUID(), 1), 'not_found');
+      await expectCode(service.restore(actor('write'), crypto.randomUUID(), 1), 'not_found');
+    });
+
+    it('is for writers', async () => {
+      const { service, actor, run } = await endedRun();
+      await expectCode(service.archive(actor('read'), run.id, run.version), 'forbidden');
+    });
+  });
+
   describe('listItems', () => {
     it('lists the rows of the run by item name in Czech order, or those of one location', async () => {
       const { store, service, actor, praha } = await setup();

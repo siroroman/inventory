@@ -3,7 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { DbExecutor } from '../../db/client.ts';
 import { beforeTimestamp, type Page, toPage } from '../../db/pagination.ts';
 import { inventories, inventoryItems, items, locations, user } from '../../db/schema/index.ts';
-import { updateVersioned } from '../../db/versioned.ts';
+import { setArchived, updateVersioned } from '../../db/versioned.ts';
 import { matchesSearch, subtreeOf } from '../locations/repository.ts';
 
 export type Inventory = typeof inventories.$inferSelect;
@@ -18,8 +18,11 @@ export type InventoryPatch = Partial<Pick<typeof inventories.$inferInsert, 'stat
   updatedBy: string;
 };
 
-/** `open` lists the runs in progress, `closed` the finished and cancelled ones. `q` searches the root location. */
-export type InventoryFilter = { state: 'open' | 'closed'; q?: string };
+/**
+ * `open` lists the runs in progress, `closed` the finished and cancelled ones. `q` searches the
+ * root location. `archived` lists the archived runs instead of the active ones.
+ */
+export type InventoryFilter = { state: 'open' | 'closed'; q?: string; archived?: boolean };
 
 /**
  * What a run's rows add up to. `expected` and `checked` count the list taken at the start without
@@ -109,6 +112,7 @@ function overlapWith(locationId: string): SQL {
 function listWhere(db: DbExecutor, filter: InventoryFilter): SQL[] {
   const conditions: SQL[] = [
     filter.state === 'open' ? eq(inventories.status, 'in_progress') : ne(inventories.status, 'in_progress'),
+    filter.archived ? isNotNull(inventories.archivedAt) : isNull(inventories.archivedAt),
   ];
   const search = filter.q ? matchesSearch(filter.q) : undefined;
   if (search) {
@@ -334,6 +338,11 @@ export function createInventoryRepository(db: DbExecutor) {
 
     update(id: string, version: number, patch: InventoryPatch): Promise<Inventory | undefined> {
       return updateVersioned(db, inventories, id, version, patch);
+    },
+
+    /** Archives or restores an ended run; undefined when the version is stale. */
+    setArchived(id: string, version: number, archived: boolean, by: string): Promise<Inventory | undefined> {
+      return setArchived(db, inventories, id, version, archived, by);
     },
 
     async counts(ids: string[]): Promise<Map<string, InventoryCounts>> {

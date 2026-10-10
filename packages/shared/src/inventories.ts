@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codeRef, humanCode, pageOf, timestamp } from './fields.ts';
-import { searchPageQuery } from './http.ts';
+import { archivedQuery, searchPageQuery } from './http.ts';
 
 // Inventory runs (SPEC §9): a physical check of a location and everything below it.
 
@@ -38,6 +38,8 @@ const runFields = {
   startedBy: personRef.nullable(),
   endedAt: timestamp.nullable(),
   endedBy: personRef.nullable(),
+  /** Set when an ended run was archived; a run in progress is never archived. */
+  archivedAt: timestamp.nullable(),
   counts: inventoryCountsSchema,
   /** The person who started the run, then everyone who checked something. */
   participants: z.array(personRef),
@@ -49,8 +51,14 @@ export type InventoryListEntryDto = z.infer<typeof inventoryListEntrySchema>;
 
 export const inventoryListSchema = pageOf(inventoryListEntrySchema);
 
-/** `open`: runs in progress, newest start first. `closed`: finished and cancelled ones, newest end first. */
-export const inventoryListQuery = searchPageQuery.extend({ state: z.enum(['open', 'closed']).default('open') });
+/**
+ * `open`: runs in progress, newest start first. `closed`: finished and cancelled ones, newest end
+ * first. `archived=true` lists the archived runs instead of the active ones (only ended runs can be
+ * archived, so `open` is then empty).
+ */
+export const inventoryListQuery = searchPageQuery
+  .extend({ state: z.enum(['open', 'closed']).default('open') })
+  .extend(archivedQuery.shape);
 
 /**
  * A location of the run that has rows in it: its path from the top (itself last) and its numbers.
