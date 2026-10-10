@@ -61,6 +61,7 @@ export const statusByCode: Record<ErrorCode, ProblemStatus> = {
   location_not_found: 422,
   location_archived: 422,
   item_not_in_inventory: 422,
+  location_outside_inventory: 422,
   invalid_photo_key: 422,
   photo_not_uploaded: 422,
   photo_too_large: 422,

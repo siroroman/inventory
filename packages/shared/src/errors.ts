@@ -38,6 +38,7 @@ export const domainErrorCodes = [
   'inventory_overlap',
   'inventory_closed',
   'item_not_in_inventory',
+  'location_outside_inventory',
   'email_taken',
   'cannot_modify_self',
   'last_admin',

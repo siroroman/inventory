@@ -96,6 +96,7 @@ describe('statusByCode', () => {
       'location_not_found',
       'location_archived',
       'item_not_in_inventory',
+      'location_outside_inventory',
       'invalid_photo_key',
       'photo_not_uploaded',
       'photo_too_large',
