@@ -164,6 +164,7 @@ export function inventoryRow(over: Record<string, unknown> = {}) {
     checkedAt: null as string | null,
     checkedBy: null as unknown,
     method: null as string | null,
+    missing: false,
     registeredPath: [] as unknown[],
     // A found item is registered elsewhere until its location is changed (override to say otherwise).
     registeredElsewhere: over.kind === 'elsewhere',

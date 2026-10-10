@@ -19,7 +19,7 @@ export const auditLog = pgTable(
     check(
       'audit_log_action_valid',
       // The last six are the actions of an inventory run (SPEC §9.3 rule 16).
-      sql`${t.action} in ('create', 'update', 'archive', 'restore', 'delete', 'start', 'check', 'uncheck', 'finish', 'cancel', 'reopen')`,
+      sql`${t.action} in ('create', 'update', 'archive', 'restore', 'delete', 'start', 'check', 'uncheck', 'finish', 'cancel', 'reopen', 'mark_missing', 'unmark_missing')`,
     ),
   ],
 );

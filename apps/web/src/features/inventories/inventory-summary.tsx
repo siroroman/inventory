@@ -6,11 +6,11 @@ import { cn } from '@/lib/utils';
 export type InventoryFigures = {
   /** Items of the list that were checked. */
   checked: number;
-  /** Items of the list still to check (not marked missing). */
+  /** Items of the list still to check (not flagged as missing). */
   unchecked: number;
   /** Items found elsewhere or added: they are not on the list. */
   extra: number;
-  /** Items of the list marked missing when the run finished. */
+  /** Items of the list flagged as missing. */
   missing: number;
 };
 
@@ -33,7 +33,7 @@ export const locationFigures = ({ total, checked, extra, missing }: InventoryLoc
 /**
  * "Zkontrolováno · Nezkontrolováno · Nové · Chybí": what the progress bar's "84 / 128" is made of,
  * plus what is not on the list. The same four figures on the run's overview and on a checklist.
- * Chybí is 0 until the run is finished.
+ * Chybí is what people flagged as missing; it is 0 until somebody does.
  */
 export function InventorySummary({ figures }: { figures: InventoryFigures }) {
   const { t } = useTranslation();

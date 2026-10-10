@@ -17,7 +17,8 @@ const count = z.number().int().min(0);
 /**
  * What a run's rows add up to. `expected` is the list taken at the start, without the items archived
  * since; `checked` is how many of those were checked. `elsewhere` and `new` are checked items that
- * were not on the list; `missing` those marked Nezvěstná at the finish.
+ * were not on the list; `missing` the items of the list people flagged as missing (a check takes the
+ * flag back).
  */
 export const inventoryCountsSchema = z.object({
   expected: count,
@@ -73,7 +74,7 @@ export const inventoryLocationSchema = z.object({
   checked: count,
   /** Items found or added in this location (checked ones; they are not on the list). */
   extra: count,
-  /** List items marked missing at the finish. */
+  /** List items flagged as missing. */
   missing: count,
   participants: z.array(personRef),
 });
@@ -130,6 +131,11 @@ export const inventoryRowSchema = z.object({
   checkedAt: timestamp.nullable(),
   checkedBy: personRef.nullable(),
   method: checkMethod.nullable(),
+  /**
+   * A person flagged the item of the list as missing: looked for and not there. Never true for a
+   * checked row (a check takes the flag back) or for an item found elsewhere or added.
+   */
+  missing: z.boolean(),
   /** Where a found-elsewhere item was registered when it was found, from the top (the location last); empty when it had no location. */
   registeredPath: z.array(codeRef),
   /**

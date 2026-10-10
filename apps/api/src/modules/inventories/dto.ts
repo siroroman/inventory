@@ -54,6 +54,7 @@ export function toInventoryRowDto(row: InventoryRunItem): InventoryRowDto {
     checkedAt: row.checkedAt?.toISOString() ?? null,
     checkedBy: row.checkedBy,
     method: row.method as InventoryRowDto['method'],
+    missing: row.missing,
     registeredPath: row.registeredPath,
     registeredElsewhere: row.registeredElsewhere,
     moved: row.moved,

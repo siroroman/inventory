@@ -117,12 +117,36 @@ const uncheck = defineRoute({
   responses: { 200: { description: 'The row, unchecked', content: jsonContent(inventoryRowSchema) } },
 });
 
+const markMissing = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/items/{itemId}/mark-missing',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Flag an unchecked item of the list of a run in progress as missing; an item that is already checked is left ' +
+    'as it is, and an item found elsewhere or added cannot be flagged',
+  request: { params: inventoryRowParams },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'The row, flagged as missing', content: jsonContent(inventoryRowSchema) } },
+});
+
+const unmarkMissing = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/items/{itemId}/unmark-missing',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Take the missing flag of an item of a run in progress back; the item is not checked',
+  request: { params: inventoryRowParams },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'The row, not flagged', content: jsonContent(inventoryRowSchema) } },
+});
+
 const cancel = defineRoute({
   method: 'post',
   path: '/inventories/{id}/cancel',
   minRole: 'write',
   tags: ['inventories'],
-  summary: 'Cancel a run in progress; nothing is marked missing and what was checked stays on record',
+  summary: 'Cancel a run in progress; nothing more is marked missing and what was checked or flagged stays on record',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
   responses: { 200: { description: 'The cancelled run', content: jsonContent(inventorySchema) } },
@@ -134,8 +158,8 @@ const finish = defineRoute({
   minRole: 'write',
   tags: ['inventories'],
   summary:
-    'Finish a run in progress: the items of the list that were not checked are marked missing, ' +
-    'and nothing can be checked afterwards',
+    'Finish a run in progress: the items flagged as missing are the ones missing, the other unchecked ones ' +
+    'stay not checked, and nothing can be checked afterwards',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
   responses: { 200: { description: 'The finished run', content: jsonContent(inventorySchema) } },
@@ -147,7 +171,7 @@ const reopen = defineRoute({
   minRole: 'write',
   tags: ['inventories'],
   summary:
-    'Take a finished run back into progress: what the finish marked missing waits for a check again. ' +
+    'Take a finished run back into progress; checks and missing flags stay. ' +
     'Refused while another run is in progress on the location',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
@@ -212,6 +236,14 @@ export function createInventoryRoutes(inventories: InventoryService) {
     .openapi(uncheck, async (c) => {
       const { id, itemId } = c.req.valid('param');
       return c.json(toInventoryRowDto(await inventories.uncheck(c.get('actor'), id, itemId)), 200);
+    })
+    .openapi(markMissing, async (c) => {
+      const { id, itemId } = c.req.valid('param');
+      return c.json(toInventoryRowDto(await inventories.markMissing(c.get('actor'), id, itemId)), 200);
+    })
+    .openapi(unmarkMissing, async (c) => {
+      const { id, itemId } = c.req.valid('param');
+      return c.json(toInventoryRowDto(await inventories.unmarkMissing(c.get('actor'), id, itemId)), 200);
     })
     .openapi(cancel, async (c) => {
       const row = await inventories.cancel(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);

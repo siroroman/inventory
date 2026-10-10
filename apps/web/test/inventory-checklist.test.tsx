@@ -38,6 +38,9 @@ type Options = {
   /** Answers a tick; `apply` stores it (by Roman, or by whoever is passed) and returns the row. */
   check?: (row: Row, apply: (by?: Person) => Response) => Response | Promise<Response>;
   uncheck?: (row: Row, apply: () => Response) => Response | Promise<Response>;
+  /** Answers a flag as missing; `apply` stores it (or the given change instead) and returns the row. */
+  flag?: (row: Row, apply: (change?: Record<string, unknown>) => Response) => Response | Promise<Response>;
+  unflag?: (row: Row, apply: () => Response) => Response | Promise<Response>;
   items?: Handler;
 };
 
@@ -53,6 +56,7 @@ function openChecklist(rows: Row[], options: Options = {}) {
         total: listed.length,
         checked: listed.filter((r) => r.checkedAt).length,
         extra: found.length,
+        missing: listed.filter((r) => r.missing && !r.checkedAt).length,
       };
       return jsonResponse(
         inventory({
@@ -81,10 +85,16 @@ function openChecklist(rows: Row[], options: Options = {}) {
     return jsonResponse(next);
   };
   for (const r of rows) {
-    const ticked = (by: Person = roman) => apply(r, done(by, new Date().toISOString(), 'manual'));
+    // A check takes the flag as missing back, as the API does.
+    const ticked = (by: Person = roman) => apply(r, { ...done(by, new Date().toISOString(), 'manual'), missing: false });
     const cleared = () => apply(r, { checkedAt: null, checkedBy: null, method: null });
-    routes[`POST /api/v1/inventories/${runId}/items/${r.id}/check`] = () => (options.check ? options.check(r, ticked) : ticked());
-    routes[`POST /api/v1/inventories/${runId}/items/${r.id}/uncheck`] = () => (options.uncheck ? options.uncheck(r, cleared) : cleared());
+    const flagged = (change: Record<string, unknown> = { missing: true }) => apply(r, change);
+    const unflagged = () => apply(r, { missing: false });
+    const item = `POST /api/v1/inventories/${runId}/items/${r.id}`;
+    routes[`${item}/check`] = () => (options.check ? options.check(r, ticked) : ticked());
+    routes[`${item}/uncheck`] = () => (options.uncheck ? options.uncheck(r, cleared) : cleared());
+    routes[`${item}/mark-missing`] = () => (options.flag ? options.flag(r, flagged) : flagged());
+    routes[`${item}/unmark-missing`] = () => (options.unflag ? options.unflag(r, unflagged) : unflagged());
   }
   const calls = stubApi(routes);
   return { calls, state, ...renderApp(options.url ?? checklistUrl) };
@@ -580,6 +590,160 @@ describe('inventory checklist', () => {
       await waitFor(() => expect(screen.queryByText('Pokladní systém')).not.toBeInTheDocument());
       await userEvent.click(await screen.findByRole('button', { name: 'Vrátit' }));
       expect(await screen.findByText('Pokladní systém')).toBeInTheDocument();
+    });
+  });
+
+  describe('flagging as missing', () => {
+    /** The figure under a label of the summary ("Chybí" → "1"). */
+    const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+    const flagButton = (name: string) => screen.getByRole('button', { name: `Označit jako chybějící: ${name}` });
+
+    it('moves an unchecked item to its own section, says so, and offers to undo it', async () => {
+      const { calls } = openChecklist([row('Mixér tyčový'), row('Kávovar')]);
+      await rowsLoaded();
+
+      await userEvent.click(flagButton('Mixér tyčový'));
+
+      expect(await screen.findByText('Mixér tyčový: označeno jako chybějící')).toBeInTheDocument();
+      await waitFor(() => expect(names(group('Chybí'))).toEqual(['Mixér tyčový']));
+      expect(names(group('Nezkontrolované'))).toEqual(['Kávovar']);
+      // The row carries the badge, and its button now takes the flag back (the section starts folded).
+      await userEvent.click(screen.getByRole('button', { name: /^Chybí/ }));
+      const flagged = screen.getByText('Mixér tyčový').closest('li')!;
+      expect(within(flagged).getByText('Chybí')).toBeInTheDocument();
+      expect(within(flagged).getByRole('button', { name: 'Zrušit označení chybějící položky: Mixér tyčový' })).toBeInTheDocument();
+      // It is no longer checked, and the figures follow the next time the run is fetched.
+      expect(await screen.findByText('0 / 2 zkontrolováno · 0 %')).toBeInTheDocument();
+      await waitFor(() => expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['0', '1', '0', '1']));
+      expect(posts(calls)).toHaveLength(1);
+      expect(posts(calls)[0]).toMatch(/items\/[^/]+\/mark-missing$/);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Vrátit' }));
+      await waitFor(() => expect(names(group('Nezkontrolované'))).toEqual(['Kávovar', 'Mixér tyčový']));
+      expect(screen.queryByRole('region', { name: /^Chybí/ })).not.toBeInTheDocument();
+      expect(posts(calls)[1]).toMatch(/items\/[^/]+\/unmark-missing$/);
+    });
+
+    it('takes the flag back from the button of a flagged row, without a toast', async () => {
+      const { calls } = openChecklist([row('Mixér tyčový', { missing: true }), row('Kávovar')]);
+      await rowsLoaded();
+      expect(names(group('Chybí'))).toEqual(['Mixér tyčový']);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Zrušit označení chybějící položky: Mixér tyčový' }));
+
+      await waitFor(() => expect(names(group('Nezkontrolované'))).toEqual(['Kávovar', 'Mixér tyčový']));
+      expect(screen.queryByRole('region', { name: /^Chybí/ })).not.toBeInTheDocument();
+      expect(posts(calls)).toHaveLength(1);
+      expect(screen.queryByText(/označeno jako chybějící/)).not.toBeInTheDocument();
+    });
+
+    it('is taken back when the item is found: ticking a flagged row checks it', async () => {
+      openChecklist([row('Mixér tyčový', { missing: true })]);
+      await userEvent.click(await checkbox('Mixér tyčový'));
+
+      await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
+      expect(screen.queryByRole('region', { name: /^Chybí/ })).not.toBeInTheDocument();
+      // Checked, so there is nothing to flag any more.
+      expect(screen.queryByRole('button', { name: /chybějící/ })).not.toBeInTheDocument();
+    });
+
+    it('does not say it flagged an item that somebody checked first', async () => {
+      // Somebody scanned it between the tap and the answer: the server keeps their check.
+      openChecklist([row('Mixér tyčový')], {
+        flag: (_row, apply) => apply({ ...done(jan, '2026-10-03T08:42:00.000Z', 'scan'), missing: false }),
+      });
+      await rowsLoaded();
+
+      await userEvent.click(flagButton('Mixér tyčový'));
+
+      await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
+      expect(screen.queryByText(/označeno jako chybějící/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: /^Chybí/ })).not.toBeInTheDocument();
+    });
+
+    it('shows the button busy while the answer is on its way, and ignores a second tap', async () => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const { calls } = openChecklist([row('Mixér tyčový')], {
+        flag: async (_row, apply) => {
+          await gate;
+          return apply();
+        },
+      });
+      await rowsLoaded();
+      const button = flagButton('Mixér tyčový');
+
+      await userEvent.click(button);
+
+      expect(button).toBeDisabled();
+      expect(button.closest('li')).toHaveAttribute('aria-busy', 'true');
+      await userEvent.click(button);
+      release();
+      await waitFor(() => expect(names(group('Chybí'))).toEqual(['Mixér tyčový']));
+      expect(posts(calls)).toHaveLength(1);
+    });
+
+    it('leaves the row where it was and says so when the flag was not saved', async () => {
+      openChecklist([row('Mixér tyčový')], { flag: () => problem(409, 'inventory_closed') });
+      await rowsLoaded();
+
+      await userEvent.click(flagButton('Mixér tyčový'));
+
+      expect(await screen.findByText('Označení se neuložilo')).toBeInTheDocument();
+      expect(await screen.findByText('Inventura už je ukončená.')).toBeInTheDocument();
+      expect(names(group('Nezkontrolované'))).toEqual(['Mixér tyčový']);
+      expect(screen.queryByRole('region', { name: /^Chybí/ })).not.toBeInTheDocument();
+    });
+
+    it('has no button on a checked row, or on an item that was found elsewhere or added', async () => {
+      openChecklist([
+        row('Kávovar', done(roman)),
+        row('Pokladní systém', { kind: 'elsewhere', ...done(jan) }),
+        row('Nová police', { kind: 'new', ...done(roman) }),
+        row('Mixér tyčový'),
+      ]);
+      await rowsLoaded();
+
+      expect(screen.getAllByRole('button', { name: /^Označit jako chybějící: / })).toHaveLength(1);
+      expect(flagButton('Mixér tyčový')).toBeInTheDocument();
+    });
+
+    it('is listed with the flagged rows when searching, and does not say everything is checked', async () => {
+      openChecklist([row('Mixér tyčový', { missing: true }), row('Kávovar', done(roman))], { url: `${checklistUrl}?q=mix` });
+      await rowsLoaded();
+      expect(names(group('Chybí'))).toEqual(['Mixér tyčový']);
+      // Not foldable while a search is on.
+      expect(screen.queryByRole('button', { name: /^Chybí/ })).not.toBeInTheDocument();
+    });
+
+    it('does not claim that everything is checked while an item is flagged', async () => {
+      openChecklist([row('Mixér tyčový', { missing: true }), row('Kávovar', done(roman))]);
+      await rowsLoaded();
+      expect(screen.queryByText('Všechny položky v této lokalitě jsou zkontrolované.')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Chybí1', 'Zkontrolované1']);
+    });
+
+    it('shows a reader the flagged items without a button', async () => {
+      openChecklist([row('Mixér tyčový', { missing: true }), row('Kávovar')], { role: 'read' });
+      await rowsLoaded();
+      expect(names(group('Chybí'))).toEqual(['Mixér tyčový']);
+      expect(within(screen.getByText('Mixér tyčový').closest('li')!).getByText('Chybí')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /chybějící/ })).not.toBeInTheDocument();
+    });
+
+    it('shows the flagged items of a finished run, read-only, and counts them in the figures', async () => {
+      openChecklist([row('Mixér tyčový', { missing: true }), row('Kávovar'), row('Lednice', done(roman))], {
+        run: { status: 'finished', endedAt: '2026-10-04T14:02:00.000Z', endedBy: jan },
+      });
+      await rowsLoaded();
+
+      expect(names(group('Chybí'))).toEqual(['Mixér tyčový']);
+      expect(names(group('Nezkontrolované'))).toEqual(['Kávovar']);
+      expect(screen.queryByRole('button', { name: /chybějící/ })).not.toBeInTheDocument();
+      expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+      expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '1', '0', '1']);
     });
   });
 

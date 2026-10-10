@@ -1,7 +1,7 @@
 import type { InventoryDto, InventoryLocationDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronDown, Circle, CircleCheck, CirclePlus, Plus } from 'lucide-react';
+import { ChevronDown, Circle, CircleCheck, CirclePlus, Plus, SearchX } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
@@ -37,7 +37,7 @@ function ChecklistSkeleton() {
   );
 }
 
-type SectionKey = 'unchecked' | 'checked' | 'added';
+type SectionKey = 'unchecked' | 'missing' | 'checked' | 'added';
 
 /**
  * A white card with a heading bar: the title on the left, how many rows on the right. The bar is a
@@ -116,12 +116,13 @@ function ChecklistBody({
   // Read users and ended runs show the states without checkboxes.
   const canEdit = canWrite && inProgress;
   const rows = useQuery(inventoryItemsQueryOptions(inventory.id, location.id, inProgress));
-  const { pending, tick } = useTickItem(inventory.id, location.id);
+  const { pending, tick, flag } = useTickItem(inventory.id, location.id);
   // Newer checks beyond the first few, on demand.
   const [expanded, setExpanded] = useState(false);
   // The sections start folded (the summary above tells how many rows each holds).
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     unchecked: false,
+    missing: false,
     checked: false,
     added: false,
   });
@@ -143,14 +144,20 @@ function ChecklistBody({
       key={row.id}
       row={row}
       canEdit={canEdit}
-      pendingChecked={pending.get(row.id)}
+      pending={pending.get(row.id)}
       onToggle={(checked) => tick(row, checked)}
+      onToggleMissing={(missing) => flag(row, missing)}
     />
   );
 
   let list: ReactNode;
   if (rows.data) {
-    if (groups.unchecked.length === 0 && groups.checked.length === 0 && groups.added.length === 0) {
+    if (
+      groups.unchecked.length === 0 &&
+      groups.missing.length === 0 &&
+      groups.checked.length === 0 &&
+      groups.added.length === 0
+    ) {
       list = (
         <EmptyState
           title={q ? t('states.noResultsTitle') : t('inventory.checklist.emptyTitle')}
@@ -173,9 +180,22 @@ function ChecklistBody({
             </Group>
           ) : (
             !searching &&
+            groups.missing.length === 0 &&
             groups.checked.length > 0 && (
               <p className="px-1 text-sm text-muted-foreground">{t('inventory.checklist.allChecked')}</p>
             )
+          )}
+          {groups.missing.length > 0 && (
+            <Group
+              title={t('inventory.checklist.missing')}
+              count={groups.missing.length}
+              icon={<SearchX aria-hidden className="size-[18px] text-destructive" strokeWidth={2.4} />}
+              open={searching || openSections.missing}
+              foldable={!searching}
+              onToggle={() => toggle('missing')}
+            >
+              <ul>{groups.missing.map(renderRow)}</ul>
+            </Group>
           )}
           {groups.checked.length > 0 && (
             <Group

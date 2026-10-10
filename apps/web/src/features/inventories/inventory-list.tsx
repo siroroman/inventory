@@ -21,17 +21,20 @@ import { inventoryListQueryOptions } from './api';
 import { shortName } from './people';
 import { statusBadge } from './status';
 
-/** What a finished run found ("120 nalezeno · 3 jinde · 5 nezvěstných"), or how far a cancelled one got. */
+/** What a finished run found ("120 nalezeno · 3 jinde · 5 chybí · 2 nezkontrolováno"), or how far a cancelled one got. */
 function useResultLine() {
   const { t } = useTranslation();
   return ({ status, counts }: InventoryListEntryDto) => {
     if (status === 'cancelled') {
       return t('home.inventory.result.cancelled', { checked: counts.checked, expected: counts.expected });
     }
+    // What the finish left: the list without what was found or flagged as missing.
+    const unchecked = Math.max(counts.expected - counts.checked - counts.missing, 0);
     return [
       t('home.inventory.result.found', { count: counts.checked }),
       counts.elsewhere > 0 && t('home.inventory.result.elsewhere', { count: counts.elsewhere }),
       counts.missing > 0 && t('home.inventory.result.missing', { count: counts.missing }),
+      unchecked > 0 && t('home.inventory.result.unchecked', { count: unchecked }),
     ]
       .filter(Boolean)
       .join(' · ');

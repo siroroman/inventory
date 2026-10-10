@@ -49,7 +49,7 @@ export type InventoryLocationEntry = PathSegment & {
   checked: number;
   /** Items found or added there, checked. */
   extra: number;
-  /** List items marked missing at the finish. */
+  /** List items flagged as missing. */
   missing: number;
   participants: Person[];
 };
@@ -212,6 +212,43 @@ export function createInventoryService({ repos, transact, now = () => new Date()
   }
 
   /**
+   * Flags an unchecked item of the list as missing, or takes the flag back. Like a tick it runs with
+   * the run's row locked shared, and what changes nothing is no error and leaves no audit entry:
+   * an item somebody checked in the meantime stays checked (found beats missing, as the first
+   * check wins), and an item that is flagged or not flagged already stays so. Only an item of the
+   * list can be missing: one found elsewhere or added is `item_not_in_inventory`.
+   */
+  async function setMissing(actor: Actor, id: string, itemId: string, missing: boolean): Promise<InventoryRunItem> {
+    assertRole(actor, 'write');
+    const answer = await transact(async (r) => {
+      const run = await r.inventories.lockShared(id);
+      if (!run) throw new DomainError('not_found');
+      if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+      const row = await r.inventories.findRunItem(id, itemId);
+      if (row?.kind !== 'expected') throw new DomainError('item_not_in_inventory');
+      if (missing) {
+        // An item archived since the start is not counted and is never offered as missing.
+        if (row.itemArchived) throw new DomainError('archived');
+        if (row.checkedAt || row.missing) return row;
+        if (!(await r.inventories.markMissing(id, itemId))) return (await r.inventories.findRunItem(id, itemId))!;
+      } else {
+        if (!row.missing) return row;
+        if (!(await r.inventories.unmarkMissing(id, itemId))) return (await r.inventories.findRunItem(id, itemId))!;
+      }
+      await r.audit.record({
+        userId: actor.id,
+        entityType: 'inventory',
+        entityId: id,
+        action: missing ? 'mark_missing' : 'unmark_missing',
+        changes: { itemId: missing ? { from: null, to: itemId } : { from: itemId, to: null } },
+      });
+      return (await r.inventories.findRunItem(id, itemId))!;
+    });
+    const [entry] = await runItemEntries([answer]);
+    return entry!;
+  }
+
+  /**
    * Checks an item by the code on its label. Like a tick, it runs with the run's row locked shared
    * and the first check wins; unlike a tick, an item that is not on the list is added to the run as
    * found elsewhere, at the context location. Nothing is recorded for an archived item or an
@@ -309,8 +346,9 @@ export function createInventoryService({ repos, transact, now = () => new Date()
 
   /**
    * Ends a run in progress as `finished` or `cancelled`. The run's row is locked `FOR UPDATE`, so no
-   * tick can slip in between the last check and the end (ticks take it `FOR SHARE`). Only a finish
-   * marks unchecked items of the list as missing.
+   * tick can slip in between the last check and the end (ticks take it `FOR SHARE`). A finish
+   * settles the unchecked items of the list: what people flagged as missing is missing, the rest
+   * is not checked.
    */
   async function close(
     actor: Actor,
@@ -430,6 +468,12 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     /** Clears the tick of an item. An item found elsewhere or added drops out of the run's rows with it. */
     uncheck: (actor: Actor, id: string, itemId: string) => setChecked(actor, id, itemId, false),
 
+    /** Flags an unchecked item of the list as missing; a check takes the flag back. */
+    markMissing: (actor: Actor, id: string, itemId: string) => setMissing(actor, id, itemId, true),
+
+    /** Takes the flag back: the item is not checked again, but no longer reported as missing. */
+    unmarkMissing: (actor: Actor, id: string, itemId: string) => setMissing(actor, id, itemId, false),
+
     scan,
 
     /** What starting a run on `locationId` would check, and the run in progress it would clash with. */
@@ -470,21 +514,22 @@ export function createInventoryService({ repos, transact, now = () => new Date()
       return get(actor, id);
     },
 
-    /** Ends a run in progress without marking anything missing; what was checked stays on record. */
+    /** Ends a run in progress; nothing more is marked missing, and what was checked or flagged stays on record. */
     cancel: (actor: Actor, id: string, version: number) => close(actor, id, version, 'cancelled'),
 
     /**
-     * Ends a run in progress as finished: the items of the list that were not checked are marked
-     * missing (those archived since are only left unchecked). Checks, scans and further finishes
-     * are refused afterwards (`inventory_closed`).
+     * Ends a run in progress as finished. The items of the list that were flagged as missing are the
+     * ones missing; the other unchecked ones stay not checked (as do those archived since, which are
+     * never offered as missing). Checks, scans and further finishes are refused afterwards
+     * (`inventory_closed`).
      */
     finish: (actor: Actor, id: string, version: number) => close(actor, id, version, 'finished'),
 
     /**
      * Takes a finished run back into progress, so that more can be checked and finished again.
-     * What the finish marked is taken back (the items wait for a check once more), and the
-     * location must be free of another run in progress, as for a start. A cancelled run is final,
-     * and an archived one is restored first.
+     * Checks and the flags people set stay; what the finish set on items archived since is taken
+     * back. The location must be free of another run in progress, as for a start. A cancelled
+     * run is final, and an archived one is restored first.
      */
     async reopen(actor: Actor, id: string, version: number): Promise<InventoryDetail> {
       assertRole(actor, 'write');
@@ -506,13 +551,13 @@ export function createInventoryService({ repos, transact, now = () => new Date()
           updatedBy: actor.id,
         });
         if (!updated) throw new DomainError('conflict');
-        const missing = await r.inventories.clearOutcomes(id);
+        await r.inventories.clearSkipped(id);
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
           entityId: id,
           action: 'reopen',
-          changes: { ...changedFields(current, updated, ['status']), missing: { from: missing, to: 0 } },
+          changes: changedFields(current, updated, ['status']),
         });
       });
       return get(actor, id);

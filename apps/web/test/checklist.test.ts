@@ -61,7 +61,29 @@ describe('groupRows', () => {
     expect(groupRows(rows, 'regal kovovy').unchecked.map((r) => r.name)).toEqual(['Regál kovový A']);
     expect(groupRows(rows, 'regal kovovy').checked.map((r) => r.name)).toEqual(['Regál kovový B']);
     expect(groupRows(rows, 'inv-00051').unchecked).toEqual([]);
-    expect(groupRows(rows, 'nic takového')).toEqual({ unchecked: [], checked: [], added: [] });
+    expect(groupRows(rows, 'nic takového')).toEqual({ unchecked: [], missing: [], checked: [], added: [] });
+  });
+});
+
+describe('groupRows: items flagged as missing', () => {
+  it('keeps them out of the unchecked ones, by name in Czech order', () => {
+    const groups = groupRows(
+      [row('Žebřík', { missing: true }), row('Zbývá'), row('Čepice', { missing: true }), row('Cukřenka', { missing: true })],
+      '',
+    );
+    expect(groups.unchecked.map((r) => r.name)).toEqual(['Zbývá']);
+    expect(groups.missing.map((r) => r.name)).toEqual(['Cukřenka', 'Čepice', 'Žebřík']);
+  });
+
+  it('puts a checked row among the checked ones, whatever it says about the flag', () => {
+    const groups = groupRows([row('Nalezeno', { ...checked('09:00'), missing: true })], '');
+    expect(groups.missing).toEqual([]);
+    expect(groups.checked.map((r) => r.name)).toEqual(['Nalezeno']);
+  });
+
+  it('searches them like the others', () => {
+    const rows = [row('Pokladní systém', { missing: true }), row('Police', { missing: true })];
+    expect(groupRows(rows, 'pokladni').missing.map((r) => r.name)).toEqual(['Pokladní systém']);
   });
 });
 

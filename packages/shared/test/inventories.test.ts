@@ -83,6 +83,7 @@ describe('scanResultSchema', () => {
     checkedAt: null,
     checkedBy: null,
     method: null,
+    missing: false,
     registeredPath: [],
     registeredElsewhere: false,
     moved: false,
@@ -102,6 +103,11 @@ describe('scanResultSchema', () => {
 
   it('refuses a row that does not say whether its item is still registered elsewhere', () => {
     const { registeredElsewhere: _, ...incomplete } = row;
+    expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
+  });
+
+  it('refuses a row that does not say whether it was flagged as missing', () => {
+    const { missing: _, ...incomplete } = row;
     expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
   });
 

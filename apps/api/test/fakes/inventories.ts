@@ -93,6 +93,7 @@ export function createFakeInventoryStore() {
       checkedAt: row.checkedAt,
       checkedBy: person(row.checkedBy),
       method: row.method,
+      missing: row.outcome === 'missing',
       moved: row.movedAt !== null,
     };
   };
@@ -200,13 +201,26 @@ export function createFakeInventoryStore() {
     async markChecked(inventoryId, itemId, check) {
       const row = findRow(inventoryId, itemId);
       if (!row || row.checkedAt) return false;
-      Object.assign(row, check);
+      // A flag as missing goes with the check, as in the repository.
+      Object.assign(row, check, { outcome: null });
       return true;
     },
     async markUnchecked(inventoryId, itemId) {
       const row = findRow(inventoryId, itemId);
       if (!row?.checkedAt) return false;
       Object.assign(row, { checkedAt: null, checkedBy: null, method: null });
+      return true;
+    },
+    async markMissing(inventoryId, itemId) {
+      const row = findRow(inventoryId, itemId);
+      if (row?.kind !== 'expected' || row.checkedAt || row.outcome) return false;
+      row.outcome = 'missing';
+      return true;
+    },
+    async unmarkMissing(inventoryId, itemId) {
+      const row = findRow(inventoryId, itemId);
+      if (row?.outcome !== 'missing') return false;
+      row.outcome = null;
       return true;
     },
     async findItemByCode(code) {
@@ -233,13 +247,14 @@ export function createFakeInventoryStore() {
       Object.assign(row, found);
       return true;
     },
-    async clearOutcomes(inventoryId) {
-      let missing = 0;
+    async clearSkipped(inventoryId) {
+      let cleared = 0;
       for (const row of rowsOf(inventoryId)) {
-        if (row.outcome === 'missing') missing += 1;
+        if (row.outcome !== 'skipped') continue;
         row.outcome = null;
+        cleared += 1;
       }
-      return missing;
+      return cleared;
     },
     async recordNew(inventoryId, itemId, added) {
       state.rows.push({
@@ -256,14 +271,10 @@ export function createFakeInventoryStore() {
       });
     },
     async settleUnchecked(inventoryId) {
-      let missing = 0;
       for (const row of rowsOf(inventoryId)) {
-        if (row.kind !== 'expected' || row.checkedAt) continue;
-        const archived = itemById(row.itemId).archivedAt !== null;
-        row.outcome = archived ? 'skipped' : 'missing';
-        if (!archived) missing += 1;
+        if (row.kind === 'expected' && !row.checkedAt && itemById(row.itemId).archivedAt) row.outcome = 'skipped';
       }
-      return missing;
+      return rowsOf(inventoryId).filter((r) => r.outcome === 'missing').length;
     },
     async update(id, version, patch) {
       const run = state.inventories.find((r) => r.id === id);

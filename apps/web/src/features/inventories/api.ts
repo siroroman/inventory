@@ -40,6 +40,14 @@ export const checkInventoryItem = (id: string, itemId: string) =>
 export const uncheckInventoryItem = (id: string, itemId: string) =>
   unwrap(api.api.v1.inventories[':id'].items[':itemId'].uncheck.$post({ param: { id, itemId } }));
 
+/** Flags an unchecked item of the list as missing. An item somebody checked first stays checked; the answer says so. */
+export const markInventoryItemMissing = (id: string, itemId: string) =>
+  unwrap(api.api.v1.inventories[':id'].items[':itemId']['mark-missing'].$post({ param: { id, itemId } }));
+
+/** Takes the missing flag of an item back; the item is not checked. */
+export const unmarkInventoryItemMissing = (id: string, itemId: string) =>
+  unwrap(api.api.v1.inventories[':id'].items[':itemId']['unmark-missing'].$post({ param: { id, itemId } }));
+
 /**
  * Checks an item by the code on its label. `locationId` is the checklist the scanner was opened
  * from (nothing for the overview). The answer says what happened, see `scanResultSchema`.
@@ -50,11 +58,11 @@ export const scanInventory = (id: string, body: { code: string; locationId?: str
 export const cancelInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].cancel.$post({ param: { id }, json: { version } }));
 
-/** Ends a run in progress; the unchecked items of the list are marked missing. */
+/** Ends a run in progress; the items flagged as missing are the ones missing, the other unchecked ones stay not checked. */
 export const finishInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].finish.$post({ param: { id }, json: { version } }));
 
-/** Takes a finished run back into progress; what the finish marked missing waits for a check again. */
+/** Takes a finished run back into progress; checks and missing flags stay. */
 export const reopenInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].reopen.$post({ param: { id }, json: { version } }));
 

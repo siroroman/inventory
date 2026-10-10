@@ -139,6 +139,45 @@ describe('inventory run overview', () => {
     expect(screen.getByText('Arkády Pankrác').closest('li')).toHaveTextContent('3 / 91 položek · 1 nová');
   });
 
+  it('counts an item flagged as missing as dealt with: the location is done once nothing is left, and says how many are missing', async () => {
+    signedIn(() =>
+      jsonResponse(
+        inventory({
+          id,
+          counts: { expected: 11, checked: 5, elsewhere: 0, new: 0, missing: 3 },
+          locations: [
+            // Four checked and one flagged: nothing left to check.
+            inventoryLocation({ name: 'Čistírna', total: 5, checked: 4, missing: 1 }),
+            // Two checked, two flagged, one left.
+            inventoryLocation({ name: 'Dílna', total: 5, checked: 1, missing: 2 }),
+            // Nobody checked anything, but one item is flagged: work has begun.
+            inventoryLocation({ name: 'Hala', total: 1, checked: 0, missing: 0 }),
+          ],
+        }),
+      ),
+    );
+    renderApp(`/inventories/${id}`);
+
+    const headings = await screen.findAllByRole('heading', { level: 2 });
+    expect(headings.map((h) => h.textContent)).toEqual(['Probíhající (1)', 'Nekontrolované (1)', 'Hotovo (1)']);
+    const done = screen.getByText('Čistírna').closest('li')!;
+    expect(done).toHaveTextContent('4 / 5 položek · 1 chybí');
+    expect(within(done).getByText('Hotovo')).toBeInTheDocument();
+    expect(screen.getByText('Dílna').closest('li')).toHaveTextContent('1 / 5 položek · 2 chybí');
+    expect(screen.getByText('Dílna').closest('li')).not.toHaveTextContent('Hotovo');
+    expect(screen.getByText('Hala').closest('li')).toHaveTextContent('Nikdo nezačal');
+  });
+
+  it('puts a location where only items are flagged missing among the ones in progress, not among the ones nobody started', async () => {
+    signedIn(() =>
+      jsonResponse(inventory({ id, locations: [inventoryLocation({ name: 'Sklad', total: 4, checked: 0, missing: 1 })] })),
+    );
+    renderApp(`/inventories/${id}`);
+    const row = (await screen.findByText('Sklad')).closest('li')!;
+    expect(row).toHaveTextContent('0 / 4 položek · 1 chybí');
+    expect(row).not.toHaveTextContent('Nikdo nezačal');
+  });
+
   it('puts a location that holds only found items among the ones in progress, with no 0 / 0', async () => {
     signedIn(() =>
       jsonResponse(inventory({ id, locations: [inventoryLocation({ name: 'Zasedačka', total: 0, checked: 0, extra: 2 })] })),
@@ -307,7 +346,7 @@ describe('inventory run overview', () => {
       await choose('Zrušit inventuru');
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Zrušit inventuru?')).toBeInTheDocument();
-      expect(within(dialog).getByText(/Nic se neoznačí jako chybějící/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Nic dalšího se neoznačí jako chybějící/)).toBeInTheDocument();
       expect(calls.some((call) => call.method === 'POST')).toBe(false);
 
       await userEvent.click(within(dialog).getByRole('button', { name: 'Zrušit inventuru' }));
@@ -344,14 +383,14 @@ describe('inventory run overview', () => {
       expect(await screen.findByText('Zrušená')).toBeInTheDocument();
     });
 
-    it('finishes after a question that says how many unchecked items become missing', async () => {
+    it('finishes after a question that says how many items stay not checked, and where to flag the missing ones', async () => {
       let finished = false;
       const calls = stubApi({
         'GET /api/v1/me': () => jsonResponse(me),
         [`GET /api/v1/inventories/${id}`]: () =>
           jsonResponse(
             finished
-              ? inventory({ id, version: 4, status: 'finished', counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 3 }, ...ended })
+              ? inventory({ id, version: 4, status: 'finished', counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 0 }, ...ended })
               : inventory({ id, version: 3, counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 0 } }),
           ),
         [`POST /api/v1/inventories/${id}/finish`]: () => {
@@ -364,7 +403,9 @@ describe('inventory run overview', () => {
       await choose('Dokončit inventuru');
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Dokončit inventuru?')).toBeInTheDocument();
-      expect(within(dialog).getByText(/3 nezkontrolované položky se označí jako chybějící/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/3 položky zůstanou nezkontrolované\./)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Chybějící položky označíte v seznamu lokality\./)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Inventura se ukončí pro všechny\./)).toBeInTheDocument();
       expect(calls.some((call) => call.method === 'POST')).toBe(false);
 
       await userEvent.click(within(dialog).getByRole('button', { name: 'Dokončit inventuru' }));
@@ -374,7 +415,26 @@ describe('inventory run overview', () => {
       expect(await post.clone().json()).toEqual({ version: 3 });
     });
 
-    it('says nothing is left to mark missing when every item of the list is checked', async () => {
+    it('counts the items flagged as missing apart from the ones that stay not checked', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 10, checked: 5, elsewhere: 0, new: 0, missing: 2 } })));
+      renderApp(`/inventories/${id}`);
+      await choose('Dokončit inventuru');
+      const text = (await screen.findByRole('alertdialog')).textContent;
+      expect(text).toContain('3 položky zůstanou nezkontrolované. 2 položky jsou označené jako chybějící. Inventura se ukončí pro všechny.');
+      // The flags are there already, so there is nothing to tell about where to set them.
+      expect(text).not.toContain('Chybějící položky označíte');
+    });
+
+    it('says only the flagged ones when nothing else is left', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 4, checked: 3, elsewhere: 0, new: 0, missing: 1 } })));
+      renderApp(`/inventories/${id}`);
+      await choose('Dokončit inventuru');
+      const text = (await screen.findByRole('alertdialog')).textContent;
+      expect(text).toContain('Jedna položka je označená jako chybějící. Inventura se ukončí pro všechny.');
+      expect(text).not.toContain('nezkontrolovan');
+    });
+
+    it('says nothing is left to check when every item of the list is checked', async () => {
       signedIn(() => jsonResponse(inventory({ id, counts: { expected: 4, checked: 4, elsewhere: 0, new: 0, missing: 0 } })));
       renderApp(`/inventories/${id}`);
       await choose('Dokončit inventuru');
@@ -388,7 +448,7 @@ describe('inventory run overview', () => {
         [`GET /api/v1/inventories/${id}`]: () =>
           jsonResponse(
             reopened
-              ? inventory({ id, version: 6, counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 0 } })
+              ? inventory({ id, version: 6, counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 3 } })
               : inventory({
                   id,
                   version: 5,
@@ -409,14 +469,15 @@ describe('inventory run overview', () => {
       await choose('Znovu otevřít inventuru');
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Znovu otevřít inventuru?')).toBeInTheDocument();
-      expect(within(dialog).getByText(/budou znovu čekat na kontrolu/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/položky označené jako chybějící zůstanou/)).toBeInTheDocument();
       expect(calls.some((call) => call.method === 'POST')).toBe(false);
 
       await userEvent.click(within(dialog).getByRole('button', { name: 'Znovu otevřít inventuru' }));
 
       expect(await screen.findByText('Inventura znovu otevřena')).toBeInTheDocument();
       await waitFor(() => expect(screen.queryByText('Dokončená')).not.toBeInTheDocument());
-      expect(screen.getByText('Chybí', { selector: 'dt' }).nextElementSibling).toHaveTextContent('0');
+      // What people flagged as missing stays.
+      expect(screen.getByText('Chybí', { selector: 'dt' }).nextElementSibling).toHaveTextContent('3');
       expect(await calls.find((call) => call.url.endsWith('/reopen'))!.clone().json()).toEqual({ version: 5 });
       // In progress again: finish and cancel are offered.
       await userEvent.click(screen.getByRole('button', { name: 'Akce inventury' }));

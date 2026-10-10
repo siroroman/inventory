@@ -27,10 +27,13 @@ import { statusBadge } from './status';
 type Group = 'inProgress' | 'notStarted' | 'done';
 const groups: Group[] = ['inProgress', 'notStarted', 'done'];
 
-/** Some checked: in progress. None: nobody started. All of the list (found items count as work): done. */
+/**
+ * Some checked: in progress. None: nobody started. Nothing left to check, each item of the list
+ * checked or flagged as missing (found items count as work): done.
+ */
 function groupOf(location: InventoryLocationDto): Group {
-  if (location.checked === 0 && location.extra === 0) return 'notStarted';
-  return location.checked >= location.total ? 'done' : 'inProgress';
+  if (location.checked === 0 && location.extra === 0 && location.missing === 0) return 'notStarted';
+  return location.checked + location.missing >= location.total ? 'done' : 'inProgress';
 }
 
 /**
@@ -124,6 +127,7 @@ function LocationRow({ inventory, location, group }: { inventory: InventoryDto; 
             {[
               location.total > 0 && t('inventory.locations.items', { checked: location.checked, total: location.total }),
               location.extra > 0 && t('inventory.locations.extra', { count: location.extra }),
+              location.missing > 0 && t('inventory.locations.missing', { count: location.missing }),
               group === 'notStarted' && t('inventory.locations.nobodyStarted'),
             ]
               .filter(Boolean)

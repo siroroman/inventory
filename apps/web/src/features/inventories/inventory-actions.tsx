@@ -31,7 +31,8 @@ const request = {
 /**
  * The "…" menu of a run's overview: a run in progress can be finished or cancelled, a finished one
  * reopened or archived, a cancelled one archived, an archived one restored. Everything but
- * restoring asks first (reopening takes back what the finish marked missing). Whoever renders it decides who may see it (writers).
+ * restoring asks first (the finish says how many items stay not checked and how many are missing).
+ * Whoever renders it decides who may see it (writers).
  * A failure (somebody ended it meanwhile, a stale version) is toasted by the query client, and the
  * open screen refetches to show the run that won.
  */
@@ -47,8 +48,9 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
     onSettled: () => invalidateAfterWrite(queryClient),
   });
 
-  const { expected, checked } = inventory.counts;
-  const unchecked = Math.max(expected - checked, 0);
+  const { expected, checked, missing } = inventory.counts;
+  // What the finish leaves not checked: the list without what is checked or flagged as missing.
+  const unchecked = Math.max(expected - checked - missing, 0);
   const inProgress = inventory.status === 'in_progress';
   const archived = inventory.archivedAt !== null;
   // A cancelled run is final; an archived one is restored first.
@@ -104,9 +106,16 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
               <AlertDialogTitle>{t(`inventory.${asking}.title`)}</AlertDialogTitle>
               <AlertDialogDescription>
                 {asking === 'finish'
-                  ? unchecked > 0
-                    ? t('inventory.finish.hint', { count: unchecked })
-                    : t('inventory.finish.hintNone')
+                  ? [
+                      unchecked > 0
+                        ? t('inventory.finish.unchecked', { count: unchecked })
+                        : missing === 0 && t('inventory.finish.hintNone'),
+                      missing > 0 && t('inventory.finish.missing', { count: missing }),
+                      unchecked > 0 && missing === 0 && t('inventory.finish.flagHint'),
+                      t('inventory.finish.ends'),
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
                   : t(`inventory.${asking}.hint`)}
               </AlertDialogDescription>
               <AlertDialogFooter>

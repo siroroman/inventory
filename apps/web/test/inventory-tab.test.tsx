@@ -136,7 +136,7 @@ describe('home: inventory tab', () => {
     expect(within(rows[1]!).getAllByRole('cell').map((c) => c.textContent)).toEqual([
       'Centrála Praha',
       '4. 10. 2026',
-      '120 nalezeno · 3 jinde · 5 chybí',
+      '120 nalezeno · 3 jinde · 5 chybí · 3 nezkontrolováno',
       'Dokončená',
     ]);
     expect(within(rows[2]!).getByText('5 nalezeno · 1 chybí')).toBeInTheDocument();

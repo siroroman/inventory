@@ -155,6 +155,7 @@
         "found": "{{count}} nalezeno",
         "elsewhere": "{{count}} jinde",
         "missing": "{{count}} chybí",
+        "unchecked": "{{count}} nezkontrolováno",
         "cancelled": "{{checked}} z {{expected}} zkontrolováno"
       },
       "columns": {
@@ -542,6 +543,7 @@
       "extra_few": "{{count}} nové",
       "extra_many": "{{count}} nové",
       "extra_other": "{{count}} nových",
+      "missing": "{{count}} chybí",
       "nobodyStarted": "Nikdo nezačal",
       "doneBadge": "Hotovo"
     },
@@ -573,6 +575,7 @@
       "searchPlaceholder": "Hledat podle názvu nebo ID…",
       "unchecked": "Nezkontrolované",
       "checked": "Zkontrolované",
+      "missing": "Chybí",
       "added": "Nové",
       "addItem": "Přidat položku",
       "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
@@ -594,6 +597,10 @@
       "moved": "přesunuto",
       "addedDuringInventory": "přidáno při inventuře",
       "openItem": "Otevřít detail položky {{name}}",
+      "flag": "Označit jako chybějící: {{name}}",
+      "unflag": "Zrušit označení chybějící položky: {{name}}",
+      "flaggedToast": "{{name}}: označeno jako chybějící",
+      "flagNotSaved": "Označení se neuložilo",
       "undo": "Vrátit",
       "uncheckedToast": "{{name}}: kontrola zrušena",
       "notSaved": "Zaškrtnutí se neuložilo",
@@ -603,19 +610,25 @@
     },
     "finish": {
       "title": "Dokončit inventuru?",
-      "hint_one": "Jedna nezkontrolovaná položka se označí jako chybějící. Inventura se ukončí pro všechny.",
-      "hint_few": "{{count}} nezkontrolované položky se označí jako chybějící. Inventura se ukončí pro všechny.",
-      "hint_many": "{{count}} nezkontrolované položky se označí jako chybějící. Inventura se ukončí pro všechny.",
-      "hint_other": "{{count}} nezkontrolovaných položek se označí jako chybějící. Inventura se ukončí pro všechny.",
-      "hintNone": "Všechny položky ze seznamu jsou zkontrolované. Inventura se ukončí pro všechny."
+      "unchecked_one": "Jedna položka zůstane nezkontrolovaná.",
+      "unchecked_few": "{{count}} položky zůstanou nezkontrolované.",
+      "unchecked_many": "{{count}} položky zůstanou nezkontrolované.",
+      "unchecked_other": "{{count}} položek zůstane nezkontrolovaných.",
+      "missing_one": "Jedna položka je označená jako chybějící.",
+      "missing_few": "{{count}} položky jsou označené jako chybějící.",
+      "missing_many": "{{count}} položky jsou označené jako chybějící.",
+      "missing_other": "{{count}} položek je označeno jako chybějící.",
+      "hintNone": "Všechny položky ze seznamu jsou zkontrolované.",
+      "flagHint": "Chybějící položky označíte v seznamu lokality.",
+      "ends": "Inventura se ukončí pro všechny."
     },
     "cancel": {
       "title": "Zrušit inventuru?",
-      "hint": "Nic se neoznačí jako chybějící a inventura zůstane v seznamu jako Zrušená."
+      "hint": "Nic dalšího se neoznačí jako chybějící a inventura zůstane v seznamu jako Zrušená."
     },
     "reopen": {
       "title": "Znovu otevřít inventuru?",
-      "hint": "Inventura se vrátí mezi probíhající a položky označené jako chybějící budou znovu čekat na kontrolu. Dokončit ji půjde znovu."
+      "hint": "Inventura se vrátí mezi probíhající. Zkontrolované položky i položky označené jako chybějící zůstanou a dokončit ji půjde znovu."
     },
     "archive": {
       "title": "Archivovat inventuru?",

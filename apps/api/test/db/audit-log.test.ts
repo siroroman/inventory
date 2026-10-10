@@ -34,7 +34,7 @@ describe('audit_log', () => {
     });
   });
 
-  it.each(['create', 'update', 'archive', 'restore', 'delete', 'start', 'check', 'uncheck', 'finish', 'cancel', 'reopen'])('accepts action %s', async (action) => {
+  it.each(['create', 'update', 'archive', 'restore', 'delete', 'start', 'check', 'uncheck', 'finish', 'cancel', 'reopen', 'mark_missing', 'unmark_missing'])('accepts action %s', async (action) => {
     await entry({ action });
   });
 
