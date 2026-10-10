@@ -8,6 +8,7 @@ import { AvatarStack } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
 import { ErrorState } from '@/components/error-state';
 import { Section } from '@/components/section';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { Badge } from '@/components/ui/badge';
 import { Progress, progressPercent } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,7 +18,7 @@ import { isMissingRecord } from '@/lib/api';
 import { formatTime, formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
-import { CancelInventory } from './cancel-inventory';
+import { InventoryActions } from './inventory-actions';
 import { shortName, shortNames } from './people';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
@@ -149,7 +150,8 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
             {t(`inventory.status.${inventory.status}`)}
           </Badge>
         )}
-        {canWrite && inventory.status === 'in_progress' && <CancelInventory inventory={inventory} />}
+        {inventory.archivedAt && <ArchivedBadge className="mt-2" />}
+        {canWrite && <InventoryActions inventory={inventory} />}
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">

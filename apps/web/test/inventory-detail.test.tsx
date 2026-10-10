@@ -236,7 +236,27 @@ describe('inventory run overview', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  describe('cancel', () => {
+  describe('actions menu', () => {
+    /** Opens the "…" menu and chooses an entry. */
+    async function choose(name: string) {
+      await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
+      await userEvent.click(await screen.findByRole('menuitem', { name }));
+    }
+    const ended = { endedAt: '2026-10-03T14:02:00.000Z', endedBy: jan };
+
+    it('replaces the cancel button: a run in progress offers finish and cancel, nothing else', async () => {
+      signedIn(() => jsonResponse(inventory({ id })));
+      renderApp(`/inventories/${id}`);
+
+      expect(await screen.findByRole('button', { name: 'Akce inventury' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Akce inventury' }));
+      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+        'Dokončit inventuru',
+        'Zrušit inventuru',
+      ]);
+    });
+
     it('asks first, then cancels with the current version and shows the run cancelled (phone)', async () => {
       let cancelled = false;
       const calls = stubApi({
@@ -244,20 +264,20 @@ describe('inventory run overview', () => {
         [`GET /api/v1/inventories/${id}`]: () =>
           jsonResponse(
             cancelled
-              ? inventory({ id, version: 4, status: 'cancelled', endedAt: '2026-10-03T14:02:00.000Z', endedBy: jan })
+              ? inventory({ id, version: 4, status: 'cancelled', ...ended })
               : inventory({ id, version: 3 }),
           ),
         [`POST /api/v1/inventories/${id}/cancel`]: () => {
           cancelled = true;
-          return jsonResponse(inventory({ id, version: 4, status: 'cancelled', endedAt: '2026-10-03T14:02:00.000Z', endedBy: jan }));
+          return jsonResponse(inventory({ id, version: 4, status: 'cancelled', ...ended }));
         },
       });
       renderApp(`/inventories/${id}`);
 
-      await userEvent.click(await screen.findByRole('button', { name: 'Zrušit inventuru' }));
+      await choose('Zrušit inventuru');
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Zrušit inventuru?')).toBeInTheDocument();
-      expect(within(dialog).getByText(/Nic se neoznačí jako nezvěstné/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Nic se neoznačí jako chybějící/)).toBeInTheDocument();
       expect(calls.some((call) => call.method === 'POST')).toBe(false);
 
       await userEvent.click(within(dialog).getByRole('button', { name: 'Zrušit inventuru' }));
@@ -265,43 +285,116 @@ describe('inventory run overview', () => {
       expect(await screen.findByText('Inventura zrušena')).toBeInTheDocument();
       const post = calls.find((call) => call.method === 'POST')!;
       expect(await post.clone().json()).toEqual({ version: 3 });
-      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
     });
 
     it('does not cancel when the question is dismissed', async () => {
       const calls = signedIn(() => jsonResponse(inventory({ id })));
       renderApp(`/inventories/${id}`);
-      await userEvent.click(await screen.findByRole('button', { name: 'Zrušit inventuru' }));
+      await choose('Zrušit inventuru');
       await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Zpět' }));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
       expect(calls.some((call) => call.method === 'POST')).toBe(false);
     });
 
-    it('tells the user when somebody cancelled it first, and shows the run as it is now', async () => {
+    it('tells the user when somebody ended it first, and shows the run as it is now', async () => {
       let gone = false;
       stubApi({
         'GET /api/v1/me': () => jsonResponse(me),
         [`GET /api/v1/inventories/${id}`]: () =>
-          jsonResponse(
-            gone ? inventory({ id, version: 2, status: 'cancelled', endedAt: '2026-10-03T14:02:00.000Z', endedBy: jan }) : inventory({ id }),
-          ),
+          jsonResponse(gone ? inventory({ id, version: 2, status: 'cancelled', ...ended }) : inventory({ id })),
         [`POST /api/v1/inventories/${id}/cancel`]: () => {
           gone = true;
           return problem(409, 'inventory_closed');
         },
       });
       renderApp(`/inventories/${id}`);
-      await userEvent.click(await screen.findByRole('button', { name: 'Zrušit inventuru' }));
+      await choose('Zrušit inventuru');
       await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Zrušit inventuru' }));
       expect(await screen.findByText('Inventura už je ukončená.')).toBeInTheDocument();
       expect(await screen.findByText('Zrušená')).toBeInTheDocument();
     });
 
-    it('offers a reader no way to cancel', async () => {
+    it('finishes after a question that says how many unchecked items become missing', async () => {
+      let finished = false;
+      const calls = stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/inventories/${id}`]: () =>
+          jsonResponse(
+            finished
+              ? inventory({ id, version: 4, status: 'finished', counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 3 }, ...ended })
+              : inventory({ id, version: 3, counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 0 } }),
+          ),
+        [`POST /api/v1/inventories/${id}/finish`]: () => {
+          finished = true;
+          return jsonResponse(inventory({ id, version: 4, status: 'finished', ...ended }));
+        },
+      });
+      renderApp(`/inventories/${id}`);
+
+      await choose('Dokončit inventuru');
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Dokončit inventuru?')).toBeInTheDocument();
+      expect(within(dialog).getByText(/3 nezkontrolované položky se označí jako chybějící/)).toBeInTheDocument();
+      expect(calls.some((call) => call.method === 'POST')).toBe(false);
+
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Dokončit inventuru' }));
+      expect(await screen.findByText('Dokončená')).toBeInTheDocument();
+      expect(await screen.findByText('Inventura dokončena')).toBeInTheDocument();
+      const post = calls.find((call) => call.method === 'POST')!;
+      expect(await post.clone().json()).toEqual({ version: 3 });
+    });
+
+    it('says nothing is left to mark missing when every item of the list is checked', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 4, checked: 4, elsewhere: 0, new: 0, missing: 0 } })));
+      renderApp(`/inventories/${id}`);
+      await choose('Dokončit inventuru');
+      expect(await within(await screen.findByRole('alertdialog')).findByText(/Všechny položky ze seznamu jsou zkontrolované/)).toBeInTheDocument();
+    });
+
+    it('archives an ended run after a question, and restores an archived one at once', async () => {
+      let archived = false;
+      const calls = stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/inventories/${id}`]: () =>
+          jsonResponse(
+            archived
+              ? inventory({ id, version: 5, status: 'finished', archivedAt: '2026-10-05T09:00:00.000Z', ...ended })
+              : inventory({ id, version: 4, status: 'finished', ...ended }),
+          ),
+        [`POST /api/v1/inventories/${id}/archive`]: () => {
+          archived = true;
+          return jsonResponse(inventory({ id, version: 5, status: 'finished', archivedAt: '2026-10-05T09:00:00.000Z', ...ended }));
+        },
+        [`POST /api/v1/inventories/${id}/restore`]: () => {
+          archived = false;
+          return jsonResponse(inventory({ id, version: 6, status: 'finished', ...ended }));
+        },
+      });
+      renderApp(`/inventories/${id}`);
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
+      // An ended run offers only to archive it.
+      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Archivovat']);
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Archivovat' }));
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Archivovat inventuru?')).toBeInTheDocument();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Archivovat' }));
+      expect(await screen.findByText('Archivováno')).toBeInTheDocument();
+      expect(await screen.findByText('Inventura archivována')).toBeInTheDocument();
+      expect(await calls.find((call) => call.url.endsWith('/archive'))!.clone().json()).toEqual({ version: 4 });
+
+      await choose('Obnovit');
+      await waitFor(() => expect(screen.queryByText('Archivováno')).not.toBeInTheDocument());
+      expect(await screen.findByText('Inventura obnovena')).toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(await calls.find((call) => call.url.endsWith('/restore'))!.clone().json()).toEqual({ version: 5 });
+    });
+
+    it('offers a reader no menu at all', async () => {
       signedIn(() => jsonResponse(inventory({ id })), 'read');
       renderApp(`/inventories/${id}`);
       await screen.findByRole('heading', { name: 'Centrála Praha', level: 1 });
-      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Akce inventury' })).not.toBeInTheDocument();
     });
   });
 
@@ -323,7 +416,6 @@ describe('inventory run overview', () => {
     expect(await screen.findByText('Zrušená')).toBeInTheDocument();
     expect(screen.getByText(/Zrušil JN · 4\. 10\. 2026 v \d{1,2}:\d{2}/)).toBeInTheDocument();
     expect(screen.getByText('4 / 10 zkontrolováno · 40 %')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
     expect(screen.queryByText(/právě pracuj/)).not.toBeInTheDocument();
   });
 

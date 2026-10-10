@@ -127,6 +127,7 @@ export function inventoryEntry(over: Record<string, unknown> = {}) {
     startedBy: starter,
     endedAt: null,
     endedBy: null,
+    archivedAt: null as string | null,
     counts: { ...noCounts, expected: 128 },
     participants: [starter],
     ...over,

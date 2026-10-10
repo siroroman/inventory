@@ -50,6 +50,16 @@ export const scanInventory = (id: string, body: { code: string; locationId?: str
 export const cancelInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].cancel.$post({ param: { id }, json: { version } }));
 
+/** Ends a run in progress; the unchecked items of the list are marked missing. */
+export const finishInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].finish.$post({ param: { id }, json: { version } }));
+
+export const archiveInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].archive.$post({ param: { id }, json: { version } }));
+
+export const restoreInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].restore.$post({ param: { id }, json: { version } }));
+
 /**
  * Locations at every level matching `q`, each followed by those below it. The label is the name;
  * the hint tells equal names apart: the ID and the locations above.

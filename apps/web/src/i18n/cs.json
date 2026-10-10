@@ -545,9 +545,20 @@
       "nobodyStarted": "Nikdo nezačal",
       "doneBadge": "Hotovo"
     },
+    "back": "Zpět",
     "actions": {
+      "menu": "Akce inventury",
+      "finish": "Dokončit inventuru",
       "cancel": "Zrušit inventuru",
+      "archive": "Archivovat",
+      "restore": "Obnovit",
       "scan": "Skenovat"
+    },
+    "toast": {
+      "finish": "Inventura dokončena",
+      "cancel": "Inventura zrušena",
+      "archive": "Inventura archivována",
+      "restore": "Inventura obnovena"
     },
     "checklist": {
       "searchLabel": "Hledat položky v lokalitě",
@@ -580,11 +591,21 @@
       "notFoundHint": "Tato lokalita nemá v inventuře žádné položky ke kontrole.",
       "toOverview": "Zpět na přehled inventury"
     },
+    "finish": {
+      "title": "Dokončit inventuru?",
+      "hint_one": "Jedna nezkontrolovaná položka se označí jako chybějící. Inventura se ukončí pro všechny.",
+      "hint_few": "{{count}} nezkontrolované položky se označí jako chybějící. Inventura se ukončí pro všechny.",
+      "hint_many": "{{count}} nezkontrolované položky se označí jako chybějící. Inventura se ukončí pro všechny.",
+      "hint_other": "{{count}} nezkontrolovaných položek se označí jako chybějící. Inventura se ukončí pro všechny.",
+      "hintNone": "Všechny položky ze seznamu jsou zkontrolované. Inventura se ukončí pro všechny."
+    },
     "cancel": {
       "title": "Zrušit inventuru?",
-      "hint": "Nic se neoznačí jako nezvěstné a inventura zůstane v seznamu jako Zrušená.",
-      "back": "Zpět",
-      "done": "Inventura zrušena"
+      "hint": "Nic se neoznačí jako chybějící a inventura zůstane v seznamu jako Zrušená."
+    },
+    "archive": {
+      "title": "Archivovat inventuru?",
+      "hint": "Inventura zmizí ze seznamu dokončených. Archivovanou inventuru můžete kdykoli obnovit."
     },
     "scanner": {
       "title": "Skener",
