@@ -149,6 +149,7 @@ export function inventory(over: Record<string, unknown> = {}) {
     committee: null,
     activeNow: [] as unknown[],
     locations: [] as unknown[],
+    history: [] as unknown[],
     ...over,
   };
 }

@@ -13,6 +13,7 @@ import {
   type InventoryRepository,
   type InventoryRow,
   type Person,
+  type RunEvent,
   type RunItem,
   type ScanTarget,
   type StartPreview,
@@ -59,6 +60,8 @@ export type InventoryDetail = InventoryEntry & {
   activeNow: Person[];
   /** Every location of the subtree that has rows in the run, in path order. */
   locations: InventoryLocationEntry[];
+  /** Finish, cancel and reopen, oldest first. */
+  history: RunEvent[];
 };
 
 /**
@@ -412,7 +415,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
     if (!row) throw new DomainError('not_found');
-    const [progress, checkers, activeNow, counts, participants] = await Promise.all([
+    const [progress, checkers, activeNow, counts, participants, history] = await Promise.all([
       repos.inventories.locationProgress(id),
       repos.inventories.locationCheckers(id),
       row.status === 'in_progress'
@@ -420,6 +423,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         : Promise.resolve([]),
       repos.inventories.counts([id]),
       repos.inventories.participants([id]),
+      repos.inventories.history(id),
     ]);
     const paths = await repos.locations.findPaths([row.locationId, ...progress.map((p) => p.locationId)]);
     const entry = toEntry(row, paths, counts, participants);
@@ -434,7 +438,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         return [{ ...self, path, total, checked, extra, missing, participants }];
       })
       .sort(byPath);
-    return { ...entry, activeNow, locations };
+    return { ...entry, activeNow, locations, history };
   }
 
   return {
@@ -526,10 +530,10 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     finish: (actor: Actor, id: string, version: number) => close(actor, id, version, 'finished'),
 
     /**
-     * Takes a finished run back into progress, so that more can be checked and finished again.
-     * Checks and the flags people set stay; what the finish set on items archived since is taken
-     * back. The location must be free of another run in progress, as for a start. A cancelled
-     * run is final, and an archived one is restored first.
+     * Takes a finished or cancelled run back into progress, so that more can be checked and
+     * finished again. Checks and the flags people set stay; what the finish set on items archived
+     * since is taken back. The location must be free of another run in progress, as for a start.
+     * An archived run is restored first.
      */
     async reopen(actor: Actor, id: string, version: number): Promise<InventoryDetail> {
       assertRole(actor, 'write');
@@ -539,7 +543,6 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         const current = await r.inventories.lock(id);
         if (!current) throw new DomainError('not_found');
         if (current.status === 'in_progress') throw new DomainError('inventory_in_progress');
-        if (current.status !== 'finished') throw new DomainError('inventory_not_finished');
         if (current.archivedAt) throw new DomainError('archived');
         if (current.version !== version) throw new DomainError('conflict');
         const overlapping = await r.inventories.findOverlapping(current.locationId);

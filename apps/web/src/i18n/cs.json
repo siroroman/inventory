@@ -282,7 +282,6 @@
     "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
     "inventory_closed": "Inventura už je ukončená.",
     "inventory_in_progress": "Inventura ještě probíhá. Tohle jde až u ukončené inventury.",
-    "inventory_not_finished": "Znovu otevřít jde jen dokončená inventura.",
     "item_not_in_inventory": "Tato položka v inventuře není.",
     "location_outside_inventory": "Tato lokalita do inventury nepatří.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
@@ -523,10 +522,12 @@
       "finished": "Dokončená",
       "cancelled": "Zrušená"
     },
-    "startedBy": "Inventura od {{date}} · zahájil {{who}}",
-    "startedOn": "Inventura od {{date}}",
-    "cancelledBy": "Zrušil {{who}} · {{date}} v {{time}}",
-    "cancelledOn": "Zrušeno {{date}} v {{time}}",
+    "event": {
+      "start": { "by": "Zahájil {{who}} · {{date}} v {{time}}", "on": "Zahájeno {{date}} v {{time}}" },
+      "finish": { "by": "Dokončil {{who}} · {{date}} v {{time}}", "on": "Dokončeno {{date}} v {{time}}" },
+      "cancel": { "by": "Zrušil {{who}} · {{date}} v {{time}}", "on": "Zrušeno {{date}} v {{time}}" },
+      "reopen": { "by": "Znovu otevřel {{who}} · {{date}} v {{time}}", "on": "Znovu otevřeno {{date}} v {{time}}" }
+    },
     "progressLabel": "Průběh inventury",
     "progress": "{{done}} / {{total}} zkontrolováno · {{percent}} %",
     "noItems": "V lokalitě nejsou žádné položky.",
@@ -581,11 +582,6 @@
       "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
       "emptyTitle": "Žádné položky",
       "emptyHint": "V této lokalitě teď nejsou žádné položky ke kontrole.",
-      "moreChecked_one": "… a další {{count}} zkontrolovaná",
-      "moreChecked_few": "… a další {{count}} zkontrolované",
-      "moreChecked_many": "… a další {{count}} zkontrolované",
-      "moreChecked_other": "… a dalších {{count}} zkontrolovaných",
-      "showLess": "Zobrazit méně",
       "method": {
         "scan": "sken",
         "manual": "ručně"
@@ -596,7 +592,6 @@
       "noLocation": "bez lokality",
       "moved": "přesunuto",
       "addedDuringInventory": "přidáno při inventuře",
-      "openItem": "Otevřít detail položky {{name}}",
       "flag": "Označit jako chybějící: {{name}}",
       "unflag": "Zrušit označení chybějící položky: {{name}}",
       "flaggedToast": "{{name}}: označeno jako chybějící",

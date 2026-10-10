@@ -181,12 +181,14 @@ describe('home: inventory tab', () => {
   });
 
   describe('starting a run', () => {
-    it('is the bar at the bottom on a phone', async () => {
+    it('is beside the heading on a phone, not in a bar at the bottom', async () => {
       api({ open: () => page([running()]) });
       renderApp('/?tab=inventory');
       const start = await screen.findByRole('link', { name: 'Zahájit inventuru' });
       expect(start).toHaveAttribute('href', '/inventories/new');
-      expect(start.closest('div')).toHaveClass('fixed', 'bottom-0');
+      expect(start.closest('.fixed')).toBeNull();
+      const heading = screen.getByRole('heading', { name: 'Inventura', level: 2 });
+      expect(heading.parentElement?.parentElement).toContainElement(start);
     });
 
     it('is beside the heading and the search on a desktop', async () => {

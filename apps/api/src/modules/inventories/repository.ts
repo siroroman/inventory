@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull,
 import { alias } from 'drizzle-orm/pg-core';
 import type { DbExecutor } from '../../db/client.ts';
 import { beforeTimestamp, type Page, toPage } from '../../db/pagination.ts';
-import { inventories, inventoryItems, items, locations, user } from '../../db/schema/index.ts';
+import { auditLog, inventories, inventoryItems, items, locations, user } from '../../db/schema/index.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
 import { matchesSearch, subtreeOf } from '../locations/repository.ts';
 
@@ -38,6 +38,9 @@ export type LocationProgress = { locationId: string; total: number; checked: num
 export type LocationChecker = { locationId: string } & Person;
 
 export type StartPreview = { itemCount: number; locationCount: number };
+
+/** Something that happened to a run after its start, with who did it (null: unknown user). */
+export type RunEvent = { action: 'finish' | 'cancel' | 'reopen'; at: Date; by: Person | null };
 
 /** The item a label names, with what a scan needs to decide: its state and where it is registered. */
 export type ScanTarget = { id: string; code: string; name: string; archived: boolean; locationId: string | null };
@@ -488,6 +491,30 @@ export function createInventoryRepository(db: DbExecutor) {
          GROUP BY r.location_id, u.id, u.name
          ORDER BY r.location_id, min(r.checked_at)`);
       return result.rows;
+    },
+
+    /**
+     * Finish, cancel and reopen of the run, oldest first, from its audit entries (the run itself
+     * keeps only the last end, and a reopen clears it).
+     */
+    async history(inventoryId: string): Promise<RunEvent[]> {
+      const rows = await db
+        .select({ action: auditLog.action, at: auditLog.occurredAt, userId: user.id, userName: user.name })
+        .from(auditLog)
+        .leftJoin(user, eq(user.id, auditLog.userId))
+        .where(
+          and(
+            eq(auditLog.entityType, 'inventory'),
+            eq(auditLog.entityId, inventoryId),
+            inArray(auditLog.action, ['finish', 'cancel', 'reopen']),
+          ),
+        )
+        .orderBy(asc(auditLog.occurredAt), asc(auditLog.id));
+      return rows.map((row) => ({
+        action: row.action as RunEvent['action'],
+        at: row.at,
+        by: row.userId ? { id: row.userId, name: row.userName! } : null,
+      }));
     },
 
     /** People who checked something since `since`, most recent first. */

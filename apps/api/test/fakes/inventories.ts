@@ -344,6 +344,16 @@ export function createFakeInventoryStore() {
       }
       return seen;
     },
+    async history(inventoryId) {
+      return state.audit
+        .filter(
+          (e) =>
+            e.entityType === 'inventory' &&
+            e.entityId === inventoryId &&
+            (e.action === 'finish' || e.action === 'cancel' || e.action === 'reopen'),
+        )
+        .map((e) => ({ action: e.action as 'finish' | 'cancel' | 'reopen', at: e.occurredAt, by: person(e.userId) }));
+    },
     async recentCheckers(inventoryId, since) {
       const latest = new Map<string, number>();
       for (const row of rowsOf(inventoryId)) {

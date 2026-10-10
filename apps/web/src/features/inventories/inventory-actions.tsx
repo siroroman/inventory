@@ -30,8 +30,8 @@ const request = {
 };
 
 /**
- * The "…" menu of a run's overview: a run in progress can be finished or cancelled, a finished one
- * reopened or archived, a cancelled one archived, an archived one restored. Everything but
+ * The "…" menu of a run's overview: a run in progress can be finished or cancelled, a finished or
+ * cancelled one reopened or archived, an archived one restored. Everything but
  * restoring asks first (the finish says how many items stay not checked and how many are missing).
  * Whoever renders it decides who may see it (writers).
  * A failure (somebody ended it meanwhile, a stale version) is toasted by the query client, and the
@@ -53,8 +53,8 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
   const { unchecked, missing } = runFigures(inventory.counts);
   const inProgress = inventory.status === 'in_progress';
   const archived = inventory.archivedAt !== null;
-  // A cancelled run is final; an archived one is restored first.
-  const canReopen = inventory.status === 'finished' && !archived;
+  // A finished or cancelled run can be taken back; an archived one is restored first.
+  const canReopen = !inProgress && !archived;
 
   return (
     <>

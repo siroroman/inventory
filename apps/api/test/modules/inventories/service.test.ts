@@ -472,13 +472,76 @@ describe('inventory service', () => {
       await expect(service.reopen(actor('write'), run.id, finished.version)).resolves.toMatchObject({ status: 'in_progress' });
     });
 
-    it('refuses a run in progress, a cancelled run and an archived one', async () => {
+    it('takes a cancelled run back into progress too, keeping its checks and flags', async () => {
+      const { store, service, actor, praha, users } = await setup();
+      const checked = await store.addItem(praha.id, 'Tiskárna');
+      const lost = await store.addItem(praha.id, 'Kávovar');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, checked.id, users.write.id);
+      await service.markMissing(actor('write'), run.id, lost.id);
+      const cancelled = await service.cancel(actor('write'), run.id, run.version);
+      expect(cancelled).toMatchObject({ status: 'cancelled', endedAt: expect.any(Date) });
+
+      const reopened = await service.reopen(actor('write', users.other), run.id, cancelled.version);
+
+      expect(reopened).toMatchObject({
+        status: 'in_progress',
+        version: cancelled.version + 1,
+        endedAt: null,
+        endedBy: null,
+        counts: { expected: 2, checked: 1, missing: 1 },
+      });
+      expect(store.state.audit.filter((e) => e.action === 'reopen')).toEqual([
+        expect.objectContaining({
+          userId: users.other.id,
+          entityId: run.id,
+          changes: { status: { from: 'cancelled', to: 'in_progress' } },
+        }),
+      ]);
+      // It takes ticks again (finding what was flagged), and can be finished.
+      await service.check(actor('write'), run.id, lost.id);
+      const again = await service.finish(actor('write'), run.id, reopened.version);
+      expect(again).toMatchObject({ status: 'finished', counts: { checked: 2, missing: 0 } });
+    });
+
+    it('keeps a record of the cancel, the reopen and the finish, oldest first, with who did each', async () => {
+      const { service, actor, praha, users } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      expect(run.history).toEqual([]);
+      const cancelled = await service.cancel(actor('write', users.write), run.id, run.version);
+      // Nothing of the end is on the run once it is reopened; the record still has it.
+      const reopened = await service.reopen(actor('write', users.other), run.id, cancelled.version);
+      expect(reopened).toMatchObject({ endedAt: null, endedBy: null });
+      const finished = await service.finish(actor('write', users.write), run.id, reopened.version);
+
+      expect(finished.history.map((e) => [e.action, e.by?.id])).toEqual([
+        ['cancel', users.write.id],
+        ['reopen', users.other.id],
+        ['finish', users.write.id],
+      ]);
+      expect(finished.history.every((e) => e.at instanceof Date)).toBe(true);
+    });
+
+    it('is refused for a cancelled run while another run is in progress on the location', async () => {
+      const { service, actor, praha } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const cancelled = await service.cancel(actor('write'), run.id, run.version);
+      const other = await service.start(actor('write'), { locationId: praha.id });
+
+      await expect(service.reopen(actor('write'), run.id, cancelled.version)).rejects.toMatchObject({
+        code: 'inventory_overlap',
+        details: { inventoryId: other.id },
+      });
+    });
+
+    it('refuses a run in progress and an archived one', async () => {
       const { service, actor, praha } = await setup();
       const open = await service.start(actor('write'), { locationId: praha.id });
       await expectCode(service.reopen(actor('write'), open.id, open.version), 'inventory_in_progress');
 
-      const cancelled = await service.cancel(actor('write'), open.id, open.version);
-      await expectCode(service.reopen(actor('write'), open.id, cancelled.version), 'inventory_not_finished');
+      const cancelledRun = await service.cancel(actor('write'), open.id, open.version);
+      const archivedCancelled = await service.archive(actor('write'), open.id, cancelledRun.version);
+      await expectCode(service.reopen(actor('write'), open.id, archivedCancelled.version), 'archived');
 
       const second = await service.start(actor('write'), { locationId: praha.id });
       const finished = await service.finish(actor('write'), second.id, second.version);
