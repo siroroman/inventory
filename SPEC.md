@@ -406,7 +406,7 @@ Specified 2026-10-09; the first slice is built, see "Built so far" in §9.8. Sou
 
 | Term (UI) | Meaning |
 | --- | --- |
-| Run (*Inventura*) | One check of one location (the run's **root**) and its whole subtree. States: *Probíhá* (in progress), then *Dokončená* (finished) or *Zrušená* (cancelled). The last two are final. A run has no name or code; it is shown as the root location and the start date. |
+| Run (*Inventura*) | One check of one location (the run's **root**) and its whole subtree. States: *Probíhá* (in progress), then *Dokončená* (finished) or *Zrušená* (cancelled). The last two are final; an ended run can be archived (it leaves the lists) and restored. A run has no name or code; it is shown as the root location and the start date. |
 | List (*seznam*) | The items the run expects to find. It is a snapshot taken at the start: every active item whose location is the root or any active location below it. The count it starts with ("128") stays fixed. |
 | Check (*kontrola*) | One item marked as seen, with who, when and how ("sken" or "ručně"). |
 | Context location | The location whose screen the user is on when checking: a sub-location's checklist, or the root on the run overview. Items found and items created are recorded there, and "Přesunout sem" moves an item there. |
@@ -446,8 +446,9 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
   - the root's path
   - "84 / 128 zkontrolováno" with the percentage and a progress bar
   - "Zahájil RS · 3. 10. 2026 v 9:15" and the avatars of the people taking part
-  - "Pokračovat" for writers, "Zobrazit" for Read.
-- **Dokončené (N):** finished and cancelled runs, newest first, paged by 20, with the date, the root and a result line ("120 nalezeno · 3 jinde · 5 nezvěstných"). A cancelled run shows the *Zrušená* badge and "zahájil JN". On desktop this is a table: Lokalita / Datum / Výsledek / Stav.
+  - The whole card is the link to the run, for every role (*Decided* 2026-10-10: no "Pokračovat" / "Zobrazit" button).
+- **Dokončené (N):** finished and cancelled runs, newest first, paged by 20, with the date, the root and a result line ("120 nalezeno · 3 jinde · 5 chybí"). A cancelled run shows the *Zrušená* badge and "zahájil JN". On desktop this is a table: Lokalita / Datum / Výsledek / Stav.
+- **"Zobrazit archivované"** (*Decided* 2026-10-10, `?archived=true`): swaps the two lists for the archived runs (**Archivované (N)**), which carry the *Archivováno* badge and open the detail, where *Obnovit* is.
 - "Zahájit inventuru" for writers: in the bottom bar on phones, next to the heading on desktop.
 - Empty state: "Zatím žádná inventura" with "Zahájit inventuru".
 
@@ -461,26 +462,25 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 
 #### 9.4.3 Run overview — `/inventories/$id` while in progress [24]
 
-- **Top bar:** back, the root's name. Dokončit inventuru / Zrušit inventuru are top-bar buttons at every width (a run in progress shows no "Probíhá" badge); the overflow menu was dropped. Read users get neither.
-- **Header:** "Inventura od 3. 10. 2026 · zahájil RS", a *Probíhá* badge, "84 / 128 zkontrolováno · 66 %" with a bar, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes).
+- **Top bar:** back, the root's name. A "…" menu (*Decided* 2026-10-10, replacing the Zrušit inventuru button): a run in progress offers *Dokončit inventuru* and *Zrušit inventuru*, an ended one *Archivovat*, an archived one *Obnovit*. Finish, cancel and archive ask first. A run in progress shows no "Probíhá" badge. Read users get no menu.
+- **Header:** "Inventura od 3. 10. 2026 · zahájil RS", "84 / 128 zkontrolováno · 66 %" with a bar, the **four figures** *Zkontrolováno · Nezkontrolováno · Nové · Chybí*, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes). *Nové* is what was found elsewhere or added and is not on the list, so it is not part of "84 / 128"; *Chybí* is what the finish marked missing (0 until then).
 - **Locations:** a flat list of every location in the subtree that has items on the list or items found there. A location deeper than one level below the root shows its path under the name, so rooms with the same name on different floors stay apart. Items placed directly in the root appear under the root's own name.
-  - Each row: name, "24 / 32 položek", and the avatars of the people who checked items there. The row opens that location's checklist.
+  - Each row: name, "24 / 32 položek" (the list only, so the rows add up to the header), "· 2 nové" for what was found or added there, and the avatars of the people who checked items there. The row opens that location's checklist.
   - Rows are grouped as **Probíhající** (some checked), **Nekontrolované** (none checked, "Nikdo nezačal") and **Hotovo** (all checked, *Hotovo* badge). Each group is sorted by path in Czech order.
 - "Skenovat" (bottom bar, touch devices only) opens the scanner with the root as context. On desktop the note "Skenovat lze v telefonu." takes its place.
 
 #### 9.4.4 Location checklist — `/inventories/$id/locations/$locationId` [25]
 
 - **Top bar:** back (to the overview) and the location's name. The checklist has no cancel button (*Decided* 2026-10-09): "Zrušit inventuru" is on the overview only. Where "Dokončit inventuru" goes is decided with the finish step.
-- **Header:** the path from the root, "24 / 32 zkontrolováno · 75 %" with a bar, the participants.
-- **Search** over name and ID within this location's rows.
-- **Nezkontrolované (N):** all of them, by name in Czech order. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand (and "Zobrazit méně" to fold again). While a search is active, every match is listed.
+- **Header:** the path from the root, then a box of its own (*Decided* 2026-10-10) with "24 / 32 zkontrolováno · 75 %" and a bar, the participants, and the same four figures as the overview. **Search** over name and ID within this location's rows, on a row of its own below the box.
+- **Sections** (*Decided* 2026-10-10): each is a heading bar that folds its rows and starts **folded**. **Nezkontrolované (N):** all of them, by name in Czech order. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand (and "Zobrazit méně" to fold again). **Nové (N):** the items found elsewhere or added, apart from the list, so the section counts match the figures. While a search is active the sections cannot be folded and every match is listed.
 - **Rows:**
   - Every row: a large checkbox, the name and the ID. Tapping the row toggles it, and Space toggles it from the keyboard. A chevron opens the item detail.
   - A checked row also shows "RS · 10:42" and a scan icon, or the word "ručně" for a hand tick.
-  - A *Nalezeno jinde* row shows "Vedeno v: …" and the *Jinde* badge, plus "přesunuto" once moved. A *Nové* row shows "přidáno při inventuře" and the *Nové* badge. An item archived after the start is left out (*Decided* 2026-10-09; it is not counted either, rule 11).
+  - A *Nalezeno jinde* row shows "Vedeno v: …" and the *Jinde* badge, plus "přesunuto" once moved. Once the item's location is changed (by an ordinary edit) to the location it was found in, the row is in place (*Decided* 2026-10-10): an ordinary blue check without badge or note. A *Nové* row shows "přidáno při inventuře" and the *Nové* badge. An item archived after the start is left out (*Decided* 2026-10-09; it is not counted either, rule 11).
   - Read users, and everyone on a run that is no longer in progress, see the states without checkboxes.
   - A tick shows at once as pending, but the row moves between the groups only when the server has confirmed it, so the screen never shows a check that was not saved. A failure puts the box back and says so ("Zaškrtnutí se neuložilo", rule 15). Every untick offers "Vrátit" (rule 10).
-- "+ Přidat položku, která není v evidenci" for writers (rule 9).
+- "Přidat položku" for writers on a run in progress (rule 9, button beside the title): the item form in this location, which returns here when saved.
 - "Skenovat" (touch devices) opens the scanner with this location as context.
 - The checklist loads every row of the location at once, not paged; a location holds at most a few hundred items.
 
@@ -597,7 +597,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 | Table / column | Key columns | Rules |
 | --- | --- | --- |
-| `inventories` | location_id (root), status (`in_progress` / `finished` / `cancelled`), ended_at, ended_by, note, committee | Started = `created_at` / `created_by`. `ended_*` are set exactly when the status isn't `in_progress` (CHECK). Versioned (finish and cancel send `version`; checks don't bump it). No `archived_at`: runs are never deleted or archived. Partial index on `location_id` where `in_progress`. |
+| `inventories` | location_id (root), status (`in_progress` / `finished` / `cancelled`), ended_at, ended_by, note, committee | Started = `created_at` / `created_by`. `ended_*` are set exactly when the status isn't `in_progress` (CHECK). Versioned (finish, cancel, archive and restore send `version`; checks don't bump it). `archived_at`: an ended run can be archived and restored (CHECK: never while in progress); runs are never deleted. Partial index on `location_id` where `in_progress`. |
 | `inventory_items` | inventory_id, item_id, kind (`expected` / `elsewhere` / `new`), location_id, registered_location_id, checked_at, checked_by, method (`scan` / `manual`), was_missing, moved_at, moved_by, outcome (`missing` / `skipped`) | One row per item per run, unique (inventory_id, item_id). The `expected` rows are inserted at the start (the snapshot). `location_id` is where the row belongs in the run: the item's location at the start, or the context location for a found or new item; a move changes it. `registered_location_id` is where a found-elsewhere item was registered (null = no location). `checked_*` and `method` are set together or all null. `outcome` is set at the finish for unchecked `expected` rows only. An unticked `elsewhere` or `new` row is kept with `checked_at` null and is hidden, so no DELETE grant is needed. |
 | `items.missing_since` | date, null | Null = not missing. Set at the finish, cleared by a check or by "Označit jako nalezenou". Partial index where not null, for the "Jen nezvěstné" filter. |
 
@@ -652,22 +652,28 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 **Built so far** (2026-10-09), with what differs from the list above:
 
 - **Steps 1–3 for the run itself:** the tables `inventories` and `inventory_items` (complete, all columns of §9.5), the `inventories` module with list, preview, start, detail and **cancel**, the shared schemas and the error codes `inventory_overlap` and `inventory_closed`. The rows of a run (`GET /inventories/{id}/items`) and the hand **check** and **uncheck** are built, with the error code `item_not_in_inventory`; move, finish, mark found and the histories are not. **Scans** are built (`POST /inventories/{id}/scans`, §9.6, with the error code `location_outside_inventory`) without a move; the scanner screen is not.
-- **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2), the run overview (§9.4.3) and the location checklist (§9.4.4) with hand checks and polling. "+ Přidat položku, která není v evidenci" (rule 9) is left for its own change: it needs `POST /items` with `inventoryId` and the item form's `inventoryId` / `code` parameters.
-- **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
-- **`items.missing_since`** is not added yet; it gets its own migration with the finish step.
-- **The audit action CHECK** now allows `start`, `check`, `uncheck`, `finish` and `cancel` (§9.3 rule 16); `start`, `check`, `uncheck` and `cancel` are written.
+- **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2), the run overview (§9.4.3) and the location checklist (§9.4.4) with hand checks and polling.
+- **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
+- **Fixes of 2026-10-10** (client feedback on the first slices):
+  - **A simple finish** (`POST /inventories/{id}/finish`, "…" menu): the run ends as *Dokončená* and the unchecked items of the list get the outcome `missing` ("Chybí"; `skipped` for those archived since). There is no finish screen, note, committee, per-item choice or protocol yet (§9.4.6 stays the plan), and no `items.missing_since` / *Nezvěstná* status on the item.
+  - **Archive and restore of ended runs** (`POST /inventories/{id}/archive|restore`, `?archived=true` on the list, migration 0022; `inventory_in_progress` 409 for a run in progress). Both finished and cancelled runs can be archived; Restore is on the run's detail.
+  - **Rule 9 is built:** `POST /items` takes `inventoryId` and answers `addedToInventory`; the checklist's "Přidat položku" opens `/items/new?locationId=&inventoryId=` and the form returns to the checklist. The scanner's "Přidat novou položku" from an unknown code (the `code` parameter) is still open.
+  - **Numbers:** a location's `total` / `checked` count the list only, so the locations add up to the run's `expected` / `checked`; found and added items are `extra`, and what the finish marked is `missing`.
+  - **`registeredElsewhere`** on a row: a found item whose location was since changed to the location it was found in is in place and shows as an ordinary check; its `kind` and the counts stay as recorded.
+- **`items.missing_since`** is not added yet; it gets its own migration with the full finish step.
+- **The audit action CHECK** allows `start`, `check`, `uncheck`, `finish`, `cancel`, `archive` and `restore` (§9.3 rule 16); all of them are written now except `check` of a move.
 - **Step 6, part: the scanner screen** (§9.4.5) with its entry buttons: "Skenovat" in the bottom bar of the overview (the run as context) and of a checklist (that location as context), touch screens only; on a computer the overview says "Skenovat lze v telefonu.". Built with the camera states and all result sheets of the table in §9.4.5 except the buttons that need a move. Where it differs from or adds to the text above:
   - **No move yet:** "Nalezeno jinde" and the wrong-place "Nalezeno" show "Vedeno v: …" and only *Zavřít*; "Přesunout sem" / "Změnit" / "Ponechat" come with the move endpoint.
   - **"Zadat kód ručně" is left out** (it was *Proposed*, not drawn): the checklist ticks by hand, and "Kontrolovat ručně" in the camera states leads there. An item that is not on the list cannot be checked without its label until it is added.
   - **Which sheets close by themselves:** only a plain "Nalezeno", after about 2 s. "Byla nezvěstná" (shown when the answer says `wasMissing`; it cannot occur until `items.missing_since` exists), the wrong-place "Nalezeno", "Nalezeno jinde", "Již zkontrolováno", "Archivovaná položka", "Neznámý kód" and "Cizí kód" stay until the next scan, *Zavřít* or Escape. A scan that is not saved stays too and pauses reading until it is retried or closed.
-  - **"Neznámý kód"** offers only "Skenovat dál"; "Přidat novou položku" waits for rule 9 (`POST /items` with `inventoryId`).
+  - **"Neznámý kód"** offers only "Skenovat dál"; "Přidat novou položku" waits for the item form's `code` parameter (`POST /items` with `inventoryId` exists since 2026-10-10).
   - **Repeated readings:** a code is ignored while it stays in view and for 3 s after it was last seen (every reading renews the window), not only for 3 s after it was first read.
   - **Counter:** from a checklist, that location's numbers; from the overview, the run's.
   - **Decoder:** the browser's `BarcodeDetector` where it reads QR codes, else jsQR (its own chunk, loaded only by the scanner; CSP unchanged). It reads the middle square of the picture scaled to 640 px, about 8 times a second.
   - **Not verified yet:** a real phone (the screen was driven in a desktop browser with a scripted camera), the installed PWA (no manifest yet), and an older iPhone's decoding speed.
-- **Left out of the overview and the checklist until their step exists:** "Dokončit inventuru". The checklist of an ended run (cancelled for now) is read-only.
+- **The checklist of an ended run** is read-only.
 - **`was_missing`** stays false until `items.missing_since` exists; the finish step must make a check clear that status (rule 12).
-- **Progress counts** only `expected` rows whose item is not archived; a location row counts the rows visible there (expected plus checked extras). The overall "84 / 128" therefore never passes 100 %.
+- **Progress counts** only `expected` rows whose item is not archived, in the header and in every location row alike; the items found or added are counted apart (*Nové*). "84 / 128" therefore never passes 100 % and the locations add up to it.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
 - **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
 
