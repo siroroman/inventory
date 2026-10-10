@@ -522,10 +522,12 @@
       "finished": "Dokončená",
       "cancelled": "Zrušená"
     },
-    "startedBy": "Inventura od {{date}} · zahájil {{who}}",
-    "startedOn": "Inventura od {{date}}",
-    "cancelledBy": "Zrušil {{who}} · {{date}} v {{time}}",
-    "cancelledOn": "Zrušeno {{date}} v {{time}}",
+    "event": {
+      "start": { "by": "Zahájil {{who}} · {{date}} v {{time}}", "on": "Zahájeno {{date}} v {{time}}" },
+      "finish": { "by": "Dokončil {{who}} · {{date}} v {{time}}", "on": "Dokončeno {{date}} v {{time}}" },
+      "cancel": { "by": "Zrušil {{who}} · {{date}} v {{time}}", "on": "Zrušeno {{date}} v {{time}}" },
+      "reopen": { "by": "Znovu otevřel {{who}} · {{date}} v {{time}}", "on": "Znovu otevřeno {{date}} v {{time}}" }
+    },
     "progressLabel": "Průběh inventury",
     "progress": "{{done}} / {{total}} zkontrolováno · {{percent}} %",
     "noItems": "V lokalitě nejsou žádné položky.",

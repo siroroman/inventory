@@ -42,7 +42,7 @@ describe('inventory run overview', () => {
     expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Centrála Praha')).toBeInTheDocument();
     expect(screen.queryByText('Probíhá')).not.toBeInTheDocument();
-    const started = screen.getByText(/Inventura od 3\. 10\. 2026 · zahájil RS/);
+    const started = screen.getByText(/^Zahájil RS · 3\. 10\. 2026 v \d{1,2}:\d{2}$/);
     expect(screen.getByText('84 / 128 zkontrolováno · 66 %')).toBeInTheDocument();
     const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
     expect(bar).toHaveAttribute('aria-valuenow', '84');
@@ -50,7 +50,7 @@ describe('inventory run overview', () => {
     // Who started it is the last line of the box, below the progress and the figures; the box has
     // no circles of the participants (the locations name who worked in them).
     const box = started.closest('section')!;
-    expect(box.lastElementChild).toBe(started);
+    expect(box.lastElementChild).toBe(started.parentElement);
     expect(box.contains(bar)).toBe(true);
     expect(within(box).queryByText('Roman Siro, Jan Novák')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/?tab=inventory');
@@ -595,6 +595,7 @@ describe('inventory run overview', () => {
           status: 'cancelled',
           endedAt: '2026-10-04T14:02:00.000Z',
           endedBy: jan,
+          history: [{ action: 'cancel', at: '2026-10-04T14:02:00.000Z', by: jan }],
           counts: { expected: 10, checked: 4, elsewhere: 0, new: 0, missing: 0 },
           locations: [inventoryLocation({ name: 'Sklad', total: 10, checked: 4 })],
         }),
@@ -603,9 +604,54 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     expect(await screen.findByText('Zrušená')).toBeInTheDocument();
-    expect(screen.getByText(/Zrušil JN · 4\. 10\. 2026 v \d{1,2}:\d{2}/)).toBeInTheDocument();
+    // Both lines have the form "who · date v time", the start line first.
+    const lines = screen.getAllByText(/ · \d{1,2}\. \d{1,2}\. 2026 v \d{1,2}:\d{2}$/).map((line) => line.textContent);
+    expect(lines).toEqual([expect.stringMatching(/^Zahájil \S+ · /), expect.stringMatching(/^Zrušil JN · 4\. 10\. 2026 v \d{1,2}:\d{2}$/)]);
     expect(screen.getByText('4 / 10 zkontrolováno · 40 %')).toBeInTheDocument();
     expect(screen.queryByText(/právě pracuj/)).not.toBeInTheDocument();
+  });
+
+  it('lists the record of a run that was cancelled and reopened, oldest first, in the same form', async () => {
+    signedIn(() =>
+      jsonResponse(
+        inventory({
+          id,
+          startedBy: roman,
+          history: [
+            { action: 'cancel', at: '2026-10-04T14:02:00.000Z', by: jan },
+            { action: 'reopen', at: '2026-10-05T08:30:00.000Z', by: roman },
+          ],
+        }),
+      ),
+    );
+    renderApp(`/inventories/${id}`);
+
+    const first = await screen.findByText(/^Zahájil RS/);
+    expect(Array.from(first.parentElement!.children).map((line) => line.textContent)).toEqual([
+      expect.stringMatching(/^Zahájil RS · 3\. 10\. 2026 v \d{1,2}:\d{2}$/),
+      expect.stringMatching(/^Zrušil JN · 4\. 10\. 2026 v \d{1,2}:\d{2}$/),
+      expect.stringMatching(/^Znovu otevřel RS · 5\. 10\. 2026 v \d{1,2}:\d{2}$/),
+    ]);
+    // The run is in progress again: no badge, no cancel in the state.
+    expect(screen.queryByText('Zrušená')).not.toBeInTheDocument();
+  });
+
+  it('says who finished a run, and falls back to the date alone for an unknown person', async () => {
+    signedIn(() =>
+      jsonResponse(
+        inventory({
+          id,
+          status: 'finished',
+          startedBy: null,
+          endedAt: '2026-10-04T14:02:00.000Z',
+          history: [{ action: 'finish', at: '2026-10-04T14:02:00.000Z', by: null }],
+        }),
+      ),
+    );
+    renderApp(`/inventories/${id}`);
+
+    expect(await screen.findByText(/^Zahájeno 3\. 10\. 2026 v \d{1,2}:\d{2}$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Dokončeno 4\. 10\. 2026 v \d{1,2}:\d{2}$/)).toBeInTheDocument();
   });
 
   it('refreshes a run in progress every few seconds, and an ended one never', () => {

@@ -13,6 +13,7 @@ import {
   type InventoryRepository,
   type InventoryRow,
   type Person,
+  type RunEvent,
   type RunItem,
   type ScanTarget,
   type StartPreview,
@@ -59,6 +60,8 @@ export type InventoryDetail = InventoryEntry & {
   activeNow: Person[];
   /** Every location of the subtree that has rows in the run, in path order. */
   locations: InventoryLocationEntry[];
+  /** Finish, cancel and reopen, oldest first. */
+  history: RunEvent[];
 };
 
 /**
@@ -412,7 +415,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
     if (!row) throw new DomainError('not_found');
-    const [progress, checkers, activeNow, counts, participants] = await Promise.all([
+    const [progress, checkers, activeNow, counts, participants, history] = await Promise.all([
       repos.inventories.locationProgress(id),
       repos.inventories.locationCheckers(id),
       row.status === 'in_progress'
@@ -420,6 +423,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         : Promise.resolve([]),
       repos.inventories.counts([id]),
       repos.inventories.participants([id]),
+      repos.inventories.history(id),
     ]);
     const paths = await repos.locations.findPaths([row.locationId, ...progress.map((p) => p.locationId)]);
     const entry = toEntry(row, paths, counts, participants);
@@ -434,7 +438,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         return [{ ...self, path, total, checked, extra, missing, participants }];
       })
       .sort(byPath);
-    return { ...entry, activeNow, locations };
+    return { ...entry, activeNow, locations, history };
   }
 
   return {

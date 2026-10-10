@@ -80,6 +80,17 @@ export const inventoryLocationSchema = z.object({
 });
 export type InventoryLocationDto = z.infer<typeof inventoryLocationSchema>;
 
+/** What happened to a run after its start. */
+export const inventoryEventActions = ['finish', 'cancel', 'reopen'] as const;
+
+export const inventoryEventSchema = z.object({
+  action: z.enum(inventoryEventActions),
+  at: timestamp,
+  /** Null when the person is unknown. */
+  by: personRef.nullable(),
+});
+export type InventoryEventDto = z.infer<typeof inventoryEventSchema>;
+
 export const inventorySchema = z.object({
   ...runFields,
   version: z.number().int().min(1),
@@ -87,6 +98,11 @@ export const inventorySchema = z.object({
   committee: z.string().nullable(),
   /** People who checked something in the last 15 minutes (a run in progress only). */
   activeNow: z.array(personRef),
+  /**
+   * Finish, cancel and reopen of the run, oldest first, so a run that was cancelled and reopened
+   * still says so (`endedAt` / `endedBy` are cleared by a reopen). The start is `startedAt` / `startedBy`.
+   */
+  history: z.array(inventoryEventSchema),
   /** In path order (Czech collation), a location before the ones below it. */
   locations: z.array(inventoryLocationSchema),
 });

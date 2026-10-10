@@ -58,33 +58,27 @@ function DetailSkeleton() {
   );
 }
 
-/** When the run started and by whom, or, for a cancelled one, when and by whom it was cancelled. */
+/**
+ * The record of the run, oldest first, each line as "who · date v time" like the cards of the
+ * Inventura tab: the start, then every finish, cancel and reopen. A reopen clears the end of the
+ * run, so it is the history, not `endedAt`, that tells it was once cancelled.
+ */
 function RunLines({ inventory }: { inventory: InventoryDto }) {
   const { t } = useTranslation();
-  const date = formatTimestamp(inventory.startedAt);
-  const cancelled = inventory.status === 'cancelled' && inventory.endedAt;
+  const lines = [{ action: 'start' as const, at: inventory.startedAt, by: inventory.startedBy }, ...inventory.history];
   return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        {inventory.startedBy
-          ? t('inventory.startedBy', { date, who: shortName(inventory.startedBy) })
-          : t('inventory.startedOn', { date })}
-      </p>
-      {cancelled && (
-        <p className="text-sm text-muted-foreground">
-          {inventory.endedBy
-            ? t('inventory.cancelledBy', {
-                who: shortName(inventory.endedBy),
-                date: formatTimestamp(inventory.endedAt!),
-                time: formatTime(inventory.endedAt!),
-              })
-            : t('inventory.cancelledOn', {
-                date: formatTimestamp(inventory.endedAt!),
-                time: formatTime(inventory.endedAt!),
-              })}
-        </p>
-      )}
-    </>
+    <div className="flex flex-col gap-1">
+      {lines.map(({ action, at, by }) => {
+        const when = { date: formatTimestamp(at), time: formatTime(at) };
+        return (
+          <p key={`${action}-${at}`} className="text-sm text-muted-foreground">
+            {by
+              ? t(`inventory.event.${action}.by`, { ...when, who: shortName(by) })
+              : t(`inventory.event.${action}.on`, when)}
+          </p>
+        );
+      })}
+    </div>
   );
 }
 

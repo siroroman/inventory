@@ -504,6 +504,24 @@ describe('inventory service', () => {
       expect(again).toMatchObject({ status: 'finished', counts: { checked: 2, missing: 0 } });
     });
 
+    it('keeps a record of the cancel, the reopen and the finish, oldest first, with who did each', async () => {
+      const { service, actor, praha, users } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      expect(run.history).toEqual([]);
+      const cancelled = await service.cancel(actor('write', users.write), run.id, run.version);
+      // Nothing of the end is on the run once it is reopened; the record still has it.
+      const reopened = await service.reopen(actor('write', users.other), run.id, cancelled.version);
+      expect(reopened).toMatchObject({ endedAt: null, endedBy: null });
+      const finished = await service.finish(actor('write', users.write), run.id, reopened.version);
+
+      expect(finished.history.map((e) => [e.action, e.by?.id])).toEqual([
+        ['cancel', users.write.id],
+        ['reopen', users.other.id],
+        ['finish', users.write.id],
+      ]);
+      expect(finished.history.every((e) => e.at instanceof Date)).toBe(true);
+    });
+
     it('is refused for a cancelled run while another run is in progress on the location', async () => {
       const { service, actor, praha } = await setup();
       const run = await service.start(actor('write'), { locationId: praha.id });

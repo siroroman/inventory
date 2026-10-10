@@ -33,6 +33,7 @@ export function toInventoryDto(row: InventoryDetail): InventoryDto {
     committee: row.committee,
     activeNow: row.activeNow,
     locations: row.locations,
+    history: row.history.map((event) => ({ action: event.action, at: event.at.toISOString(), by: event.by })),
   };
 }
 
