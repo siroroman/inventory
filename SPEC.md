@@ -341,6 +341,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `GET /inventories/{id}/items?locationId=` | the run's rows (all, not paged), optionally of one location, by item name; only the rows a person sees (items archived since the start, and found or added items that are not checked, are left out) | Read |
 | `POST /inventories/{id}/scans` | check by code (`{code, locationId?, method?}`); answers an `outcome` (§9.6) | Write |
 | `POST /inventories/{id}/items/{itemId}/check`, `/uncheck` | tick or untick an item by hand; no body (the row already knows its location, so no context is needed); answers the row; an item that is already checked is left as it is (the first check wins) | Write |
+| `POST /inventories/{id}/items/{itemId}/mark-missing`, `/unmark-missing` | flag an unchecked item of the list as missing, or take the flag back (§9.3 rule 17); no body; answers the row; a row somebody checked first, or already (not) flagged, is left as it is | Write |
 | `POST /inventories/{id}/items/{itemId}/move` | move the item to a location of the run (`{locationId, version}`, the item's version) | Write |
 | `POST /inventories/{id}/finish` | `{version, missingItemIds, note?, committee?}`: end the run, mark those still unchecked Nezvěstná | Write |
 | `POST /inventories/{id}/cancel` | `{version}`: end the run as cancelled | Write |
@@ -410,7 +411,7 @@ Specified 2026-10-09; the first slice is built, see "Built so far" in §9.8. Sou
 | List (*seznam*) | The items the run expects to find. It is a snapshot taken at the start: every active item whose location is the root or any active location below it. The count it starts with ("128") stays fixed. |
 | Check (*kontrola*) | One item marked as seen, with who, when and how ("sken" or "ručně"). |
 | Context location | The location whose screen the user is on when checking: a sub-location's checklist, or the root on the run overview. Items found and items created are recorded there, and "Přesunout sem" moves an item there. |
-| Results per item | **Nalezeno**: on the list and checked. **Nalezeno jinde**: not on the list, registered somewhere else or nowhere, found during the run. **Nové**: created during the run from the run's screens. **Nezvěstná**: on the list, not checked, marked missing at the finish. **Nezkontrolováno**: on the list, not checked, not marked missing. While a run is in progress, an unchecked item shows as *Zbývá* ("Čeká na kontrolu" in the item's history). |
+| Results per item | **Nalezeno**: on the list and checked. **Nalezeno jinde**: not on the list, registered somewhere else or nowhere, found during the run. **Nové**: created during the run from the run's screens. **Nezvěstná**: on the list, not checked, flagged as missing (rule 17). **Nezkontrolováno**: on the list, not checked, not flagged. While a run is in progress, an unchecked item shows as *Zbývá* ("Čeká na kontrolu" in the item's history). |
 
 ### 9.3 Rules
 
@@ -426,13 +427,18 @@ Specified 2026-10-09; the first slice is built, see "Built so far" in §9.8. Sou
 10. **Unticking** an item on the list returns it to *Zbývá*. Unticking a *Nalezeno jinde* or *Nové* item drops it from the run; the item itself stays in the register. A toast offers "Vrátit" (undo).
 11. **Archived items:** a scanned archived item is reported and not counted. An item on the list that is archived during the run leaves the progress count and is set to *Nezkontrolováno* at the finish without being offered as missing.
 12. **Nezvěstná** (*Decided*: a status on the item):
-    - Finishing a run marks the unchecked items the user confirms as *Nezvěstná*, dated with the finish day.
+    - Finishing a run marks the unchecked items that were flagged as missing (rule 17) as *Nezvěstná*, dated with the finish day.
     - The status clears the moment the item is checked in a later run (the scan says "Byla nezvěstná", and unticking doesn't bring it back), or when a writer clicks "Označit jako nalezenou" on the item detail.
     - The item keeps its location. Archiving it doesn't clear the status.
 13. **Finish:** any writer may finish. It ends the run for everyone. Checks, moves and new items are refused after it (`inventory_closed`).
 14. **Cancel:** any writer may cancel. Nothing is marked missing, the run stays in the list as *Zrušená* with what was checked, read-only. Moves made during the run stay, and so does a cleared Nezvěstná.
 15. **Online only:** a check that doesn't reach the server is not saved and says so ("Sken se neuložil", "Zkusit znovu"). There is no offline queue.
-16. **Audit:** start, every check and uncheck, finish and cancel are audit entries of the run (entity type `inventory`). Moves and status changes are audit entries of the item. Each is written in the same transaction as the change.
+16. **Audit:** start, every check and uncheck, every flag and unflag as missing, finish and cancel are audit entries of the run (entity type `inventory`). Moves and status changes are audit entries of the item. Each is written in the same transaction as the change.
+17. **Flagging as missing** (*Decided* 2026-10-10): while a run is in progress, any writer can flag an unchecked item of the list as missing from its checklist row ("Označit jako chybějící") and take the flag back.
+    - The flag belongs to the run: it is `outcome = 'missing'` on the run's row, and the item itself is untouched. The item's *Nezvěstná* status (rule 12) is set from the flagged rows with the full finish step.
+    - A check, by hand or by scan, takes the flag back, and unticking does not bring it back. An item somebody checked first cannot be flagged: the answer is that row, checked (found beats missing, no error).
+    - Only items of the list can be flagged. An item found elsewhere or added is not on it (`item_not_in_inventory`), and one archived since the start is never offered as missing (`archived`).
+    - **Finish:** the flagged items are *Chybí*; the other unchecked items stay *Nezkontrolováno*. (The simple finish used to mark every unchecked item missing.) Cancel marks nothing more and keeps the flags, and so does reopen.
 
 ### 9.4 Screens
 
@@ -447,7 +453,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
   - "84 / 128 zkontrolováno" with the percentage and a progress bar
   - "Zahájil RS · 3. 10. 2026 v 9:15" and the avatars of the people taking part
   - The whole card is the link to the run, for every role (*Decided* 2026-10-10: no "Pokračovat" / "Zobrazit" button).
-- **Dokončené (N):** finished and cancelled runs, newest first, paged by 20, with the date, the root and a result line ("120 nalezeno · 3 jinde · 5 chybí"). A cancelled run shows the *Zrušená* badge and "zahájil JN". On desktop this is a table: Lokalita / Datum / Výsledek / Stav.
+- **Dokončené (N):** finished and cancelled runs, newest first, paged by 20, with the date, the root and a result line ("120 nalezeno · 3 jinde · 5 chybí · 3 nezkontrolováno"). A cancelled run shows the *Zrušená* badge and "zahájil JN". On desktop this is a table: Lokalita / Datum / Výsledek / Stav.
 - **"Zobrazit archivované"** (*Decided* 2026-10-10, `?archived=true`): swaps the two lists for the archived runs (**Archivované (N)**), which carry the *Archivováno* badge and open the detail, where *Obnovit* is.
 - "Zahájit inventuru" for writers: in the bottom bar on phones, next to the heading on desktop.
 - Empty state: "Zatím žádná inventura" with "Zahájit inventuru".
@@ -463,22 +469,23 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 #### 9.4.3 Run overview — `/inventories/$id` while in progress [24]
 
 - **Top bar:** back, the root's name. A "…" menu (*Decided* 2026-10-10, replacing the Zrušit inventuru button): a run in progress offers *Dokončit inventuru* and *Zrušit inventuru*, a finished one *Znovu otevřít inventuru* and *Archivovat*, a cancelled one *Archivovat*, an archived one *Obnovit*. Everything but Obnovit asks first. A run in progress shows no "Probíhá" badge. Read users get no menu.
-- **Header:** "Inventura od 3. 10. 2026 · zahájil RS", "84 / 128 zkontrolováno · 66 %" with a bar, the **four figures** *Zkontrolováno · Nezkontrolováno · Nové · Chybí*, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes). *Nové* is what was found elsewhere or added and is not on the list, so it is not part of "84 / 128"; *Chybí* is what the finish marked missing (0 until then).
+- **Header:** "Inventura od 3. 10. 2026 · zahájil RS", "84 / 128 zkontrolováno · 66 %" with a bar, the **four figures** *Zkontrolováno · Nezkontrolováno · Nové · Chybí*, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes). *Nové* is what was found elsewhere or added and is not on the list, so it is not part of "84 / 128"; *Chybí* is what people flagged as missing (rule 17; 0 until somebody does).
 - **Locations:** a flat list of every location in the subtree that has items on the list or items found there. A location deeper than one level below the root shows its path under the name, so rooms with the same name on different floors stay apart. Items placed directly in the root appear under the root's own name.
-  - Each row: name, "24 / 32 položek" (the list only, so the rows add up to the header), "· 2 nové" for what was found or added there, and the avatars of the people who checked items there. The row opens that location's checklist.
-  - Rows are grouped as **Probíhající** (some checked), **Nekontrolované** (none checked, "Nikdo nezačal") and **Hotovo** (all checked, *Hotovo* badge). Each group is sorted by path in Czech order.
+  - Each row: name, "24 / 32 položek" (the list only, so the rows add up to the header), "· 2 nové" for what was found or added there, "· 1 chybí" for what was flagged missing, and the avatars of the people who checked items there. The row opens that location's checklist.
+  - Rows are grouped as **Probíhající** (some checked or flagged), **Nekontrolované** (none, "Nikdo nezačal") and **Hotovo** (every item of the list checked or flagged missing, *Hotovo* badge). Each group is sorted by path in Czech order.
 - "Skenovat" (bottom bar, touch devices only) opens the scanner with the root as context. On desktop the note "Skenovat lze v telefonu." takes its place.
 
 #### 9.4.4 Location checklist — `/inventories/$id/locations/$locationId` [25]
 
 - **Top bar:** back (to the overview) and the location's name. The checklist has no cancel button (*Decided* 2026-10-09): "Zrušit inventuru" is on the overview only. Where "Dokončit inventuru" goes is decided with the finish step.
 - **Header:** the path from the root, then a box of its own (*Decided* 2026-10-10) with "24 / 32 zkontrolováno · 75 %" and a bar, the participants, and the same four figures as the overview. **Search** over name and ID within this location's rows, on a row of its own below the box.
-- **Sections** (*Decided* 2026-10-10): each is a heading bar that folds its rows and starts **folded**. **Nezkontrolované (N):** all of them, by name in Czech order. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand (and "Zobrazit méně" to fold again). **Nové (N):** the items found elsewhere or added, apart from the list, so the section counts match the figures. While a search is active the sections cannot be folded and every match is listed.
+- **Sections** (*Decided* 2026-10-10): each is a heading bar that folds its rows and starts **folded**. **Nezkontrolované (N):** all of them, by name in Czech order. **Chybí (N)** (*Decided* 2026-10-10, only when something is flagged): the items flagged as missing, by name, each with the *Chybí* badge. **Zkontrolované (N):** the five most recent, then "… a dalších 19 zkontrolovaných" to expand (and "Zobrazit méně" to fold again). **Nové (N):** the items found elsewhere or added, apart from the list, so the section counts match the figures. While a search is active the sections cannot be folded and every match is listed.
 - **Rows:**
   - Every row: a large checkbox, the name and the ID. Tapping the row toggles it, and Space toggles it from the keyboard. A chevron opens the item detail.
   - A checked row also shows "RS · 10:42" and a scan icon, or the word "ručně" for a hand tick.
   - A *Nalezeno jinde* row shows "Vedeno v: …" and the *Jinde* badge, plus "přesunuto" once moved. Once the item's location is changed (by an ordinary edit) to the location it was found in, the row is in place (*Decided* 2026-10-10): an ordinary blue check without badge or note. A *Nové* row shows "přidáno při inventuře" and the *Nové* badge. An item archived after the start is left out (*Decided* 2026-10-09; it is not counted either, rule 11).
-  - Read users, and everyone on a run that is no longer in progress, see the states without checkboxes.
+  - **Flag button** (*Decided* 2026-10-10): writers on a run in progress get an icon button beside the chevron on every unchecked row of the list, "Označit jako chybějící" (rule 17). It moves the row to *Chybí* and toasts "… označeno jako chybějící" with "Vrátit"; on a flagged row the same button, highlighted, takes the flag back. Ticking a flagged row finds it. Checked rows and found or added items have no such button.
+  - Read users, and everyone on a run that is no longer in progress, see the states without checkboxes or flag buttons (a flagged row still carries its badge).
   - A tick shows at once as pending, but the row moves between the groups only when the server has confirmed it, so the screen never shows a check that was not saved. A failure puts the box back and says so ("Zaškrtnutí se neuložilo", rule 15). Every untick offers "Vrátit" (rule 10).
 - "Přidat položku" for writers on a run in progress (rule 9, button beside the title): the item form in this location, which returns here when saved.
 - "Skenovat" (touch devices) opens the scanner with this location as context.
@@ -512,7 +519,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 #### 9.4.6 Finish and cancel — `/inventories/$id/finish` (not drawn)
 
 - **Summary:** "Nalezeno 120 · Nalezeno jinde 3 (2 přesunuty) · Nové 1 · Nezkontrolováno 5".
-- **"Označit jako nezvěstné":** the unchecked items, each with a checkbox, all ticked. Untick the ones known to be elsewhere for a reason (e.g. at a repair shop); they end as *Nezkontrolováno*.
+- **"Označit jako nezvěstné":** the unchecked items, each with a checkbox, all ticked. Untick the ones known to be elsewhere for a reason (e.g. at a repair shop); they end as *Nezkontrolováno*. *Decided* 2026-10-10: the choice is made during the run instead (rule 17), so this list starts from the flagged items (see the first bullet of the built list in §9.8); whether it also offers the rest is open.
 - **Protocol fields** (*Decided*):
   - "Poznámka" (free text, e.g. "Způsob zjištění: fyzická kontrola")
   - "Inventarizační komise" (names and roles, one per line), used for the signature block.
@@ -598,7 +605,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 | Table / column | Key columns | Rules |
 | --- | --- | --- |
 | `inventories` | location_id (root), status (`in_progress` / `finished` / `cancelled`), ended_at, ended_by, note, committee | Started = `created_at` / `created_by`. `ended_*` are set exactly when the status isn't `in_progress` (CHECK). Versioned (finish, cancel, archive and restore send `version`; checks don't bump it). `archived_at`: an ended run can be archived and restored (CHECK: never while in progress); runs are never deleted. Partial index on `location_id` where `in_progress`. |
-| `inventory_items` | inventory_id, item_id, kind (`expected` / `elsewhere` / `new`), location_id, registered_location_id, checked_at, checked_by, method (`scan` / `manual`), was_missing, moved_at, moved_by, outcome (`missing` / `skipped`) | One row per item per run, unique (inventory_id, item_id). The `expected` rows are inserted at the start (the snapshot). `location_id` is where the row belongs in the run: the item's location at the start, or the context location for a found or new item; a move changes it. `registered_location_id` is where a found-elsewhere item was registered (null = no location). `checked_*` and `method` are set together or all null. `outcome` is set at the finish for unchecked `expected` rows only. An unticked `elsewhere` or `new` row is kept with `checked_at` null and is hidden, so no DELETE grant is needed. |
+| `inventory_items` | inventory_id, item_id, kind (`expected` / `elsewhere` / `new`), location_id, registered_location_id, checked_at, checked_by, method (`scan` / `manual`), was_missing, moved_at, moved_by, outcome (`missing` / `skipped`) | One row per item per run, unique (inventory_id, item_id). The `expected` rows are inserted at the start (the snapshot). `location_id` is where the row belongs in the run: the item's location at the start, or the context location for a found or new item; a move changes it. `registered_location_id` is where a found-elsewhere item was registered (null = no location). `checked_*` and `method` are set together or all null. `outcome` is only for unchecked `expected` rows (CHECK): `missing` while a person has flagged the row (rule 17; a check clears it), `skipped` set at the finish for rows whose item was archived since, null otherwise. An unticked `elsewhere` or `new` row is kept with `checked_at` null and is hidden, so no DELETE grant is needed. |
 | `items.missing_since` | date, null | Null = not missing. Set at the finish, cleared by a check or by "Označit jako nalezenou". Partial index where not null, for the "Jen nezvěstné" filter. |
 
 - Checks don't use `version`. They are conditional updates (`… WHERE checked_at IS NULL`), so two people checking the same item can't overwrite each other.
@@ -655,14 +662,15 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 - **Step 4, part:** the Inventura tab (§9.4.1), the start screen (§9.4.2), the run overview (§9.4.3) and the location checklist (§9.4.4) with hand checks and polling.
 - **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
 - **Fixes of 2026-10-10** (client feedback on the first slices):
-  - **A simple finish** (`POST /inventories/{id}/finish`, "…" menu): the run ends as *Dokončená* and the unchecked items of the list get the outcome `missing` ("Chybí"; `skipped` for those archived since). There is no finish screen, note, committee, per-item choice or protocol yet (§9.4.6 stays the plan), and no `items.missing_since` / *Nezvěstná* status on the item.
-  - **Reopen** (`POST /inventories/{id}/reopen`, "…" menu, audit action `reopen`, migration 0023): a finished run goes back to *Probíhá*; `ended_*` are cleared and what the finish marked missing (`outcome`) waits for a check again, checks and found or added rows stay. It is refused while another run is in progress on the location, above it or below it (`inventory_overlap`, serialised with the starts), for a run in progress (`inventory_in_progress`), for a cancelled run, which stays final (`inventory_not_finished`), and for an archived one, which is restored first (`archived`). It can then be finished again.
+  - **A simple finish** (`POST /inventories/{id}/finish`, "…" menu): the run ends as *Dokončená*. The items flagged as missing (rule 17) are *Chybí*; the other unchecked items of the list stay not checked, and `skipped` is set for those archived since. The dialog says how many of each. There is no finish screen, note, committee or protocol yet (§9.4.6 stays the plan), and no `items.missing_since` / *Nezvěstná* status on the item.
+  - **Flagging as missing** (2026-10-10, rule 17; `POST /inventories/{id}/items/{itemId}/mark-missing` and `/unmark-missing`, audit actions `mark_missing` and `unmark_missing`, migration 0024): the `missing` field of a row, the *Chybí* section and flag button on the checklist, the figure and "· N chybí" on the overview, "N nezkontrolováno" in the result line of the Inventura tab. A check takes the flag back in the same update. No change to the item, so no migration of `items`.
+  - **Reopen** (`POST /inventories/{id}/reopen`, "…" menu, audit action `reopen`, migration 0023): a finished run goes back to *Probíhá*; `ended_*` are cleared and what the finish set on items archived since (`skipped`) is cleared; checks, flags and found or added rows stay. It is refused while another run is in progress on the location, above it or below it (`inventory_overlap`, serialised with the starts), for a run in progress (`inventory_in_progress`), for a cancelled run, which stays final (`inventory_not_finished`), and for an archived one, which is restored first (`archived`). It can then be finished again.
   - **Archive and restore of ended runs** (`POST /inventories/{id}/archive|restore`, `?archived=true` on the list, migration 0022; `inventory_in_progress` 409 for a run in progress). Both finished and cancelled runs can be archived; Restore is on the run's detail.
   - **Rule 9 is built:** `POST /items` takes `inventoryId` and answers `addedToInventory`; the checklist's "Přidat položku" opens `/items/new?locationId=&inventoryId=` and the form returns to the checklist. The scanner's "Přidat novou položku" from an unknown code (the `code` parameter) is still open.
-  - **Numbers:** a location's `total` / `checked` count the list only, so the locations add up to the run's `expected` / `checked`; found and added items are `extra`, and what the finish marked is `missing`.
+  - **Numbers:** a location's `total` / `checked` count the list only, so the locations add up to the run's `expected` / `checked`; found and added items are `extra`, and what was flagged as missing is `missing`.
   - **`registeredElsewhere`** on a row: a found item whose location was since changed to the location it was found in is in place and shows as an ordinary check; its `kind` and the counts stay as recorded.
 - **`items.missing_since`** is not added yet; it gets its own migration with the full finish step.
-- **The audit action CHECK** allows `start`, `check`, `uncheck`, `finish`, `cancel`, `reopen`, `archive` and `restore` (§9.3 rule 16); all of them are written now.
+- **The audit action CHECK** allows `start`, `check`, `uncheck`, `mark_missing`, `unmark_missing`, `finish`, `cancel`, `reopen`, `archive` and `restore` (§9.3 rule 16); all of them are written now.
 - **Step 6, part: the scanner screen** (§9.4.5) with its entry buttons: "Skenovat" in the bottom bar of the overview (the run as context) and of a checklist (that location as context), touch screens only; on a computer the overview says "Skenovat lze v telefonu.". Built with the camera states and all result sheets of the table in §9.4.5 except the buttons that need a move. Where it differs from or adds to the text above:
   - **No move yet:** "Nalezeno jinde" and the wrong-place "Nalezeno" show "Vedeno v: …" and only *Zavřít*; "Přesunout sem" / "Změnit" / "Ponechat" come with the move endpoint.
   - **"Zadat kód ručně" is left out** (it was *Proposed*, not drawn): the checklist ticks by hand, and "Kontrolovat ručně" in the camera states leads there. An item that is not on the list cannot be checked without its label until it is added.
@@ -678,7 +686,7 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
 - **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
 
-**E2E additions:** start a run, tick items by hand, finish (an unchecked item becomes Nezvěstná), print a protocol; select items and open the label preview. The scanner's decoder is faked in component tests; the camera isn't available in jsdom.
+**E2E additions:** start a run, tick items by hand, flag one as missing, finish (the flagged item becomes Nezvěstná, the other unchecked ones stay Nezkontrolováno), print a protocol; select items and open the label preview. The scanner's decoder is faked in component tests; the camera isn't available in jsdom.
 
 ### 9.9 Later
 
