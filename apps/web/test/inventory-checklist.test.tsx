@@ -33,8 +33,8 @@ type Options = {
   url?: string;
   role?: string;
   run?: Record<string, unknown>;
-  /** The numbers of the location; by default they are counted from the rows. */
-  numbers?: { total: number; checked: number };
+  /** The numbers of the location; by default they are counted from the rows (the list, and the finds apart). */
+  numbers?: { total: number; checked: number; extra?: number; missing?: number };
   /** Answers a tick; `apply` stores it (by Roman, or by whoever is passed) and returns the row. */
   check?: (row: Row, apply: (by?: Person) => Response) => Response | Promise<Response>;
   uncheck?: (row: Row, apply: () => Response) => Response | Promise<Response>;
@@ -47,15 +47,20 @@ function openChecklist(rows: Row[], options: Options = {}) {
   const routes: Record<string, Handler> = {
     'GET /api/v1/me': () => jsonResponse({ ...me, role: options.role ?? 'write' }),
     [`GET /api/v1/inventories/${runId}`]: () => {
-      const checked = state.rows.filter((r) => r.checkedAt).length;
-      const { total, checked: count } = options.numbers ?? { total: state.rows.length, checked };
+      const listed = state.rows.filter((r) => r.kind === 'expected');
+      const found = state.rows.filter((r) => r.kind !== 'expected' && r.checkedAt);
+      const { total, checked: count, extra = 0, missing = 0 } = options.numbers ?? {
+        total: listed.length,
+        checked: listed.filter((r) => r.checkedAt).length,
+        extra: found.length,
+      };
       return jsonResponse(
         inventory({
           id: runId,
           location: root,
           path: [root],
           locations: [
-            inventoryLocation({ ...kitchen, path: [root, floor, kitchen], total, checked: count, participants: [roman, jan] }),
+            inventoryLocation({ ...kitchen, path: [root, floor, kitchen], total, checked: count, extra, missing, participants: [roman, jan] }),
           ],
           ...options.run,
         }),
@@ -115,6 +120,50 @@ describe('inventory checklist', () => {
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['Nezkontrolované1', 'Zkontrolované1']);
+  });
+
+  describe('summary and search', () => {
+    /** The figure under a label of the summary ("Zkontrolováno" → "1"). */
+    const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+
+    it('adds the location up in four figures, in a box of its own with the bar', async () => {
+      openChecklist(
+        [
+          row('Mixér tyčový'),
+          row('Kávovar'),
+          row('Lednice', done(roman)),
+          row('Pokladní systém', { kind: 'elsewhere', ...done(jan) }),
+        ],
+        { numbers: { total: 3, checked: 1, extra: 1, missing: 0 } },
+      );
+      await rowsLoaded();
+
+      expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '2', '1', '0']);
+      // The bar and the figures belong to one box; the finds are no part of "1 / 3".
+      const box = screen.getByRole('progressbar', { name: 'Průběh inventury' }).closest('section')!;
+      expect(within(box).getByText('1 / 3 zkontrolováno · 33 %')).toBeInTheDocument();
+      expect(within(box).getByText('Nové', { selector: 'dt' })).toBeInTheDocument();
+    });
+
+    it('has the search field on a row of its own, outside the box', async () => {
+      openChecklist([row('Mixér tyčový')]);
+      await rowsLoaded();
+
+      const box = screen.getByRole('progressbar', { name: 'Průběh inventury' }).closest('section')!;
+      const search = screen.getByRole('searchbox', { name: 'Hledat položky v lokalitě' });
+      expect(box).not.toContainElement(search);
+      // Its own row: nothing else shares its wrapper.
+      expect(search.closest('div')!.parentElement).toBe(box.parentElement);
+    });
+
+    it('shows what is unchecked and missing when the run has finished', async () => {
+      openChecklist([row('Mixér tyčový'), row('Kávovar', done(roman))], {
+        numbers: { total: 10, checked: 7, extra: 2, missing: 3 },
+        run: { status: 'finished', endedAt: '2026-10-04T14:02:00.000Z', endedBy: jan },
+      });
+      await rowsLoaded();
+      expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['7', '0', '2', '3']);
+    });
   });
 
   it('starts the path at the root of the run, not at the top of the tree', async () => {

@@ -92,6 +92,36 @@ describe('inventory run overview', () => {
     expect(within(dilna).queryByText('Hotovo')).not.toBeInTheDocument();
   });
 
+  it('adds the run up in four figures under the bar', async () => {
+    signedIn(() =>
+      jsonResponse(inventory({ id, counts: { expected: 91, checked: 3, elsewhere: 1, new: 1, missing: 0 } })),
+    );
+    renderApp(`/inventories/${id}`);
+
+    await screen.findByText('3 / 91 zkontrolováno · 3 %');
+    const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+    expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['3', '88', '2', '0']);
+  });
+
+  it('counts the items marked missing at the finish apart from the unchecked ones', async () => {
+    signedIn(() =>
+      jsonResponse(
+        inventory({
+          id,
+          status: 'finished',
+          endedAt: '2026-10-04T14:02:00.000Z',
+          endedBy: jan,
+          counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 3 },
+        }),
+      ),
+    );
+    renderApp(`/inventories/${id}`);
+
+    await screen.findByText('Dokončená');
+    const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+    expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['7', '0', '0', '3']);
+  });
+
   it('shows the numbers of the list the same in the header and in the location', async () => {
     signedIn(() =>
       jsonResponse(

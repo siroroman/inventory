@@ -20,6 +20,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
 import { ChecklistRow } from './checklist-row';
 import { groupRows, recentCheckedCount } from './checklist';
+import { InventorySummary, locationFigures } from './inventory-summary';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
 import { useTickItem } from './use-tick-item';
@@ -168,27 +169,29 @@ function ChecklistBody({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:flex-nowrap">
-        <div className="flex min-w-48 flex-1 flex-col gap-2">
-          <p className="text-[15px] font-semibold">
-            {t('inventory.progress', {
-              checked: location.checked,
-              total: location.total,
-              percent: progressPercent(location.checked, location.total),
-            })}
-          </p>
-          <Progress value={location.checked} max={location.total} label={t('inventory.progressLabel')} />
+      <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:flex-nowrap">
+          <div className="flex min-w-48 flex-1 flex-col gap-2">
+            <p className="text-[15px] font-semibold">
+              {t('inventory.progress', {
+                checked: location.checked,
+                total: location.total,
+                percent: progressPercent(location.checked, location.total),
+              })}
+            </p>
+            <Progress value={location.checked} max={location.total} label={t('inventory.progressLabel')} />
+          </div>
+          <AvatarStack people={location.participants} />
         </div>
-        <AvatarStack people={location.participants} />
-        <div className="w-full md:w-72">
-          <SearchBox
-            value={q}
-            onSearch={onSearch}
-            label={t('inventory.checklist.searchLabel')}
-            placeholder={t('inventory.checklist.searchPlaceholder')}
-          />
-        </div>
-      </div>
+        <InventorySummary figures={locationFigures(location)} />
+      </section>
+
+      <SearchBox
+        value={q}
+        onSearch={onSearch}
+        label={t('inventory.checklist.searchLabel')}
+        placeholder={t('inventory.checklist.searchPlaceholder')}
+      />
 
       {list}
 

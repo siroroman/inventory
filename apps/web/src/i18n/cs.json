@@ -543,6 +543,12 @@
       "doneBadge": "Hotovo"
     },
     "back": "Zpět",
+    "summary": {
+      "checked": "Zkontrolováno",
+      "unchecked": "Nezkontrolováno",
+      "extra": "Nové",
+      "missing": "Chybí"
+    },
     "actions": {
       "menu": "Akce inventury",
       "finish": "Dokončit inventuru",
