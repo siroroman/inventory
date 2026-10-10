@@ -1,7 +1,8 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import type { Actor } from '../../../src/auth/roles.ts';
 import { transactor } from '../../../src/db/transaction.ts';
-import { inventories, inventoryItems } from '../../../src/db/schema/index.ts';
+import { inventories, inventoryItems, items } from '../../../src/db/schema/index.ts';
 import type { DomainError } from '../../../src/errors.ts';
 import { createInventoryRepository } from '../../../src/modules/inventories/repository.ts';
 import { createInventoryService, inventoryRepos } from '../../../src/modules/inventories/service.ts';
@@ -148,6 +149,186 @@ describe('inventory service with the database', () => {
       }
       // Whichever came first, nothing can be ticked now.
       await expect(service.check(actor, inventory.id, item.id)).rejects.toMatchObject({ code: 'inventory_closed' });
+    });
+  });
+
+  describe('scans', () => {
+    /** A run with one listed item and an item of another location that the run does not list. */
+    async function run() {
+      const base = await setup();
+      const other = await insertUser(t().app, { name: 'Jan Novák', role: 'write' });
+      const otherActor: Actor = { id: other.id, role: 'write' };
+      const inventory = await insertInventory(t().app, { createdBy: base.actor.id });
+      const listed = await insertItem(t().app, { name: 'Kávovar', locationId: inventory.locationId });
+      await insertInventoryItem(t().app, { inventoryId: inventory.id, itemId: listed.id, locationId: inventory.locationId });
+      const sklad = await insertLocation(t().app, { name: 'Sklad' });
+      const stranger = await insertItem(t().app, { name: 'Pokladní systém', locationId: sklad.id });
+      const history = async () =>
+        (await inventoryRepos(t().app).audit.list({ entityType: 'inventory', entityId: inventory.id }, { limit: 20 })).items.map(
+          (e) => e.action,
+        );
+      const rows = () => t().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, inventory.id));
+      return { ...base, other, otherActor, inventory, listed, stranger, sklad, history, rows };
+    }
+
+    it('checks a listed item by its code and adds an unlisted one as found elsewhere, each with an audit entry', async () => {
+      const { actor, service, user, inventory, listed, stranger, sklad, history, rows } = await run();
+
+      const found = await service.scan(actor, inventory.id, { code: listed.code.toLowerCase() });
+      expect(found).toMatchObject({ outcome: 'found', misplaced: false, row: { checkedBy: { id: user.id }, method: 'scan' } });
+
+      const elsewhere = await service.scan(actor, inventory.id, { code: stranger.code });
+      expect(elsewhere).toMatchObject({
+        outcome: 'found_elsewhere',
+        item: { path: [{ name: 'Sklad' }] },
+        row: { kind: 'elsewhere', locationId: inventory.locationId },
+      });
+
+      expect(await rows()).toHaveLength(2);
+      expect(await rows().then((all) => all.find((r) => r.itemId === stranger.id))).toMatchObject({
+        kind: 'elsewhere',
+        locationId: inventory.locationId,
+        registeredLocationId: sklad.id,
+        method: 'scan',
+      });
+      expect(await service.get(actor, inventory.id)).toMatchObject({
+        version: 1,
+        counts: { expected: 1, checked: 1, elsewhere: 1 },
+      });
+      expect(await history()).toEqual(['check', 'check']);
+    });
+
+    it('checks a found item again after it was unticked, through the upsert, at the new context', async () => {
+      const { actor, service, inventory, listed, stranger, history, rows } = await run();
+      const room = await insertLocation(t().app, { name: 'Zasedačka', parentId: inventory.locationId });
+
+      await service.scan(actor, inventory.id, { code: stranger.code });
+      await service.uncheck(actor, inventory.id, stranger.id);
+      // Only the listed item is left; the unticked found item is kept in the table but hidden.
+      expect((await service.listItems(actor, inventory.id)).map((r) => r.itemId)).toEqual([listed.id]);
+
+      const again = await service.scan(actor, inventory.id, { code: stranger.code, locationId: room.id, method: 'manual' });
+
+      expect(again).toMatchObject({ outcome: 'found_elsewhere', row: { locationId: room.id, method: 'manual' } });
+      expect(await rows()).toHaveLength(2);
+      expect(await history()).toEqual(['check', 'uncheck', 'check']);
+    });
+
+    it('let the first of two simultaneous scans of a listed item win, with one audit entry', async () => {
+      const { actor, otherActor, service, inventory, listed, history } = await run();
+      const settled = await Promise.all([
+        service.scan(actor, inventory.id, { code: listed.code }),
+        service.scan(otherActor, inventory.id, { code: listed.code }),
+      ]);
+      expect(settled.map((r) => r.outcome).sort()).toEqual(['already_checked', 'found']);
+      const [a, b] = settled.map((r) => ('row' in r ? r.row.checkedBy!.id : null));
+      expect(a).toBe(b);
+      expect(await history()).toEqual(['check']);
+    });
+
+    it('let the first of two simultaneous scans of an unlisted item win, with one row and one audit entry', async () => {
+      const { actor, otherActor, service, inventory, stranger, history, rows } = await run();
+      const settled = await Promise.all([
+        service.scan(actor, inventory.id, { code: stranger.code }),
+        service.scan(otherActor, inventory.id, { code: stranger.code }),
+      ]);
+      expect(settled.map((r) => r.outcome).sort()).toEqual(['already_checked', 'found_elsewhere']);
+      const [a, b] = settled.map((r) => ('row' in r ? r.row.checkedBy!.id : null));
+      expect(a).toBe(b);
+      expect((await rows()).filter((r) => r.itemId === stranger.id)).toHaveLength(1);
+      expect(await history()).toEqual(['check']);
+    });
+
+    // The winner is half-way (checked, not committed) while the loser reads the row and then waits for it.
+    async function loserOfHalfWayWinner(
+      winnerWrites: (repo: ReturnType<typeof createInventoryRepository>) => Promise<unknown>,
+      loserScans: () => Promise<unknown>,
+      inventoryId: string,
+    ) {
+      let release!: () => void;
+      const hold = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const winner = t().app.transaction(async (tx) => {
+        const repo = createInventoryRepository(tx);
+        await repo.lockShared(inventoryId);
+        await winnerWrites(repo);
+        await hold;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const loser = loserScans();
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      release();
+      await winner;
+      return loser;
+    }
+
+    it('tell the loser of two scans of a listed item who really checked it, with no second audit entry', async () => {
+      const { actor, otherActor, service, inventory, listed, history } = await run();
+      const result = await loserOfHalfWayWinner(
+        (repo) => repo.markChecked(inventory.id, listed.id, { checkedAt: new Date(), checkedBy: actor.id, method: 'scan' }),
+        () => service.scan(otherActor, inventory.id, { code: listed.code }),
+        inventory.id,
+      );
+      expect(result).toMatchObject({ outcome: 'already_checked', row: { checkedBy: { id: actor.id }, method: 'scan' } });
+      expect(await history()).toEqual([]);
+    });
+
+    it('tell the loser of two scans of an unlisted item who really checked it, through the upsert', async () => {
+      const { actor, otherActor, service, inventory, stranger, sklad, rows } = await run();
+      const result = await loserOfHalfWayWinner(
+        (repo) =>
+          repo.recordFound(inventory.id, stranger.id, {
+            locationId: inventory.locationId,
+            registeredLocationId: sklad.id,
+            checkedAt: new Date(),
+            checkedBy: actor.id,
+            method: 'scan',
+          }),
+        () => service.scan(otherActor, inventory.id, { code: stranger.code }),
+        inventory.id,
+      );
+      expect(result).toMatchObject({ outcome: 'already_checked', row: { kind: 'elsewhere', checkedBy: { id: actor.id } } });
+      expect((await rows()).filter((r) => r.itemId === stranger.id)).toHaveLength(1);
+    });
+
+    it('never lose a scan to a cancel: it is either saved before it or refused after it', async () => {
+      const { actor, otherActor, service, inventory, stranger, history, rows } = await run();
+      const [scan, cancel] = await Promise.allSettled([
+        service.scan(otherActor, inventory.id, { code: stranger.code }),
+        service.cancel(actor, inventory.id, inventory.version),
+      ]);
+      expect(cancel.status).toBe('fulfilled');
+      const stored = (await rows()).filter((r) => r.itemId === stranger.id);
+      if (scan.status === 'fulfilled') {
+        expect(stored).toHaveLength(1);
+        expect(await history()).toEqual(['cancel', 'check']);
+      } else {
+        expect((scan.reason as DomainError).code).toBe('inventory_closed');
+        expect(stored).toHaveLength(0);
+        expect(await history()).toEqual(['cancel']);
+      }
+      await expect(service.scan(actor, inventory.id, { code: stranger.code })).rejects.toMatchObject({
+        code: 'inventory_closed',
+      });
+    });
+
+    it('answers an unknown code and an archived item without writing anything', async () => {
+      const { actor, service, inventory, stranger, history, rows } = await run();
+      await t().app.update(items).set({ archivedAt: new Date() }).where(eq(items.id, stranger.id));
+
+      await expect(service.scan(actor, inventory.id, { code: 'INV-NOPE-1' })).resolves.toEqual({ outcome: 'unknown_code' });
+      await expect(service.scan(actor, inventory.id, { code: stranger.code })).resolves.toMatchObject({ outcome: 'archived' });
+
+      expect(await rows()).toHaveLength(1);
+      expect(await history()).toEqual([]);
+    });
+
+    it('refuses a context location outside the run', async () => {
+      const { actor, service, inventory, stranger, sklad } = await run();
+      await expect(
+        service.scan(actor, inventory.id, { code: stranger.code, locationId: sklad.id }),
+      ).rejects.toMatchObject({ code: 'location_outside_inventory' });
     });
   });
 
