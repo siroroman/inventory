@@ -31,9 +31,19 @@ export const locationFigures = ({ total, checked, extra, missing }: InventoryLoc
 });
 
 /**
- * "Zkontrolováno · Nezkontrolováno · Nové · Chybí": what the progress bar's "84 / 128" is made of,
- * plus what is not on the list. The same four figures on the run's overview and on a checklist.
- * Chybí is what people flagged as missing; it is 0 until somebody does.
+ * The progress bar's "10 / 10": everything the screen lists (the four figures added up) and how much
+ * of it is settled, that is all but what is still to check. Found, added and flagged items count as
+ * settled, so a run with nothing left unchecked reads 100 %.
+ */
+export const progressOf = ({ checked, unchecked, extra, missing }: InventoryFigures) => ({
+  done: checked + extra + missing,
+  total: checked + unchecked + extra + missing,
+});
+
+/**
+ * "Zkontrolováno · Nezkontrolováno · Nové · Chybí": what the progress bar's "10 / 10" is made of.
+ * The same four figures on the run's overview and on a checklist. Chybí is what people flagged as
+ * missing; it is 0 until somebody does.
  */
 export function InventorySummary({ figures }: { figures: InventoryFigures }) {
   const { t } = useTranslation();

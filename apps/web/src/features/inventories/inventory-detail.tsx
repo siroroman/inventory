@@ -19,7 +19,7 @@ import { formatTime, formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
 import { InventoryActions } from './inventory-actions';
-import { InventorySummary, runFigures } from './inventory-summary';
+import { InventorySummary, progressOf, runFigures } from './inventory-summary';
 import { shortName, shortNames } from './people';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
@@ -90,22 +90,22 @@ function RunLines({ inventory }: { inventory: InventoryDto }) {
 
 function Progression({ inventory }: { inventory: InventoryDto }) {
   const { t } = useTranslation();
-  const { expected, checked } = inventory.counts;
   const figures = runFigures(inventory.counts);
+  const { done, total } = progressOf(figures);
   return (
     <>
-      {expected === 0 ? (
+      {total === 0 ? (
         <p className="text-[15px] text-muted-foreground">{t('inventory.noItems')}</p>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-[15px] font-semibold">
-            {t('inventory.progress', { checked, total: expected, percent: progressPercent(checked, expected) })}
+            {t('inventory.progress', { done, total, percent: progressPercent(done, total) })}
           </p>
-          <Progress value={checked} max={expected} label={t('inventory.progressLabel')} />
+          <Progress value={done} max={total} label={t('inventory.progressLabel')} />
         </div>
       )}
       {/* An empty list with nothing found has nothing to add up. */}
-      {(expected > 0 || figures.extra > 0) && <InventorySummary figures={figures} />}
+      {total > 0 && <InventorySummary figures={figures} />}
     </>
   );
 }

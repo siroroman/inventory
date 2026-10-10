@@ -11,6 +11,7 @@ import { ApiError, isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { cn } from '@/lib/utils';
 import { inventoryQueryOptions, scanInventory } from './api';
+import { locationFigures, progressOf, runFigures } from './inventory-summary';
 import { announcementOf, autoCloseMs, closesItself, ScanSheet, type Sheet, sheetContent, sheetOfResult } from './scan-sheet';
 
 const roundButton =
@@ -65,7 +66,7 @@ function Frame({
   id: string;
   locationId?: string;
   title: string;
-  counter?: { checked: number; total: number };
+  counter?: { done: number; total: number };
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -77,7 +78,7 @@ function Frame({
         {counter ? (
           <span className="rounded-full bg-panel-foreground/15 px-3 py-1.5 text-[13px] font-bold">
             <span aria-hidden>
-              {counter.checked} / {counter.total}
+              {counter.done} / {counter.total}
             </span>
             <span className="sr-only">{t('inventory.scanner.counterLabel', counter)}</span>
           </span>
@@ -297,7 +298,7 @@ export function InventoryScanner({ id, locationId }: { id: string; locationId?: 
   const location = locationId ? inventory?.locations.find((candidate) => candidate.id === locationId) : undefined;
 
   let title = t('inventory.scanner.title');
-  let counter: { checked: number; total: number } | undefined;
+  let counter: { done: number; total: number } | undefined;
   let body: ReactNode;
 
   const toOverview = (
@@ -345,9 +346,8 @@ export function InventoryScanner({ id, locationId }: { id: string; locationId?: 
     );
   } else {
     title = location?.name ?? inventory.location.name;
-    counter = location
-      ? { checked: location.checked, total: location.total }
-      : { checked: inventory.counts.checked, total: inventory.counts.expected };
+    // The same "10 / 10" as the bar of the screen the scanner was opened from.
+    counter = progressOf(location ? locationFigures(location) : runFigures(inventory.counts));
     body = <ScannerCamera inventory={inventory} location={location} />;
   }
 

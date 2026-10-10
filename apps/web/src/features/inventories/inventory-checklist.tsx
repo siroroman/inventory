@@ -21,7 +21,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
 import { ChecklistRow } from './checklist-row';
 import { groupRows, recentCheckedCount } from './checklist';
-import { InventorySummary, locationFigures } from './inventory-summary';
+import { InventorySummary, locationFigures, progressOf } from './inventory-summary';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
 import { useTickItem } from './use-tick-item';
@@ -115,6 +115,8 @@ function ChecklistBody({
   const inProgress = inventory.status === 'in_progress';
   // Read users and ended runs show the states without checkboxes.
   const canEdit = canWrite && inProgress;
+  const figures = locationFigures(location);
+  const { done, total } = progressOf(figures);
   const rows = useQuery(inventoryItemsQueryOptions(inventory.id, location.id, inProgress));
   const { pending, tick, flag } = useTickItem(inventory.id, location.id);
   // Newer checks beyond the first few, on demand.
@@ -277,17 +279,13 @@ function ChecklistBody({
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3 md:flex-nowrap">
           <div className="flex min-w-48 flex-1 flex-col gap-2">
             <p className="text-[15px] font-semibold">
-              {t('inventory.progress', {
-                checked: location.checked,
-                total: location.total,
-                percent: progressPercent(location.checked, location.total),
-              })}
+              {t('inventory.progress', { done, total, percent: progressPercent(done, total) })}
             </p>
-            <Progress value={location.checked} max={location.total} label={t('inventory.progressLabel')} />
+            <Progress value={done} max={total} label={t('inventory.progressLabel')} />
           </div>
           <AvatarStack people={location.participants} />
         </div>
-        <InventorySummary figures={locationFigures(location)} />
+        <InventorySummary figures={figures} />
       </section>
 
       <SearchBox

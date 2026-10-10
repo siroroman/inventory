@@ -98,9 +98,32 @@ describe('inventory run overview', () => {
     );
     renderApp(`/inventories/${id}`);
 
-    await screen.findByText('3 / 91 zkontrolováno · 3 %');
+    // The bar is the four figures added up: 3 + 2 settled of 3 + 88 + 2.
+    await screen.findByText('5 / 93 zkontrolováno · 5 %');
     const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
     expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['3', '88', '2', '0']);
+  });
+
+  it('reads 10 / 10 and 100 % when 7 are checked, 2 found or added and 1 flagged missing, none left', async () => {
+    signedIn(() =>
+      jsonResponse(inventory({ id, counts: { expected: 8, checked: 7, elsewhere: 1, new: 1, missing: 1 } })),
+    );
+    renderApp(`/inventories/${id}`);
+
+    expect(await screen.findByText('10 / 10 zkontrolováno · 100 %')).toBeInTheDocument();
+    const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
+    expect(bar).toHaveAttribute('aria-valuenow', '10');
+    expect(bar).toHaveAttribute('aria-valuemax', '10');
+    const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+    expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['7', '0', '2', '1']);
+  });
+
+  it('shows a run that has only finds, nothing on the list, as done', async () => {
+    signedIn(() => jsonResponse(inventory({ id, counts: { expected: 0, checked: 0, elsewhere: 0, new: 2, missing: 0 } })));
+    renderApp(`/inventories/${id}`);
+
+    expect(await screen.findByText('2 / 2 zkontrolováno · 100 %')).toBeInTheDocument();
+    expect(screen.queryByText('V lokalitě nejsou žádné položky.')).not.toBeInTheDocument();
   });
 
   it('counts the items marked missing at the finish apart from the unchecked ones', async () => {
@@ -122,7 +145,7 @@ describe('inventory run overview', () => {
     expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['7', '0', '0', '3']);
   });
 
-  it('shows the numbers of the list the same in the header and in the location', async () => {
+  it('adds the found item to the bar but keeps the location row to the list and its finds', async () => {
     signedIn(() =>
       jsonResponse(
         inventory({
@@ -134,8 +157,8 @@ describe('inventory run overview', () => {
     );
     renderApp(`/inventories/${id}`);
 
-    expect(await screen.findByText('3 / 91 zkontrolováno · 3 %')).toBeInTheDocument();
-    // The found item is a figure of its own, not part of the list's numbers.
+    expect(await screen.findByText('4 / 92 zkontrolováno · 4 %')).toBeInTheDocument();
+    // The row says what the list did and names the find apart.
     expect(screen.getByText('Arkády Pankrác').closest('li')).toHaveTextContent('3 / 91 položek · 1 nová');
   });
 

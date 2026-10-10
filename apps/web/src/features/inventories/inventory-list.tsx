@@ -18,6 +18,7 @@ import { pathLabel } from '@/features/locations/path';
 import { formatTime, formatTimestamp } from '@/lib/format';
 import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 import { inventoryListQueryOptions } from './api';
+import { progressOf, runFigures } from './inventory-summary';
 import { shortName } from './people';
 import { statusBadge } from './status';
 
@@ -60,7 +61,7 @@ function RunLink({ run, children }: { run: InventoryListEntryDto; children: Reac
 /** A run in progress: where, how far, who started it and who took part. The whole card opens it. */
 function OpenCard({ run }: { run: InventoryListEntryDto }) {
   const { t } = useTranslation();
-  const { expected, checked } = run.counts;
+  const { done, total } = progressOf(runFigures(run.counts));
   const above = run.path.slice(0, -1);
   return (
     <RunLink run={run}>
@@ -72,12 +73,12 @@ function OpenCard({ run }: { run: InventoryListEntryDto }) {
           </div>
           <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         </div>
-        {expected > 0 && (
+        {total > 0 && (
           <div className="flex flex-col gap-1.5">
             <p className="text-sm">
-              {t('inventory.progress', { checked, total: expected, percent: progressPercent(checked, expected) })}
+              {t('inventory.progress', { done, total, percent: progressPercent(done, total) })}
             </p>
-            <Progress value={checked} max={expected} label={t('inventory.progressLabel')} />
+            <Progress value={done} max={total} label={t('inventory.progressLabel')} />
           </div>
         )}
         <div className="flex items-center justify-between gap-3">

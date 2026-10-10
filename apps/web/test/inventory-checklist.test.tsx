@@ -261,10 +261,23 @@ describe('inventory checklist', () => {
       await rowsLoaded();
 
       expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '2', '1', '0']);
-      // The bar and the figures belong to one box; the finds are no part of "1 / 3".
+      // The bar and the figures belong to one box; the bar counts the find on both sides: 1 + 1 of 2 + 1 + 1.
       const box = screen.getByRole('progressbar', { name: 'Průběh inventury' }).closest('section')!;
-      expect(within(box).getByText('1 / 3 zkontrolováno · 33 %')).toBeInTheDocument();
+      expect(within(box).getByText('2 / 4 zkontrolováno · 50 %')).toBeInTheDocument();
       expect(within(box).getByText('Nové', { selector: 'dt' })).toBeInTheDocument();
+    });
+
+    it('reads 100 % once everything is checked, found or flagged as missing, whatever the kind', async () => {
+      openChecklist([row('Pračka průmyslová', { missing: true }), row('Šatní skříně', done(roman))], {
+        numbers: { total: 2, checked: 1, extra: 0, missing: 1 },
+      });
+      await rowsLoaded();
+
+      expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '0', '0', '1']);
+      expect(screen.getByText('2 / 2 zkontrolováno · 100 %')).toBeInTheDocument();
+      const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
+      expect(bar).toHaveAttribute('aria-valuenow', '2');
+      expect(bar).toHaveAttribute('aria-valuemax', '2');
     });
 
     it('has the search field on a row of its own, outside the box', async () => {
@@ -612,8 +625,8 @@ describe('inventory checklist', () => {
       const flagged = screen.getByText('Mixér tyčový').closest('li')!;
       expect(within(flagged).getByText('Chybí')).toBeInTheDocument();
       expect(within(flagged).getByRole('button', { name: 'Zrušit označení chybějící položky: Mixér tyčový' })).toBeInTheDocument();
-      // It is no longer checked, and the figures follow the next time the run is fetched.
-      expect(await screen.findByText('0 / 2 zkontrolováno · 0 %')).toBeInTheDocument();
+      // It is not checked but it is dealt with: the bar moves and the figures follow the next fetch.
+      expect(await screen.findByText('1 / 2 zkontrolováno · 50 %')).toBeInTheDocument();
       await waitFor(() => expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['0', '1', '0', '1']));
       expect(posts(calls)).toHaveLength(1);
       expect(posts(calls)[0]).toMatch(/items\/[^/]+\/mark-missing$/);

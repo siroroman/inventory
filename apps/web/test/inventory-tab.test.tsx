@@ -84,6 +84,16 @@ describe('home: inventory tab', () => {
     expect(screen.queryByRole('link', { name: 'Pokračovat' })).not.toBeInTheDocument();
   });
 
+  it('counts what was found, added or flagged missing as settled on the card', async () => {
+    const run = running({ counts: { expected: 8, checked: 7, elsewhere: 1, new: 1, missing: 1 } });
+    api({ open: () => page([run], { total: 1 }) });
+    renderApp('/?tab=inventory');
+
+    const card = (await screen.findAllByRole('listitem'))[0]!;
+    expect(card).toHaveTextContent('10 / 10 zkontrolováno · 100 %');
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10');
+  });
+
   it('opens the run when the card is clicked anywhere on it', async () => {
     const run = running();
     api({ open: () => page([run], { total: 1 }) });
