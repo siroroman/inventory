@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubTouchScreen } from './helpers.tsx';
 
 // jsdom cannot decode or draw images; the real resizing is checked in a browser.
 vi.mock('../src/lib/resize-image.ts', () => ({
@@ -58,16 +58,6 @@ function open(routes: Routes = {}, { role = 'write', rec = record() }: { role?: 
 
 const fileInput = (kind: 'file' | 'camera' = 'file') =>
   document.querySelector<HTMLInputElement>(`[data-slot="document-${kind}-input"]`)!;
-
-/** The phone: a finger as main pointer, so the camera button shows. */
-function stubTouchScreen() {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query === '(pointer: coarse)',
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }));
-}
 
 const pdf = (name = 'protokol.pdf', size = 1000) => new File([new Uint8Array(size)], name, { type: PDF });
 

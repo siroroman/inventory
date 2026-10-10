@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { inventoryQueryOptions } from '../src/features/inventories/api.ts';
 import { inventory, inventoryLocation, person, ref } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubTouchScreen } from './helpers.tsx';
 
 const id = '5d9e2a63-8b5c-4e7a-9f1b-0a2c3d4e5f60';
 
@@ -162,6 +162,42 @@ describe('inventory run overview', () => {
     signedIn(() => jsonResponse(inventory({ id, activeNow: [jan] })));
     renderApp(`/inventories/${id}`);
     expect(await screen.findByText('JN právě pracuje')).toBeInTheDocument();
+  });
+
+  describe('scanning', () => {
+    it('offers Skenovat on a phone, opening the scanner for the whole run', async () => {
+      stubTouchScreen();
+      signedIn(() => jsonResponse(inventory({ id })));
+      renderApp(`/inventories/${id}`);
+      expect(await screen.findByRole('link', { name: 'Skenovat' })).toHaveAttribute('href', `/inventories/${id}/scan`);
+      expect(screen.queryByText('Skenovat lze v telefonu.')).not.toBeInTheDocument();
+    });
+
+    it('says scanning is for the phone where there is no finger, and offers no link', async () => {
+      signedIn(() => jsonResponse(inventory({ id })));
+      renderApp(`/inventories/${id}`);
+      expect(await screen.findByText('Skenovat lze v telefonu.')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Skenovat' })).not.toBeInTheDocument();
+    });
+
+    it('offers nothing to a reader', async () => {
+      stubTouchScreen();
+      signedIn(() => jsonResponse(inventory({ id })), 'read');
+      renderApp(`/inventories/${id}`);
+      await screen.findByRole('heading', { level: 1 });
+      expect(screen.queryByRole('link', { name: 'Skenovat' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Skenovat lze v telefonu.')).not.toBeInTheDocument();
+    });
+
+    it('offers nothing for a run that has ended', async () => {
+      stubTouchScreen();
+      signedIn(() =>
+        jsonResponse(inventory({ id, status: 'cancelled', endedAt: '2026-10-04T10:00:00.000Z', endedBy: roman })),
+      );
+      renderApp(`/inventories/${id}`);
+      await screen.findByText('Zrušená');
+      expect(screen.queryByRole('link', { name: 'Skenovat' })).not.toBeInTheDocument();
+    });
   });
 
   it('says the location has no items instead of showing a bar', async () => {

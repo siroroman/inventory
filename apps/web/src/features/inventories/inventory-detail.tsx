@@ -19,6 +19,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
 import { CancelInventory } from './cancel-inventory';
 import { shortName, shortNames } from './people';
+import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
 
 type Group = 'inProgress' | 'notStarted' | 'done';
@@ -174,6 +175,8 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
           </Section>
         );
       })}
+
+      {canWrite && inventory.status === 'in_progress' && <ScanEntry inventoryId={inventory.id} withNote />}
     </>
   );
 }

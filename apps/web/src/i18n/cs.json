@@ -541,7 +541,8 @@
       "doneBadge": "Hotovo"
     },
     "actions": {
-      "cancel": "Zrušit inventuru"
+      "cancel": "Zrušit inventuru",
+      "scan": "Skenovat"
     },
     "checklist": {
       "searchLabel": "Hledat položky v lokalitě",
@@ -622,7 +623,8 @@
         "close": "Zavřít",
         "retry": "Zkusit znovu"
       }
-    }
+    },
+    "scanOnPhone": "Skenovat lze v telefonu."
   },
   "inventoryStart": {
     "title": "Zahájit inventuru",

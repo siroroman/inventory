@@ -14,3 +14,6 @@ export function useMediaQuery(query: string): boolean {
 
 /** Tailwind's `lg` breakpoint: the width from which Home has its side menu instead of tabs. */
 export const desktopScreen = '(min-width: 1024px)';
+
+/** A finger as the main pointer: a phone or a tablet. Camera buttons only make sense there. */
+export const coarsePointer = '(pointer: coarse)';

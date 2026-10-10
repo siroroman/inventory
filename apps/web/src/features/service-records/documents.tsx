@@ -23,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, formatFileSize, formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { invalidateAfterWrite } from '@/lib/query';
-import { useMediaQuery } from '@/lib/use-media-query';
+import { coarsePointer, useMediaQuery } from '@/lib/use-media-query';
 import { cn } from '@/lib/utils';
 import {
   deleteServiceRecordDocument,
@@ -262,7 +262,7 @@ export function ServiceRecordDocuments({ recordId, canEdit }: { recordId: string
   const headingId = useId();
   const query = useQuery(serviceRecordDocumentsQueryOptions(recordId));
   // A camera button only makes sense where the main pointer is a finger.
-  const touchScreen = useMediaQuery('(pointer: coarse)');
+  const touchScreen = useMediaQuery(coarsePointer);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
   const [picked, setPicked] = useState<PickedFile[] | null>(null);
