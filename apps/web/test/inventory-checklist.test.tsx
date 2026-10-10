@@ -92,15 +92,31 @@ function openChecklist(rows: Row[], options: Options = {}) {
 
 const posts = (calls: Request[]) => calls.filter((call) => call.method === 'POST').map((call) => new URL(call.url).pathname.split('/').slice(-3).join('/'));
 
-/** The rows come in their own request, after the header: wait until there are some. */
-const rowsLoaded = () => screen.findAllByRole('link', { name: /^Otevřít detail položky / });
+/**
+ * The rows come in their own request, after the header, and the sections start folded: wait for
+ * the sections, open all of them, and return the rows.
+ */
+async function rowsLoaded() {
+  // (The toaster is a region too, so the sections are told apart by what labels them.)
+  await waitFor(() => expect(document.querySelector('section[aria-labelledby]')).not.toBeNull());
+  for (const bar of screen.queryAllByRole('button', { expanded: false })) {
+    if (bar.hasAttribute('aria-controls')) await userEvent.click(bar);
+  }
+  return screen.findAllByRole('link', { name: /^Otevřít detail položky / });
+}
+
+/** The checkbox of an item, once the sections are open (they start folded). */
+async function checkbox(name: string) {
+  await rowsLoaded();
+  return screen.getByRole('checkbox', { name });
+}
 
 /** The card with this heading ("Nezkontrolované", "Zkontrolované"). */
 const group = (title: RegExp | string) => screen.getByRole('region', { name: typeof title === 'string' ? new RegExp(`^${title}`) : title });
 /** The names of the items in a card, from their "open the item" links (they exist for every role). */
 const names = (card: HTMLElement) =>
   within(card)
-    .getAllByRole('link', { name: /^Otevřít detail položky / })
+    .getAllByRole('link', { name: /^Otevřít detail položky /, hidden: true })
     .map((link) => link.getAttribute('aria-label')!.replace('Otevřít detail položky ', ''));
 
 describe('inventory checklist', () => {
@@ -120,6 +136,80 @@ describe('inventory checklist', () => {
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['Nezkontrolované1', 'Zkontrolované1']);
+  });
+
+  describe('sections', () => {
+    const mixed = () => [
+      row('Mixér tyčový'),
+      row('Kávovar', done(roman)),
+      row('Pokladní systém', { kind: 'elsewhere', registeredPath: [ref('LOC-002', 'Centrála Brno')], ...done(jan) }),
+      row('Nová police', { kind: 'new', ...done(roman) }),
+    ];
+    const bar = (title: string) => screen.getByRole('button', { name: new RegExp(`^${title}`) });
+
+    it('starts folded: the three sections show their title and count and nothing else', async () => {
+      openChecklist(mixed());
+      await waitFor(() => expect(document.querySelector('section[aria-labelledby]')).not.toBeNull());
+
+      expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+        'Nezkontrolované1',
+        'Zkontrolované1',
+        'Nové2',
+      ]);
+      for (const title of ['Nezkontrolované', 'Zkontrolované', 'Nové']) {
+        expect(bar(title)).toHaveAttribute('aria-expanded', 'false');
+      }
+      // Folded rows are out of sight and out of the accessibility tree.
+      expect(screen.queryByRole('link', { name: /^Otevřít detail položky / })).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('opens and folds one section at a time', async () => {
+      openChecklist(mixed());
+      await waitFor(() => expect(document.querySelector('section[aria-labelledby]')).not.toBeNull());
+
+      await userEvent.click(bar('Nezkontrolované'));
+      expect(bar('Nezkontrolované')).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('checkbox', { name: 'Mixér tyčový' })).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: 'Kávovar' })).not.toBeInTheDocument();
+
+      await userEvent.click(bar('Nové'));
+      expect(screen.getByRole('checkbox', { name: 'Pokladní systém' })).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Nová police' })).toBeInTheDocument();
+
+      await userEvent.click(bar('Nezkontrolované'));
+      expect(screen.queryByRole('checkbox', { name: 'Mixér tyčový' })).not.toBeInTheDocument();
+      expect(bar('Nové')).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('keeps what was found elsewhere or added in a section of its own, apart from the checked ones of the list', async () => {
+      openChecklist(mixed());
+      await rowsLoaded();
+      expect(names(group('Zkontrolované'))).toEqual(['Kávovar']);
+      // Newest check first; checked at the same time, by name.
+      expect(names(group('Nové'))).toEqual(['Nová police', 'Pokladní systém']);
+    });
+
+    it('keeps an open section open while the rows are fetched again, and a ticked row moves to its folded section', async () => {
+      openChecklist([row('Mixér tyčový'), row('Regál kovový A')]);
+      await userEvent.click(await screen.findByRole('button', { name: /^Nezkontrolované/ }));
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Mixér tyčový' }));
+
+      expect(await screen.findByRole('button', { name: /^Zkontrolované/ })).toHaveAttribute('aria-expanded', 'false');
+      expect(bar('Nezkontrolované')).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('checkbox', { name: 'Regál kovový A' })).toBeInTheDocument();
+    });
+
+    it('lists every match of a search at once: the sections cannot be folded while it is on', async () => {
+      openChecklist(mixed(), { url: `${checklistUrl}?q=a` });
+      await waitFor(() => expect(document.querySelector('section[aria-labelledby]')).not.toBeNull());
+
+      // No fold buttons, rows in sight.
+      expect(screen.queryByRole('button', { name: /^Nezkontrolované/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Otevřít detail položky Kávovar' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Otevřít detail položky Nová police' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Otevřít detail položky Pokladní systém' })).toBeInTheDocument();
+    });
   });
 
   describe('summary and search', () => {
@@ -214,7 +304,8 @@ describe('inventory checklist', () => {
   it('shows the ID of each item and a link to its detail', async () => {
     const mixer = row('Mixér tyčový', { code: 'INV-73-2023016' });
     openChecklist([mixer]);
-    expect(await screen.findByText('INV-73-2023016')).toBeInTheDocument();
+    await rowsLoaded();
+    expect(screen.getByText('INV-73-2023016')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Otevřít detail položky Mixér tyčový' })).toHaveAttribute('href', `/items/${mixer.id}`);
   });
 
@@ -280,7 +371,8 @@ describe('inventory checklist', () => {
       openChecklist(
         Array.from({ length: count }, (_, n) => row(`Věc ${n}`, done(roman, `2026-10-03T08:${String(n).padStart(2, '0')}:00.000Z`))),
       );
-      expect(await screen.findByRole('button', { name: label })).toBeInTheDocument();
+      await rowsLoaded();
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     });
 
     it('has no button when everything fits', async () => {
@@ -356,7 +448,7 @@ describe('inventory checklist', () => {
           return apply();
         },
       });
-      const mixer = await screen.findByRole('checkbox', { name: 'Mixér tyčový' });
+      const mixer = await checkbox('Mixér tyčový');
       expect(mixer).not.toBeChecked();
 
       await userEvent.click(mixer);
@@ -372,8 +464,10 @@ describe('inventory checklist', () => {
       release();
       await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
       expect(names(group('Nezkontrolované'))).toEqual(['Regál kovový A']);
-      expect(screen.getByRole('checkbox', { name: 'Mixér tyčový' })).toBeChecked();
-      expect(screen.getByRole('checkbox', { name: 'Mixér tyčový' }).closest('li')).toHaveAttribute('aria-busy', 'false');
+      // The checked section is folded, so the row is moved but out of sight.
+      const moved = screen.getByRole('checkbox', { name: 'Mixér tyčový', hidden: true });
+      expect(moved).toBeChecked();
+      expect(moved.closest('li')).toHaveAttribute('aria-busy', 'false');
       expect(posts(calls)).toHaveLength(1);
       expect(posts(calls)[0]).toMatch(/items\/[^/]+\/check$/);
       // The numbers in the header follow.
@@ -382,7 +476,7 @@ describe('inventory checklist', () => {
 
     it('can be done from the keyboard with Space', async () => {
       const { calls } = openChecklist([row('Mixér tyčový')]);
-      const mixer = await screen.findByRole('checkbox', { name: 'Mixér tyčový' });
+      const mixer = await checkbox('Mixér tyčový');
       mixer.focus();
       await userEvent.keyboard(' ');
       await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
@@ -391,7 +485,8 @@ describe('inventory checklist', () => {
 
     it('lets a tap anywhere on the row tick it', async () => {
       const { calls } = openChecklist([row('Mixér tyčový', { code: 'INV-00046' })]);
-      await userEvent.click(await screen.findByText('INV-00046'));
+      await rowsLoaded();
+      await userEvent.click(screen.getByText('INV-00046'));
       await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
       expect(posts(calls)).toHaveLength(1);
     });
@@ -400,14 +495,14 @@ describe('inventory checklist', () => {
       openChecklist([row('Mixér tyčový')], {
         check: (_row, apply) => apply(jan),
       });
-      await userEvent.click(await screen.findByRole('checkbox', { name: 'Mixér tyčový' }));
+      await userEvent.click(await checkbox('Mixér tyčový'));
       const checked = await screen.findByRole('region', { name: /^Zkontrolované/ });
       expect(within(checked).getByText(/^JN · \d{1,2}:\d{2}$/)).toBeInTheDocument();
     });
 
     it('puts the box back and says so when the tick was not saved', async () => {
       const { calls } = openChecklist([row('Mixér tyčový')], { check: () => problem(500, 'internal_error') });
-      const mixer = await screen.findByRole('checkbox', { name: 'Mixér tyčový' });
+      const mixer = await checkbox('Mixér tyčový');
 
       await userEvent.click(mixer);
 
@@ -419,7 +514,7 @@ describe('inventory checklist', () => {
 
     it('gives the reason when the server refuses: the run was closed meanwhile', async () => {
       openChecklist([row('Mixér tyčový')], { check: () => problem(409, 'inventory_closed') });
-      await userEvent.click(await screen.findByRole('checkbox', { name: 'Mixér tyčový' }));
+      await userEvent.click(await checkbox('Mixér tyčový'));
       expect(await screen.findByText('Zaškrtnutí se neuložilo')).toBeInTheDocument();
       expect(await screen.findByText('Inventura už je ukončená.')).toBeInTheDocument();
     });
@@ -430,7 +525,7 @@ describe('inventory checklist', () => {
           throw new TypeError('Failed to fetch');
         },
       });
-      await userEvent.click(await screen.findByRole('checkbox', { name: 'Mixér tyčový' }));
+      await userEvent.click(await checkbox('Mixér tyčový'));
       expect(await screen.findByText('Zaškrtnutí se neuložilo')).toBeInTheDocument();
       expect(await screen.findByText(/Server není dostupný/)).toBeInTheDocument();
     });
@@ -439,7 +534,7 @@ describe('inventory checklist', () => {
   describe('unticking', () => {
     it('returns the item to the unchecked ones and offers to undo it', async () => {
       const { calls } = openChecklist([row('Kávovar', done(roman))]);
-      const box = await screen.findByRole('checkbox', { name: 'Kávovar' });
+      const box = await checkbox('Kávovar');
       expect(box).toBeChecked();
 
       await userEvent.click(box);
@@ -458,7 +553,7 @@ describe('inventory checklist', () => {
     it('drops an item found elsewhere out of the list, and the undo brings it back', async () => {
       const brno = ref('LOC-002', 'Centrála Brno');
       openChecklist([row('Pokladní systém', { kind: 'elsewhere', registeredPath: [brno], ...done(roman) })]);
-      await userEvent.click(await screen.findByRole('checkbox', { name: 'Pokladní systém' }));
+      await userEvent.click(await checkbox('Pokladní systém'));
 
       await waitFor(() => expect(screen.queryByText('Pokladní systém')).not.toBeInTheDocument());
       await userEvent.click(await screen.findByRole('button', { name: 'Vrátit' }));
@@ -480,7 +575,7 @@ describe('inventory checklist', () => {
 
     it('shows a writer the checkboxes, and leaves cancelling the run to the overview', async () => {
       openChecklist([row('Mixér tyčový')]);
-      expect(await screen.findByRole('checkbox', { name: 'Mixér tyčový' })).toBeInTheDocument();
+      expect(await checkbox('Mixér tyčový')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
     });
 
@@ -552,7 +647,7 @@ describe('inventory checklist', () => {
       });
       renderApp(checklistUrl);
 
-      await userEvent.click(await screen.findByRole('checkbox', { name: 'Mixér tyčový' }));
+      await userEvent.click(await checkbox('Mixér tyčový'));
 
       expect(await screen.findByText('Inventura už je ukončená.')).toBeInTheDocument();
       expect(await screen.findByText('Zrušená')).toBeInTheDocument();
@@ -607,7 +702,7 @@ describe('inventory checklist', () => {
       expect(screen.getByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 })).toBeInTheDocument();
       fail = false;
       await userEvent.click(retry);
-      expect(await screen.findByRole('checkbox', { name: 'Mixér tyčový' })).toBeInTheDocument();
+      expect(await checkbox('Mixér tyčový')).toBeInTheDocument();
     });
   });
 

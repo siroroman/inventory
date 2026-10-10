@@ -61,6 +61,29 @@ describe('groupRows', () => {
     expect(groupRows(rows, 'regal kovovy').unchecked.map((r) => r.name)).toEqual(['Regál kovový A']);
     expect(groupRows(rows, 'regal kovovy').checked.map((r) => r.name)).toEqual(['Regál kovový B']);
     expect(groupRows(rows, 'inv-00051').unchecked).toEqual([]);
-    expect(groupRows(rows, 'nic takového')).toEqual({ unchecked: [], checked: [] });
+    expect(groupRows(rows, 'nic takového')).toEqual({ unchecked: [], checked: [], added: [] });
   });
 });
+
+describe('groupRows: found and added items', () => {
+  it('keeps them apart from the list, newest check first, whether or not the list item is checked', () => {
+    const groups = groupRows(
+      [
+        row('Z listu', checked('09:00')),
+        row('Nalezeno dřív', { kind: 'elsewhere', ...checked('09:30') }),
+        row('Přidáno později', { kind: 'new', ...checked('11:00') }),
+        row('Zbývá'),
+      ],
+      '',
+    );
+    expect(groups.unchecked.map((r) => r.name)).toEqual(['Zbývá']);
+    expect(groups.checked.map((r) => r.name)).toEqual(['Z listu']);
+    expect(groups.added.map((r) => r.name)).toEqual(['Přidáno později', 'Nalezeno dřív']);
+  });
+
+  it('searches them like the others', () => {
+    const rows = [row('Pokladní systém', { kind: 'elsewhere', ...checked('09:30') }), row('Police', { kind: 'new', ...checked('10:00') })];
+    expect(groupRows(rows, 'pokladni').added.map((r) => r.name)).toEqual(['Pokladní systém']);
+  });
+});
+

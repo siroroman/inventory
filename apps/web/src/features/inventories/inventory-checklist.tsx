@@ -1,7 +1,7 @@
 import type { InventoryDto, InventoryLocationDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Circle, CircleCheck } from 'lucide-react';
+import { ChevronDown, Circle, CircleCheck, CirclePlus } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
@@ -15,6 +15,7 @@ import { Progress, progressPercent } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { pathLabel } from '@/features/locations/path';
+import { cn } from '@/lib/utils';
 import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
@@ -36,20 +37,64 @@ function ChecklistSkeleton() {
   );
 }
 
-/** A white card with a heading bar: the title on the left, how many rows on the right. */
-function Group({ title, count, icon, children }: { title: string; count: number; icon: ReactNode; children: ReactNode }) {
+type SectionKey = 'unchecked' | 'checked' | 'added';
+
+/**
+ * A white card with a heading bar: the title on the left, how many rows on the right. The bar is a
+ * button that folds the rows away (`open`); while a search is on, the card is not foldable and its
+ * rows are always listed, so a match cannot hide in a closed section.
+ */
+function Group({
+  title,
+  count,
+  icon,
+  open,
+  foldable,
+  onToggle,
+  children,
+}: {
+  title: string;
+  count: number;
+  icon: ReactNode;
+  open: boolean;
+  foldable: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
   const headingId = useId();
+  const contentId = useId();
+  const barClass = cn(
+    'flex w-full items-center gap-2 bg-muted px-4 py-2.5 text-left text-[13px] font-bold text-secondary-foreground md:px-5',
+    open && 'border-b border-line',
+  );
+  const bar = (
+    <>
+      {icon}
+      <span className="flex-1">{title}</span>
+      <span>{count}</span>
+    </>
+  );
   return (
     <section aria-labelledby={headingId} className="overflow-hidden rounded-xl border border-line bg-card">
-      <h2
-        id={headingId}
-        className="flex items-center gap-2 border-b border-line bg-muted px-4 py-2.5 text-[13px] font-bold text-secondary-foreground md:px-5"
-      >
-        {icon}
-        <span className="flex-1">{title}</span>
-        <span>{count}</span>
+      <h2 id={headingId} className="m-0">
+        {foldable ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={contentId}
+            onClick={onToggle}
+            className={cn(barClass, 'min-h-11 cursor-pointer outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset')}
+          >
+            {bar}
+            <ChevronDown aria-hidden className={cn('size-4 shrink-0 transition-transform', !open && '-rotate-90')} />
+          </button>
+        ) : (
+          <div className={barClass}>{bar}</div>
+        )}
       </h2>
-      {children}
+      <div id={contentId} hidden={!open}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -72,7 +117,16 @@ function ChecklistBody({
   const canEdit = canWrite && inProgress;
   const rows = useQuery(inventoryItemsQueryOptions(inventory.id, location.id, inProgress));
   const { pending, tick } = useTickItem(inventory.id, location.id);
+  // Newer checks beyond the first few, on demand.
   const [expanded, setExpanded] = useState(false);
+  // The sections start folded (the summary above tells how many rows each holds).
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+    unchecked: false,
+    checked: false,
+    added: false,
+  });
+  const searching = q !== '';
+  const toggle = (key: SectionKey) => setOpenSections((current) => ({ ...current, [key]: !current[key] }));
   const groups = useMemo(() => groupRows(rows.data?.items ?? [], q), [rows.data, q]);
 
   // From the run's root down to the location's parent (the location itself is the heading).
@@ -80,7 +134,7 @@ function ChecklistBody({
   const above = location.path.slice(Math.max(rootIndex, 0), -1);
 
   // While searching every match is listed; otherwise only the newest checks, the rest on demand.
-  const everyChecked = expanded || q !== '';
+  const everyChecked = expanded || searching;
   const shownChecked = everyChecked ? groups.checked : groups.checked.slice(0, recentCheckedCount);
   const hiddenChecked = groups.checked.length - shownChecked.length;
 
@@ -96,7 +150,7 @@ function ChecklistBody({
 
   let list: ReactNode;
   if (rows.data) {
-    if (groups.unchecked.length === 0 && groups.checked.length === 0) {
+    if (groups.unchecked.length === 0 && groups.checked.length === 0 && groups.added.length === 0) {
       list = (
         <EmptyState
           title={q ? t('states.noResultsTitle') : t('inventory.checklist.emptyTitle')}
@@ -111,17 +165,26 @@ function ChecklistBody({
               title={t('inventory.checklist.unchecked')}
               count={groups.unchecked.length}
               icon={<Circle aria-hidden className="size-[18px] text-muted-foreground" strokeWidth={2.4} />}
+              open={searching || openSections.unchecked}
+              foldable={!searching}
+              onToggle={() => toggle('unchecked')}
             >
               <ul>{groups.unchecked.map(renderRow)}</ul>
             </Group>
           ) : (
-            !q && <p className="px-1 text-sm text-muted-foreground">{t('inventory.checklist.allChecked')}</p>
+            !searching &&
+            groups.checked.length > 0 && (
+              <p className="px-1 text-sm text-muted-foreground">{t('inventory.checklist.allChecked')}</p>
+            )
           )}
           {groups.checked.length > 0 && (
             <Group
               title={t('inventory.checklist.checked')}
               count={groups.checked.length}
               icon={<CircleCheck aria-hidden className="size-[18px] text-success" strokeWidth={2.4} />}
+              open={searching || openSections.checked}
+              foldable={!searching}
+              onToggle={() => toggle('checked')}
             >
               <ul>{shownChecked.map(renderRow)}</ul>
               {(hiddenChecked > 0 || (expanded && !q && groups.checked.length > recentCheckedCount)) && (
@@ -136,6 +199,18 @@ function ChecklistBody({
                     : t('inventory.checklist.showLess')}
                 </Button>
               )}
+            </Group>
+          )}
+          {groups.added.length > 0 && (
+            <Group
+              title={t('inventory.checklist.added')}
+              count={groups.added.length}
+              icon={<CirclePlus aria-hidden className="size-[18px] text-primary" strokeWidth={2.4} />}
+              open={searching || openSections.added}
+              foldable={!searching}
+              onToggle={() => toggle('added')}
+            >
+              <ul>{groups.added.map(renderRow)}</ul>
             </Group>
           )}
         </>
