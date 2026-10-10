@@ -656,7 +656,16 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 - **Cancel came forward** from step 5 (decided with the first slice), so that a started run can always be ended; the overview's button holds only *Zrušit inventuru* until finish exists. A cancelled run opens in the same read-only overview until the result screen (§9.4.7) is built.
 - **`items.missing_since`** is not added yet; it gets its own migration with the finish step.
 - **The audit action CHECK** now allows `start`, `check`, `uncheck`, `finish` and `cancel` (§9.3 rule 16); `start`, `check`, `uncheck` and `cancel` are written.
-- **Left out of the overview and the checklist until their step exists:** "Skenovat" (scanner) and "Dokončit inventuru". The checklist of an ended run (cancelled for now) is read-only.
+- **Step 6, part: the scanner screen** (§9.4.5) with its entry buttons: "Skenovat" in the bottom bar of the overview (the run as context) and of a checklist (that location as context), touch screens only; on a computer the overview says "Skenovat lze v telefonu.". Built with the camera states and all result sheets of the table in §9.4.5 except the buttons that need a move. Where it differs from or adds to the text above:
+  - **No move yet:** "Nalezeno jinde" and the wrong-place "Nalezeno" show "Vedeno v: …" and only *Zavřít*; "Přesunout sem" / "Změnit" / "Ponechat" come with the move endpoint.
+  - **"Zadat kód ručně" is left out** (it was *Proposed*, not drawn): the checklist ticks by hand, and "Kontrolovat ručně" in the camera states leads there. An item that is not on the list cannot be checked without its label until it is added.
+  - **Which sheets close by themselves:** only a plain "Nalezeno", after about 2 s. "Byla nezvěstná" (shown when the answer says `wasMissing`; it cannot occur until `items.missing_since` exists), the wrong-place "Nalezeno", "Nalezeno jinde", "Již zkontrolováno", "Archivovaná položka", "Neznámý kód" and "Cizí kód" stay until the next scan, *Zavřít* or Escape. A scan that is not saved stays too and pauses reading until it is retried or closed.
+  - **"Neznámý kód"** offers only "Skenovat dál"; "Přidat novou položku" waits for rule 9 (`POST /items` with `inventoryId`).
+  - **Repeated readings:** a code is ignored while it stays in view and for 3 s after it was last seen (every reading renews the window), not only for 3 s after it was first read.
+  - **Counter:** from a checklist, that location's numbers; from the overview, the run's.
+  - **Decoder:** the browser's `BarcodeDetector` where it reads QR codes, else jsQR (its own chunk, loaded only by the scanner; CSP unchanged). It reads the middle square of the picture scaled to 640 px, about 8 times a second.
+  - **Not verified yet:** a real phone (the screen was driven in a desktop browser with a scripted camera), the installed PWA (no manifest yet), and an older iPhone's decoding speed.
+- **Left out of the overview and the checklist until their step exists:** "Dokončit inventuru". The checklist of an ended run (cancelled for now) is read-only.
 - **`was_missing`** stays false until `items.missing_since` exists; the finish step must make a check clear that status (rule 12).
 - **Progress counts** only `expected` rows whose item is not archived; a location row counts the rows visible there (expected plus checked extras). The overall "84 / 128" therefore never passes 100 %.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
