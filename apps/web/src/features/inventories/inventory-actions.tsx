@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { invalidateAfterWrite } from '@/lib/query';
 import { archiveInventory, cancelInventory, finishInventory, reopenInventory, restoreInventory } from './api';
+import { runFigures } from './inventory-summary';
 
 type Action = 'finish' | 'cancel' | 'reopen' | 'archive' | 'restore';
 
@@ -48,9 +49,8 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
     onSettled: () => invalidateAfterWrite(queryClient),
   });
 
-  const { expected, checked, missing } = inventory.counts;
   // What the finish leaves not checked: the list without what is checked or flagged as missing.
-  const unchecked = Math.max(expected - checked - missing, 0);
+  const { unchecked, missing } = runFigures(inventory.counts);
   const inProgress = inventory.status === 'in_progress';
   const archived = inventory.archivedAt !== null;
   // A cancelled run is final; an archived one is restored first.

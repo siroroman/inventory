@@ -30,7 +30,7 @@ function useResultLine() {
       return t('home.inventory.result.cancelled', { checked: counts.checked, expected: counts.expected });
     }
     // What the finish left: the list without what was found or flagged as missing.
-    const unchecked = Math.max(counts.expected - counts.checked - counts.missing, 0);
+    const { unchecked } = runFigures(counts);
     return [
       t('home.inventory.result.found', { count: counts.checked }),
       counts.elsewhere > 0 && t('home.inventory.result.elsewhere', { count: counts.elsewhere }),
