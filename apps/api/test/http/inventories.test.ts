@@ -4,6 +4,7 @@ import {
   inventoryRowSchema,
   inventoryRowsSchema,
   inventorySchema,
+  scanResultSchema,
 } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
@@ -418,5 +419,134 @@ describe('POST /inventories/{id}/items/{itemId}/uncheck', () => {
     await expectProblem(await write.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 409, 'inventory_closed');
     const detail = await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema);
     expect(detail.counts.checked).toBe(1);
+  });
+});
+
+describe('POST /inventories/{id}/scans', () => {
+  const scan = (client: Awaited<ReturnType<typeof setup>>['write'], runId: string, body: unknown) =>
+    client.post(`/inventories/${runId}/scans`, body);
+
+  it('checks a listed item by its code, case ignored, and audits it as a scan', async () => {
+    const { read, write } = await setup();
+    const { run, mixer } = await startedRun(write);
+
+    const body = await expectJson(await scan(write, run.id, { code: mixer.code.toLowerCase() }), 200, scanResultSchema);
+
+    expect(body).toMatchObject({
+      outcome: 'found',
+      misplaced: false,
+      wasMissing: false,
+      item: { id: mixer.id, code: mixer.code, name: 'Mixér', path: [{ name: 'Centrála Praha' }] },
+      row: { id: mixer.id, kind: 'expected', method: 'scan', checkedBy: run.startedBy },
+    });
+    const detail = await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail).toMatchObject({ version: run.version, counts: { checked: 1 } });
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check']);
+    expect(audit[1]!.changes).toEqual({ itemId: { from: null, to: mixer.id }, method: { from: null, to: 'scan' } });
+  });
+
+  it('reports an item as misplaced only from the checklist of another location, and keeps its row there', async () => {
+    const { write } = await setup();
+    const { run, top, patro, mixer, cap } = await startedRun(write);
+
+    const there = await expectJson(await scan(write, run.id, { code: cap.code, locationId: patro.id }), 200, scanResultSchema);
+    expect(there).toMatchObject({ outcome: 'found', misplaced: false });
+
+    const elsewhere = await expectJson(
+      await scan(write, run.id, { code: mixer.code, locationId: patro.id }),
+      200,
+      scanResultSchema,
+    );
+    expect(elsewhere).toMatchObject({ outcome: 'found', misplaced: true, item: { path: [{ name: 'Centrála Praha' }] } });
+    // No move: the row stays where it was listed.
+    expect(elsewhere.outcome === 'found' && elsewhere.row.locationId).toBe(top.id);
+  });
+
+  it('adds an item that is not on the list as found elsewhere, where the user stands', async () => {
+    const { read, write } = await setup();
+    const { run, patro } = await startedRun(write);
+    const sklad = await insertLocation(db().app, { name: 'Sklad' });
+    const stranger = await insertItem(db().app, { name: 'Pokladní systém', locationId: sklad.id });
+
+    const body = await expectJson(
+      await scan(write, run.id, { code: stranger.code, locationId: patro.id, method: 'manual' }),
+      200,
+      scanResultSchema,
+    );
+
+    expect(body).toMatchObject({
+      outcome: 'found_elsewhere',
+      item: { id: stranger.id, path: [{ name: 'Sklad' }] },
+      row: { kind: 'elsewhere', locationId: patro.id, method: 'manual', registeredPath: [{ name: 'Sklad' }] },
+    });
+    const detail = await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts).toMatchObject({ elsewhere: 1 });
+    const rows = await expectJson(await read.get(`/inventories/${run.id}/items?locationId=${patro.id}`), 200, inventoryRowsSchema);
+    expect(rows.items.map((r) => r.id)).toContain(stranger.id);
+    expect((await auditOf(run.id)).at(-1)!.changes).toMatchObject({
+      kind: { from: null, to: 'elsewhere' },
+      locationId: { from: null, to: patro.id },
+      registeredLocationId: { from: null, to: sklad.id },
+    });
+  });
+
+  it('answers that an item is already checked, with who checked it, and records nothing', async () => {
+    const { write, admin } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await scan(write, run.id, { code: mixer.code });
+
+    const body = await expectJson(await scan(admin, run.id, { code: mixer.code }), 200, scanResultSchema);
+
+    expect(body).toMatchObject({ outcome: 'already_checked', row: { id: mixer.id, checkedBy: run.startedBy } });
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'check']);
+  });
+
+  it('answers an archived item and an unknown code without recording anything', async () => {
+    const { write } = await setup();
+    const { run, ladder } = await startedRun(write);
+    await db().app.update(items).set({ archivedAt: new Date() }).where(eq(items.id, ladder.id));
+
+    const archived = await expectJson(await scan(write, run.id, { code: ladder.code }), 200, scanResultSchema);
+    expect(archived).toMatchObject({ outcome: 'archived', item: { id: ladder.id, name: 'Žebřík' } });
+    const unknown = await expectJson(await scan(write, run.id, { code: 'INV-NOPE-1' }), 200, scanResultSchema);
+    expect(unknown).toEqual({ outcome: 'unknown_code' });
+
+    const rows = await db().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, run.id));
+    expect(rows.every((row) => row.checkedAt === null)).toBe(true);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start']);
+  });
+
+  it('answers 404 for an unknown run, 409 for a run that is closed, 422 for a location outside the run', async () => {
+    const { write } = await setup();
+    const { run, mixer } = await startedRun(write);
+    const brno = await insertLocation(db().app, { name: 'Centrála Brno' });
+
+    await expectProblem(await scan(write, MISSING, { code: mixer.code }), 404, 'not_found');
+    await expectProblem(
+      await scan(write, run.id, { code: mixer.code, locationId: brno.id }),
+      422,
+      'location_outside_inventory',
+    );
+    await expectProblem(await scan(write, run.id, { code: mixer.code, locationId: MISSING }), 422, 'location_not_found');
+
+    await write.post(`/inventories/${run.id}/cancel`, { version: run.version });
+    await expectProblem(await scan(write, run.id, { code: mixer.code }), 409, 'inventory_closed');
+    const rows = await db().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, run.id));
+    expect(rows.every((row) => row.checkedAt === null)).toBe(true);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'cancel']);
+  });
+
+  it('is for writers and signed-in users, and needs a code that has the form of an ID', async () => {
+    const { app, read, admin, write } = await setup();
+    const { run, mixer, cap } = await startedRun(write);
+    await expectProblem(await scan(read, run.id, { code: mixer.code }), 403, 'forbidden');
+    await expectProblem(await scan(api(app), run.id, { code: mixer.code }), 401, 'unauthenticated');
+    for (const bad of [{}, { code: '' }, { code: 'https://example.com/q/1' }, { code: mixer.code, method: 'import' }, { code: mixer.code, locationId: 'LOC-001' }]) {
+      await expectProblem(await scan(write, run.id, bad), 400, 'validation_error');
+    }
+    await expectProblem(await write.post('/inventories/nope/scans', { code: mixer.code }), 400, 'validation_error');
+    await expectJson(await scan(admin, run.id, { code: cap.code }), 200, scanResultSchema);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'check']);
   });
 });

@@ -1,5 +1,11 @@
-import type { InventoryDto, InventoryListEntryDto, InventoryPreviewDto, InventoryRowDto } from '@inventory/shared';
-import type { InventoryDetail, InventoryEntry, InventoryPreview, InventoryRunItem } from './service.ts';
+import type {
+  InventoryDto,
+  InventoryListEntryDto,
+  InventoryPreviewDto,
+  InventoryRowDto,
+  ScanResultDto,
+} from '@inventory/shared';
+import type { InventoryDetail, InventoryEntry, InventoryPreview, InventoryRunItem, ScanResult } from './service.ts';
 
 function runFields(row: InventoryEntry) {
   return {
@@ -50,4 +56,16 @@ export function toInventoryRowDto(row: InventoryRunItem): InventoryRowDto {
     registeredPath: row.registeredPath,
     moved: row.moved,
   };
+}
+
+export function toScanResultDto(result: ScanResult): ScanResultDto {
+  switch (result.outcome) {
+    case 'found':
+    case 'found_elsewhere':
+    case 'already_checked':
+      return { ...result, row: toInventoryRowDto(result.row) };
+    case 'archived':
+    case 'unknown_code':
+      return result;
+  }
 }

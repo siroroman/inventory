@@ -20,6 +20,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
 import { ChecklistRow } from './checklist-row';
 import { groupRows, recentCheckedCount } from './checklist';
+import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
 import { useTickItem } from './use-tick-item';
 
@@ -190,6 +191,8 @@ function ChecklistBody({
       </div>
 
       {list}
+
+      {canEdit && <ScanEntry inventoryId={inventory.id} locationId={location.id} />}
     </>
   );
 }

@@ -13,6 +13,8 @@ export function AppShell() {
   const { t } = useTranslation();
   const desktop = useMediaQuery(desktopScreen);
   const home = useMatch({ from: '/_app/', shouldThrow: false });
+  // The scanner is full screen: its own close button replaces the top bar, which would only sit under it.
+  const scanner = useMatch({ from: '/_app/inventories/$id/scan', shouldThrow: false });
   const sidebar = desktop && home !== undefined;
   return (
     <div className={sidebar ? 'flex min-h-dvh' : 'flex min-h-dvh flex-col'}>
@@ -24,7 +26,7 @@ export function AppShell() {
       </a>
       {sidebar ? (
         <HomeSidebar tab={home.search.tab ?? 'locations'} />
-      ) : (
+      ) : scanner ? null : (
         <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-3">
           <Link
             to="/"

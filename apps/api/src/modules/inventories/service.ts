@@ -14,6 +14,7 @@ import {
   type InventoryRow,
   type Person,
   type RunItem,
+  type ScanTarget,
   type StartPreview,
 } from './repository.ts';
 
@@ -66,6 +67,25 @@ export type InventoryOverlap = {
   startedAt: Date;
 };
 export type InventoryPreview = StartPreview & { overlap: InventoryOverlap | null };
+
+/** The item a scan found, as the result sheet shows it: where it is registered is the path. */
+export type ScannedItem = { id: string; code: string; name: string; path: PathSegment[] };
+
+/** What a scan did (SPEC §9.6). `misplaced` and `wasMissing` are explained on `scanResultSchema`. */
+export type ScanResult =
+  | { outcome: 'found'; item: ScannedItem; row: InventoryRunItem; misplaced: boolean; wasMissing: boolean }
+  | { outcome: 'found_elsewhere'; item: ScannedItem; row: InventoryRunItem; wasMissing: boolean }
+  | { outcome: 'already_checked'; item: ScannedItem; row: InventoryRunItem }
+  | { outcome: 'archived'; item: ScannedItem }
+  | { outcome: 'unknown_code' };
+
+/** The decision of a scan before paths are looked up. */
+type ScanDecision =
+  | { outcome: 'found'; target: ScanTarget; row: RunItem; misplaced: boolean }
+  | { outcome: 'found_elsewhere'; target: ScanTarget; row: RunItem }
+  | { outcome: 'already_checked'; target: ScanTarget; row: RunItem }
+  | { outcome: 'archived'; target: ScanTarget }
+  | { outcome: 'unknown_code' };
 
 const ACTIVE_WINDOW_MS = 15 * 60_000;
 const NO_COUNTS: InventoryCounts = { expected: 0, checked: 0, elsewhere: 0, new: 0, missing: 0 };
@@ -152,7 +172,10 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         // An item archived since the start is no longer counted, so it cannot be checked either.
         if (row.itemArchived) throw new DomainError('archived');
         const method = 'manual';
-        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) return row;
+        if (!(await r.inventories.markChecked(id, itemId, { checkedAt: now(), checkedBy: actor.id, method }))) {
+          // Somebody ticked it between our read and our update: answer with their check, not our stale read.
+          return (await r.inventories.findRunItem(id, itemId))!;
+        }
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
@@ -161,7 +184,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
           changes: { itemId: { from: null, to: itemId }, method: { from: null, to: method } },
         });
       } else {
-        if (!(await r.inventories.markUnchecked(id, itemId))) return row;
+        if (!(await r.inventories.markUnchecked(id, itemId))) return (await r.inventories.findRunItem(id, itemId))!;
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
@@ -175,6 +198,102 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     });
     const [entry] = await runItemEntries([answer]);
     return entry!;
+  }
+
+  /**
+   * Checks an item by the code on its label. Like a tick, it runs with the run's row locked shared
+   * and the first check wins; unlike a tick, an item that is not on the list is added to the run as
+   * found elsewhere, at the context location. Nothing is recorded for an archived item or an
+   * unknown code.
+   */
+  async function scan(
+    actor: Actor,
+    id: string,
+    input: { code: string; locationId?: string; method?: 'scan' | 'manual' },
+  ): Promise<ScanResult> {
+    assertRole(actor, 'write');
+    const method = input.method ?? 'scan';
+    const decision = await transact(async (r): Promise<ScanDecision> => {
+      const run = await r.inventories.lockShared(id);
+      if (!run) throw new DomainError('not_found');
+      if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+      if (input.locationId) {
+        const path = (await r.locations.findPaths([input.locationId])).get(input.locationId);
+        if (!path) throw new DomainError('location_not_found');
+        // Any location below the root counts, an archived one too: its checklist is still open to people.
+        if (!path.some((segment) => segment.id === run.locationId)) throw new DomainError('location_outside_inventory');
+      }
+      const target = await r.inventories.findItemByCode(input.code);
+      if (!target) return { outcome: 'unknown_code' };
+      if (target.archived) return { outcome: 'archived', target };
+
+      const existing = await r.inventories.findRunItem(id, target.id);
+      if (existing?.checkedAt) return { outcome: 'already_checked', target, row: existing };
+
+      const check = { checkedAt: now(), checkedBy: actor.id, method };
+      // The row of somebody who checked it in the meantime: the first check wins.
+      const lost = async (): Promise<ScanDecision> => ({
+        outcome: 'already_checked',
+        target,
+        row: (await r.inventories.findRunItem(id, target.id))!,
+      });
+
+      if (existing && existing.kind !== 'elsewhere') {
+        // On the list (or added during the run) and not checked yet.
+        if (!(await r.inventories.markChecked(id, target.id, check))) return lost();
+        await r.audit.record({
+          userId: actor.id,
+          entityType: 'inventory',
+          entityId: id,
+          action: 'check',
+          changes: { itemId: { from: null, to: target.id }, method: { from: null, to: method } },
+        });
+        // `misplaced` only where the user said which location they stand in.
+        const misplaced = input.locationId !== undefined && target.locationId !== input.locationId;
+        return { outcome: 'found', target, row: (await r.inventories.findRunItem(id, target.id))!, misplaced };
+      }
+
+      // Not on the list, or found before and unticked since. Recorded where the user stands: the
+      // checklist's location, or the root when the scanner was opened from the overview.
+      const locationId = input.locationId ?? run.locationId;
+      const found = { locationId, registeredLocationId: target.locationId, ...check };
+      if (!(await r.inventories.recordFound(id, target.id, found))) return lost();
+      await r.audit.record({
+        userId: actor.id,
+        entityType: 'inventory',
+        entityId: id,
+        action: 'check',
+        changes: {
+          itemId: { from: null, to: target.id },
+          method: { from: null, to: method },
+          kind: { from: null, to: 'elsewhere' },
+          locationId: { from: null, to: locationId },
+          registeredLocationId: { from: null, to: target.locationId },
+        },
+      });
+      return { outcome: 'found_elsewhere', target, row: (await r.inventories.findRunItem(id, target.id))! };
+    });
+
+    if (decision.outcome === 'unknown_code') return decision;
+    const { target } = decision;
+    const paths = await repos.locations.findPaths(target.locationId ? [target.locationId] : []);
+    const item: ScannedItem = {
+      id: target.id,
+      code: target.code,
+      name: target.name,
+      path: (target.locationId && paths.get(target.locationId)) || [],
+    };
+    if (decision.outcome === 'archived') return { outcome: 'archived', item };
+    const [row] = await runItemEntries([decision.row]);
+    // `wasMissing` stays false until the Nezvěstná status exists (`items.missing_since`).
+    switch (decision.outcome) {
+      case 'found':
+        return { outcome: 'found', item, row: row!, misplaced: decision.misplaced, wasMissing: false };
+      case 'found_elsewhere':
+        return { outcome: 'found_elsewhere', item, row: row!, wasMissing: false };
+      case 'already_checked':
+        return { outcome: 'already_checked', item, row: row! };
+    }
   }
 
   async function get(actor: Actor, id: string): Promise<InventoryDetail> {
@@ -236,6 +355,8 @@ export function createInventoryService({ repos, transact, now = () => new Date()
 
     /** Clears the tick of an item. An item found elsewhere or added drops out of the run's rows with it. */
     uncheck: (actor: Actor, id: string, itemId: string) => setChecked(actor, id, itemId, false),
+
+    scan,
 
     /** What starting a run on `locationId` would check, and the run in progress it would clash with. */
     async preview(actor: Actor, locationId: string): Promise<InventoryPreview> {

@@ -206,6 +206,30 @@ export function createFakeInventoryStore() {
       Object.assign(row, { checkedAt: null, checkedBy: null, method: null });
       return true;
     },
+    async findItemByCode(code) {
+      const item = itemStore.state.items.find((i) => i.code.toUpperCase() === code.trim().toUpperCase());
+      return item && { id: item.id, code: item.code, name: item.name, archived: item.archivedAt !== null, locationId: item.locationId };
+    },
+    async recordFound(inventoryId, itemId, found) {
+      const row = findRow(inventoryId, itemId);
+      if (!row) {
+        state.rows.push({
+          id: randomUUID(),
+          inventoryId,
+          itemId,
+          kind: 'elsewhere',
+          wasMissing: false,
+          movedAt: null,
+          movedBy: null,
+          outcome: null,
+          ...found,
+        });
+        return true;
+      }
+      if (row.checkedAt || row.kind !== 'elsewhere') return false;
+      Object.assign(row, found);
+      return true;
+    },
     async update(id, version, patch) {
       const run = state.inventories.find((r) => r.id === id);
       return run && bump(run, version, patch);

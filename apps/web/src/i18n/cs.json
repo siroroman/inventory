@@ -284,6 +284,7 @@
     "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
     "inventory_closed": "Inventura už je ukončená.",
     "item_not_in_inventory": "Tato položka v inventuře není.",
+    "location_outside_inventory": "Tato lokalita do inventury nepatří.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
     "last_admin": "Posledního administrátora nelze odebrat ani deaktivovat.",
     "parent_not_found": "Nadřazená lokalita neexistuje.",
@@ -540,7 +541,8 @@
       "doneBadge": "Hotovo"
     },
     "actions": {
-      "cancel": "Zrušit inventuru"
+      "cancel": "Zrušit inventuru",
+      "scan": "Skenovat"
     },
     "checklist": {
       "searchLabel": "Hledat položky v lokalitě",
@@ -578,7 +580,51 @@
       "hint": "Nic se neoznačí jako nezvěstné a inventura zůstane v seznamu jako Zrušená.",
       "back": "Zpět",
       "done": "Inventura zrušena"
-    }
+    },
+    "scanner": {
+      "title": "Skener",
+      "torch": "Baterka",
+      "closeLabel": "Zavřít skener",
+      "hint": "Namiřte na QR štítek položky",
+      "counterLabel": "{{checked}} z {{total}} zkontrolováno",
+      "starting": "Spouštím kameru…",
+      "endedTitle": "Inventura už je ukončená",
+      "endedHint": "Ukončená inventura se už nedá skenovat.",
+      "toOverview": "Zpět na přehled inventury",
+      "camera": {
+        "deniedTitle": "Kamera není povolená",
+        "deniedHint": "Povolte kameru v nastavení prohlížeče a zkuste to znovu.",
+        "deniedIphone": "iPhone (Safari): Nastavení › Safari › Kamera › Povolit.",
+        "deniedAndroid": "Android (Chrome): ikona vlevo v adresním řádku › Oprávnění › Kamera › Povolit.",
+        "unavailableTitle": "Kamera nebyla nalezena",
+        "unavailableHint": "Zařízení nemá kameru, nebo stránka není otevřená přes zabezpečené připojení (HTTPS).",
+        "errorTitle": "Kameru se nepodařilo spustit",
+        "errorHint": "Možná ji právě používá jiná aplikace. Zavřete ji a zkuste to znovu.",
+        "retry": "Zkusit znovu",
+        "checkManually": "Kontrolovat ručně"
+      },
+      "sheet": {
+        "found": "Nalezeno",
+        "wasMissing": "Byla nezvěstná",
+        "wasMissingNote": "Stav Nezvěstná byl zrušen.",
+        "elsewhere": "Nalezeno jinde",
+        "alreadyChecked": "Již zkontrolováno",
+        "checkedBy": "Zkontroloval {{who}} v {{time}}",
+        "checkedAt": "Zkontrolováno v {{time}}",
+        "archived": "Archivovaná položka",
+        "archivedNote": "Položka je archivovaná a nezapočítá se.",
+        "unknown": "Neznámý kód",
+        "unknownNote": "Žádná položka nemá ID {{code}}.",
+        "scanOn": "Skenovat dál",
+        "foreign": "Cizí kód",
+        "foreignNote": "Tento kód nepatří do aplikace.",
+        "notSaved": "Sken se neuložil",
+        "closesItself": "List se automaticky zavře",
+        "close": "Zavřít",
+        "retry": "Zkusit znovu"
+      }
+    },
+    "scanOnPhone": "Skenovat lze v telefonu."
   },
   "inventoryStart": {
     "title": "Zahájit inventuru",

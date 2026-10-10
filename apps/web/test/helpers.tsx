@@ -36,6 +36,16 @@ export function stubWideScreen(wide: boolean) {
   stubScreenWidth(wide ? 1280 : 390);
 }
 
+/** The phone: a finger as the main pointer, so the camera buttons show. */
+export function stubTouchScreen() {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query === '(pointer: coarse)',
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
 /** A JSON `Response`, the way the API answers (`application/problem+json` for errors). */
 export function jsonResponse(body: unknown, init: ResponseInit & { problem?: boolean } = {}) {
   const { problem, ...rest } = init;

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { inventoryItemsQueryOptions } from '../src/features/inventories/api.ts';
 import { inventory, inventoryLocation, inventoryRow, person, ref } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubTouchScreen } from './helpers.tsx';
 
 const runId = '5d9e2a63-8b5c-4e7a-9f1b-0a2c3d4e5f60';
 const root = ref('LOC-001', 'Centrála Praha');
@@ -417,6 +417,39 @@ describe('inventory checklist', () => {
       openChecklist([row('Mixér tyčový')]);
       expect(await screen.findByRole('checkbox', { name: 'Mixér tyčový' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
+    });
+
+    it('offers Skenovat to a writer on a phone, opening the scanner in this location', async () => {
+      stubTouchScreen();
+      openChecklist([row('Mixér tyčový')]);
+      await rowsLoaded();
+      expect(screen.getByRole('link', { name: 'Skenovat' })).toHaveAttribute(
+        'href',
+        `/inventories/${runId}/scan?locationId=${kitchen.id}`,
+      );
+    });
+
+    it('offers no scanning, and no note, where there is no finger', async () => {
+      openChecklist([row('Mixér tyčový')]);
+      await rowsLoaded();
+      expect(screen.queryByRole('link', { name: 'Skenovat' })).not.toBeInTheDocument();
+      expect(screen.queryByText('Skenovat lze v telefonu.')).not.toBeInTheDocument();
+    });
+
+    it('offers no scanning to a reader on a phone', async () => {
+      stubTouchScreen();
+      openChecklist([row('Mixér tyčový')], { role: 'read' });
+      await rowsLoaded();
+      expect(screen.queryByRole('link', { name: 'Skenovat' })).not.toBeInTheDocument();
+    });
+
+    it('offers no scanning on a run that has ended', async () => {
+      stubTouchScreen();
+      openChecklist([row('Mixér tyčový')], {
+        run: { status: 'cancelled', endedAt: '2026-10-04T14:02:00.000Z', endedBy: jan },
+      });
+      await rowsLoaded();
+      expect(screen.queryByRole('link', { name: 'Skenovat' })).not.toBeInTheDocument();
     });
 
     it('shows a cancelled run read-only for everyone', async () => {
