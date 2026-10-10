@@ -581,11 +581,6 @@
       "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
       "emptyTitle": "Žádné položky",
       "emptyHint": "V této lokalitě teď nejsou žádné položky ke kontrole.",
-      "moreChecked_one": "… a další {{count}} zkontrolovaná",
-      "moreChecked_few": "… a další {{count}} zkontrolované",
-      "moreChecked_many": "… a další {{count}} zkontrolované",
-      "moreChecked_other": "… a dalších {{count}} zkontrolovaných",
-      "showLess": "Zobrazit méně",
       "method": {
         "scan": "sken",
         "manual": "ručně"

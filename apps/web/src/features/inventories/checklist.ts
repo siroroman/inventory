@@ -5,9 +5,6 @@ const collator = new Intl.Collator('cs');
 
 const byName = (a: InventoryRowDto, b: InventoryRowDto) => collator.compare(a.name, b.name) || (a.id < b.id ? -1 : 1);
 
-/** How many checked rows are listed before "… a dalších N zkontrolovaných". */
-export const recentCheckedCount = 5;
-
 export type ChecklistGroups = {
   /** Items of the list that are not checked yet and not flagged as missing. */
   unchecked: InventoryRowDto[];

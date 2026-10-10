@@ -20,7 +20,7 @@ import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
 import { ChecklistRow } from './checklist-row';
-import { groupRows, recentCheckedCount } from './checklist';
+import { groupRows } from './checklist';
 import { InventorySummary, locationFigures, progressOf } from './inventory-summary';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
@@ -119,8 +119,6 @@ function ChecklistBody({
   const { done, total } = progressOf(figures);
   const rows = useQuery(inventoryItemsQueryOptions(inventory.id, location.id, inProgress));
   const { pending, tick, flag } = useTickItem(inventory.id, location.id);
-  // Newer checks beyond the first few, on demand.
-  const [expanded, setExpanded] = useState(false);
   // The sections start folded (the summary above tells how many rows each holds).
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     unchecked: false,
@@ -135,11 +133,6 @@ function ChecklistBody({
   // From the run's root down to the location's parent (the location itself is the heading).
   const rootIndex = location.path.findIndex((segment) => segment.id === inventory.location.id);
   const above = location.path.slice(Math.max(rootIndex, 0), -1);
-
-  // While searching every match is listed; otherwise only the newest checks, the rest on demand.
-  const everyChecked = expanded || searching;
-  const shownChecked = everyChecked ? groups.checked : groups.checked.slice(0, recentCheckedCount);
-  const hiddenChecked = groups.checked.length - shownChecked.length;
 
   const renderRow = (row: (typeof groups.unchecked)[number]) => (
     <ChecklistRow
@@ -208,19 +201,7 @@ function ChecklistBody({
               foldable={!searching}
               onToggle={() => toggle('checked')}
             >
-              <ul>{shownChecked.map(renderRow)}</ul>
-              {(hiddenChecked > 0 || (expanded && !q && groups.checked.length > recentCheckedCount)) && (
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start rounded-none px-4 text-muted-foreground md:px-5"
-                  aria-expanded={expanded}
-                  onClick={() => setExpanded(!expanded)}
-                >
-                  {hiddenChecked > 0
-                    ? t('inventory.checklist.moreChecked', { count: hiddenChecked })
-                    : t('inventory.checklist.showLess')}
-                </Button>
-              )}
+              <ul>{groups.checked.map(renderRow)}</ul>
             </Group>
           )}
           {groups.added.length > 0 && (

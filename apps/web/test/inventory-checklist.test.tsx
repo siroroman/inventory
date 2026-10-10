@@ -396,34 +396,13 @@ describe('inventory checklist', () => {
   });
 
   describe('the checked group', () => {
-    it('lists the five newest and the rest on demand, in Czech plurals', async () => {
+    it('lists every checked row, the newest check first, with no button to expand', async () => {
       openChecklist(manyChecked());
       await rowsLoaded();
 
-      expect(names(group('Zkontrolované'))).toEqual([8, 7, 6, 5, 4].map((n) => `Hotová věc ${n}`));
+      expect(names(group('Zkontrolované'))).toEqual([8, 7, 6, 5, 4, 3, 2, 1].map((n) => `Hotová věc ${n}`));
       expect(screen.getByRole('heading', { name: 'Zkontrolované8' })).toBeInTheDocument();
-      await userEvent.click(screen.getByRole('button', { name: '… a další 3 zkontrolované' }));
-      expect(names(group('Zkontrolované'))).toHaveLength(8);
-      await userEvent.click(screen.getByRole('button', { name: 'Zobrazit méně' }));
-      expect(names(group('Zkontrolované'))).toHaveLength(5);
-    });
-
-    it.each([
-      [6, '… a další 1 zkontrolovaná'],
-      [9, '… a další 4 zkontrolované'],
-      [10, '… a dalších 5 zkontrolovaných'],
-    ])('says "%s" rows as: %s', async (count, label) => {
-      openChecklist(
-        Array.from({ length: count }, (_, n) => row(`Věc ${n}`, done(roman, `2026-10-03T08:${String(n).padStart(2, '0')}:00.000Z`))),
-      );
-      await rowsLoaded();
-      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
-    });
-
-    it('has no button when everything fits', async () => {
-      openChecklist(manyChecked().slice(0, 5));
-      await rowsLoaded();
-      expect(screen.queryByRole('button', { name: /zkontrolované|zkontrolovaná|zkontrolovaných/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /zkontrolované|zkontrolovaná|zkontrolovaných|Zobrazit méně/ })).not.toBeInTheDocument();
     });
   });
 
@@ -473,7 +452,6 @@ describe('inventory checklist', () => {
 
       await userEvent.type(field, 'hotova');
       await waitFor(() => expect(names(group('Zkontrolované'))).toHaveLength(8));
-      expect(screen.queryByRole('button', { name: /zkontrolované/ })).not.toBeInTheDocument();
 
       await userEvent.clear(field);
       await userEvent.type(field, 'nic takového');
