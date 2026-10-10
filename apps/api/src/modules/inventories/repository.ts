@@ -316,6 +316,22 @@ export function createInventoryRepository(db: DbExecutor) {
       return rows.length > 0;
     },
 
+    /**
+     * Settles the unchecked rows of the list at the finish: `missing` for the items that are still
+     * active, `skipped` for those archived since (they are not offered as missing, SPEC §9.3 rule 11).
+     * Found or added rows are not on the list and have no outcome. Returns how many are missing.
+     */
+    async settleUnchecked(inventoryId: string): Promise<number> {
+      const result = await db.execute<{ outcome: string }>(sql`
+        UPDATE inventory_items r
+           SET outcome = CASE WHEN i.archived_at IS NULL THEN 'missing' ELSE 'skipped' END
+          FROM items i
+         WHERE i.id = r.item_id AND r.inventory_id = ${inventoryId}
+           AND r.kind = 'expected' AND r.checked_at IS NULL
+        RETURNING r.outcome`);
+      return result.rows.filter((row) => row.outcome === 'missing').length;
+    },
+
     update(id: string, version: number, patch: InventoryPatch): Promise<Inventory | undefined> {
       return updateVersioned(db, inventories, id, version, patch);
     },

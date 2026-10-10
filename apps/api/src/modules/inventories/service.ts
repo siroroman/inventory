@@ -307,6 +307,45 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     }
   }
 
+  /**
+   * Ends a run in progress as `finished` or `cancelled`. The run's row is locked `FOR UPDATE`, so no
+   * tick can slip in between the last check and the end (ticks take it `FOR SHARE`). Only a finish
+   * marks unchecked items of the list as missing.
+   */
+  async function close(
+    actor: Actor,
+    id: string,
+    version: number,
+    status: 'finished' | 'cancelled',
+  ): Promise<InventoryDetail> {
+    assertRole(actor, 'write');
+    await transact(async (r) => {
+      const current = await r.inventories.lock(id);
+      if (!current) throw new DomainError('not_found');
+      if (current.status !== 'in_progress') throw new DomainError('inventory_closed');
+      if (current.version !== version) throw new DomainError('conflict');
+      const updated = await r.inventories.update(id, version, {
+        status,
+        endedAt: now(),
+        endedBy: actor.id,
+        updatedBy: actor.id,
+      });
+      if (!updated) throw new DomainError('conflict');
+      const changes: Record<string, unknown> = changedFields(current, updated, ['status']);
+      if (status === 'finished') {
+        changes.missing = { from: null, to: await r.inventories.settleUnchecked(id) };
+      }
+      await r.audit.record({
+        userId: actor.id,
+        entityType: 'inventory',
+        entityId: id,
+        action: status === 'finished' ? 'finish' : 'cancel',
+        changes,
+      });
+    });
+    return get(actor, id);
+  }
+
   async function get(actor: Actor, id: string): Promise<InventoryDetail> {
     assertRole(actor, 'read');
     const row = await repos.inventories.findById(id);
@@ -408,30 +447,14 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     },
 
     /** Ends a run in progress without marking anything missing; what was checked stays on record. */
-    async cancel(actor: Actor, id: string, version: number): Promise<InventoryDetail> {
-      assertRole(actor, 'write');
-      await transact(async (r) => {
-        const current = await r.inventories.lock(id);
-        if (!current) throw new DomainError('not_found');
-        if (current.status !== 'in_progress') throw new DomainError('inventory_closed');
-        if (current.version !== version) throw new DomainError('conflict');
-        const updated = await r.inventories.update(id, version, {
-          status: 'cancelled',
-          endedAt: now(),
-          endedBy: actor.id,
-          updatedBy: actor.id,
-        });
-        if (!updated) throw new DomainError('conflict');
-        await r.audit.record({
-          userId: actor.id,
-          entityType: 'inventory',
-          entityId: id,
-          action: 'cancel',
-          changes: changedFields(current, updated, ['status']),
-        });
-      });
-      return get(actor, id);
-    },
+    cancel: (actor: Actor, id: string, version: number) => close(actor, id, version, 'cancelled'),
+
+    /**
+     * Ends a run in progress as finished: the items of the list that were not checked are marked
+     * missing (those archived since are only left unchecked). Checks, scans and further finishes
+     * are refused afterwards (`inventory_closed`).
+     */
+    finish: (actor: Actor, id: string, version: number) => close(actor, id, version, 'finished'),
   };
 }
 

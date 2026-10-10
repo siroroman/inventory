@@ -278,6 +278,97 @@ describe('inventory service', () => {
     });
   });
 
+  describe('finish', () => {
+    it('ends the run, marks the unchecked items of the list missing and audits it', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const checked = await store.addItem(praha.id, 'Tiskárna');
+      await store.addItem(praha.id, 'Kávovar');
+      await store.addItem(praha.id, 'Lednice');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, checked.id, users.write.id, clock.now());
+      clock.advance(30 * MINUTE);
+
+      const finished = await service.finish(actor('write', users.other), run.id, run.version);
+
+      expect(finished).toMatchObject({
+        status: 'finished',
+        version: 2,
+        endedAt: clock.now(),
+        closedBy: users.other,
+        counts: { expected: 3, checked: 1, missing: 2 },
+      });
+      expect(finished.locations).toMatchObject([{ total: 3, checked: 1, missing: 2 }]);
+      expect(store.state.rows.filter((r) => r.outcome === 'missing')).toHaveLength(2);
+      expect(store.state.rows.find((r) => r.checkedAt)!.outcome).toBeNull();
+      expect(store.state.audit.at(-1)).toMatchObject({
+        userId: users.other.id,
+        entityType: 'inventory',
+        entityId: run.id,
+        action: 'finish',
+        changes: { status: { from: 'in_progress', to: 'finished' }, missing: { from: null, to: 2 } },
+      });
+    });
+
+    it('does not offer an item archived since the start as missing, nor touch found or added rows', async () => {
+      const { store, service, actor, praha, users } = await setup();
+      await store.addItem(praha.id, 'Zůstává');
+      const gone = await store.addItem(praha.id, 'Vyřazeno');
+      const stranger = await store.addItem(null, 'Pokladní systém');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.itemStore.state.items.find((i) => i.id === gone.id)!.archivedAt = new Date();
+      store.addRow(run.id, stranger.id, praha.id, { checkedAt: new Date(), checkedBy: users.write.id, method: 'scan' });
+
+      const finished = await service.finish(actor('write'), run.id, run.version);
+
+      expect(finished.counts).toMatchObject({ expected: 1, checked: 0, elsewhere: 1, missing: 1 });
+      const outcomes = new Map(store.state.rows.map((r) => [r.itemId, r.outcome]));
+      expect(outcomes.get(gone.id)).toBe('skipped');
+      expect(outcomes.get(stranger.id)).toBeNull();
+      expect([...outcomes.values()].filter((o) => o === 'missing')).toHaveLength(1);
+    });
+
+    it('cancelling marks nothing missing', async () => {
+      const { store, service, actor, praha } = await setup();
+      await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+
+      await service.cancel(actor('write'), run.id, run.version);
+
+      expect(store.state.rows.every((r) => r.outcome === null)).toBe(true);
+    });
+
+    it('cannot end a run twice, or finish a cancelled one', async () => {
+      const { service, actor, praha } = await setup();
+      const first = await service.start(actor('write'), { locationId: praha.id });
+      await service.finish(actor('write'), first.id, first.version);
+      await expectCode(service.finish(actor('write'), first.id, first.version), 'inventory_closed');
+      await expectCode(service.cancel(actor('write'), first.id, first.version + 1), 'inventory_closed');
+
+      const second = await service.start(actor('write'), { locationId: praha.id });
+      await service.cancel(actor('write'), second.id, second.version);
+      await expectCode(service.finish(actor('write'), second.id, second.version + 1), 'inventory_closed');
+    });
+
+    it('refuses a stale version, an unknown run and a reader', async () => {
+      const { store, service, actor, praha } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      await expectCode(service.finish(actor('write'), run.id, 7), 'conflict');
+      await expectCode(service.finish(actor('write'), crypto.randomUUID(), 1), 'not_found');
+      await expectCode(service.finish(actor('read'), run.id, run.version), 'forbidden');
+      expect(store.state.inventories[0]!.status).toBe('in_progress');
+    });
+
+    it('refuses ticks and scans afterwards', async () => {
+      const { store, service, actor, praha } = await setup();
+      const item = await store.addItem(praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      await service.finish(actor('write'), run.id, run.version);
+
+      await expectCode(service.check(actor('write'), run.id, item.id), 'inventory_closed');
+      await expectCode(service.scan(actor('write'), run.id, { code: item.code }), 'inventory_closed');
+    });
+  });
+
   describe('listItems', () => {
     it('lists the rows of the run by item name in Czech order, or those of one location', async () => {
       const { store, service, actor, praha } = await setup();

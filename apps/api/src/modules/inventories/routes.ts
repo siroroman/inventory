@@ -126,6 +126,19 @@ const cancel = defineRoute({
   responses: { 200: { description: 'The cancelled run', content: jsonContent(inventorySchema) } },
 });
 
+const finish = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/finish',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Finish a run in progress: the items of the list that were not checked are marked missing, ' +
+    'and nothing can be checked afterwards',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The finished run', content: jsonContent(inventorySchema) } },
+});
+
 /** Inventory runs. Mounted under /api/v1. */
 export function createInventoryRoutes(inventories: InventoryService) {
   return createRouter()
@@ -165,6 +178,10 @@ export function createInventoryRoutes(inventories: InventoryService) {
     })
     .openapi(cancel, async (c) => {
       const row = await inventories.cancel(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(finish, async (c) => {
+      const row = await inventories.finish(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
       return c.json(toInventoryDto(row), 200);
     });
 }

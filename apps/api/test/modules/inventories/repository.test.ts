@@ -148,6 +148,29 @@ describe('inventory repository', () => {
       ]);
     });
 
+    it('settles the unchecked rows of the list at the finish: missing, or skipped when the item was archived', async () => {
+      const { inventory, praha, patro, a, row, check } = await run();
+      const checked = await row(praha.id, check(a.id, 1));
+      const missing = await row(patro.id);
+      const archived = await row(patro.id);
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archived.itemId));
+      const found = await row(patro.id, { kind: 'elsewhere', ...check(a.id, 2) });
+      const unticked = await row(patro.id, { kind: 'elsewhere' });
+
+      expect(await repo().settleUnchecked(inventory.id)).toBe(1);
+      expect(await repo().settleUnchecked(inventory.id)).toBe(1); // idempotent
+
+      const rows = await t().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, inventory.id));
+      const outcome = (itemId: string) => rows.find((r) => r.itemId === itemId)!.outcome;
+      expect(outcome(checked.itemId)).toBeNull();
+      expect(outcome(missing.itemId)).toBe('missing');
+      expect(outcome(archived.itemId)).toBe('skipped');
+      expect(outcome(found.itemId)).toBeNull();
+      expect(outcome(unticked.itemId)).toBeNull();
+      // The skipped row is not counted as missing, nor is the archived item on the list.
+      expect((await repo().counts([inventory.id])).get(inventory.id)).toMatchObject({ expected: 2, checked: 1, missing: 1 });
+    });
+
     it('lists the people: the starter first, then the checkers in order of their first check', async () => {
       const { inventory, praha, patro, a, b, row, check } = await run();
       const c = await insertUser(t().app, { name: 'Cyril' });

@@ -231,6 +231,16 @@ export function createFakeInventoryStore() {
       Object.assign(row, found);
       return true;
     },
+    async settleUnchecked(inventoryId) {
+      let missing = 0;
+      for (const row of rowsOf(inventoryId)) {
+        if (row.kind !== 'expected' || row.checkedAt) continue;
+        const archived = itemById(row.itemId).archivedAt !== null;
+        row.outcome = archived ? 'skipped' : 'missing';
+        if (!archived) missing += 1;
+      }
+      return missing;
+    },
     async update(id, version, patch) {
       const run = state.inventories.find((r) => r.id === id);
       return run && bump(run, version, patch);

@@ -260,6 +260,55 @@ describe('POST /inventories/{id}/cancel', () => {
   });
 });
 
+describe('POST /inventories/{id}/finish', () => {
+  it('ends the run, marks what was not checked missing and audits it', async () => {
+    const { read, write } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+
+    const body = await expectJson(
+      await write.post(`/inventories/${run.id}/finish`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(body).toMatchObject({ status: 'finished', version: 2, counts: { expected: 5, checked: 1, missing: 4 } });
+    expect(body.endedAt).not.toBeNull();
+    expect(body.endedBy).toEqual(body.startedBy);
+    const outcomes = await db().app.select({ outcome: inventoryItems.outcome }).from(inventoryItems);
+    expect(outcomes.filter((r) => r.outcome === 'missing')).toHaveLength(4);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check', 'finish']);
+    expect(audit[2]!.changes).toEqual({
+      status: { from: 'in_progress', to: 'finished' },
+      missing: { from: null, to: 4 },
+    });
+    // It shows among the ended runs, and nothing can be checked in it any more.
+    const closed = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(closed.items).toMatchObject([{ id: run.id, status: 'finished', counts: { missing: 4 } }]);
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 409, 'inventory_closed');
+  });
+
+  it('answers 409 for a closed run and a stale version, 404 for an unknown run', async () => {
+    const { write } = await setup();
+    const { run } = await startedRun(write);
+    await expectProblem(await write.post(`/inventories/${run.id}/finish`, { version: 5 }), 409, 'conflict');
+    await write.post(`/inventories/${run.id}/finish`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/finish`, { version: run.version }), 409, 'inventory_closed');
+    await expectProblem(await write.post(`/inventories/${run.id}/cancel`, { version: 2 }), 409, 'inventory_closed');
+    await expectProblem(await write.post(`/inventories/${MISSING}/finish`, { version: 1 }), 404, 'not_found');
+  });
+
+  it('is for writers and signed-in users, and needs a version', async () => {
+    const { app, read, write } = await setup();
+    const { run } = await startedRun(write);
+    await expectProblem(await read.post(`/inventories/${run.id}/finish`, { version: 1 }), 403, 'forbidden');
+    await expectProblem(await api(app).post(`/inventories/${run.id}/finish`, { version: 1 }), 401, 'unauthenticated');
+    await expectProblem(await write.post(`/inventories/${run.id}/finish`, {}), 400, 'validation_error');
+    expect((await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema)).status).toBe('in_progress');
+  });
+});
+
 /** A run on Centrála Praha with Mixér and Žebřík there and Čepice in Patro. */
 async function startedRun(client: Awaited<ReturnType<typeof setup>>['write']) {
   const { top, patro } = await praha();
