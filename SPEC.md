@@ -450,7 +450,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 - Search "Hledat podle lokality…" over the root's name, code and the names along its path (the location search rules of §3.2).
 - **Probíhající (N):** cards with:
   - the root's path
-  - "84 / 128 zkontrolováno" with the percentage and a progress bar
+  - "84 / 128 zkontrolováno" with the percentage and a progress bar (what is settled out of everything the run lists, see §9.4.3)
   - "Zahájil RS · 3. 10. 2026 v 9:15" and the avatars of the people taking part
   - The whole card is the link to the run, for every role (*Decided* 2026-10-10: no "Pokračovat" / "Zobrazit" button).
 - **Dokončené (N):** finished and cancelled runs, newest first, paged by 20, with the date, the root and a result line ("120 nalezeno · 3 jinde · 5 chybí · 3 nezkontrolováno"). A cancelled run shows the *Zrušená* badge and "zahájil JN". On desktop this is a table: Lokalita / Datum / Výsledek / Stav.
@@ -469,9 +469,9 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 #### 9.4.3 Run overview — `/inventories/$id` while in progress [24]
 
 - **Top bar:** back, the root's name. A "…" menu (*Decided* 2026-10-10, replacing the Zrušit inventuru button): a run in progress offers *Dokončit inventuru* and *Zrušit inventuru*, a finished one *Znovu otevřít inventuru* and *Archivovat*, a cancelled one *Archivovat*, an archived one *Obnovit*. Everything but Obnovit asks first. A run in progress shows no "Probíhá" badge. Read users get no menu.
-- **Header:** "Inventura od 3. 10. 2026 · zahájil RS", "84 / 128 zkontrolováno · 66 %" with a bar, the **four figures** *Zkontrolováno · Nezkontrolováno · Nové · Chybí*, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes). *Nové* is what was found elsewhere or added and is not on the list, so it is not part of "84 / 128"; *Chybí* is what people flagged as missing (rule 17; 0 until somebody does).
+- **Header:** "Inventura od 3. 10. 2026 · zahájil RS", "84 / 128 zkontrolováno · 66 %" with a bar, the **four figures** *Zkontrolováno · Nezkontrolováno · Nové · Chybí*, the participants' avatars, and "RS a JN právě pracují" (anyone who checked something in the last 15 minutes). *Nové* is what was found elsewhere or added and is not on the list; *Chybí* is what people flagged as missing (rule 17; 0 until somebody does). The bar adds the four figures up (*Decided* 2026-10-10): "10 / 10 · 100 %" is 7 checked, 2 new and 1 flagged missing with none left unchecked. Only *Nezkontrolováno* is still to do, so every other figure counts as settled and the bar reads 100 % when nothing is left.
 - **Locations:** a flat list of every location in the subtree that has items on the list or items found there. A location deeper than one level below the root shows its path under the name, so rooms with the same name on different floors stay apart. Items placed directly in the root appear under the root's own name.
-  - Each row: name, "24 / 32 položek" (the list only, so the rows add up to the header), "· 2 nové" for what was found or added there, "· 1 chybí" for what was flagged missing, and the avatars of the people who checked items there. The row opens that location's checklist.
+  - Each row: name, "24 / 32 položek" (what was checked of the list; the finds and the flags are named apart and are not part of it, so this is not the bar's figure), "· 2 nové" for what was found or added there, "· 1 chybí" for what was flagged missing, and the avatars of the people who checked items there. The row opens that location's checklist.
   - Rows are grouped as **Probíhající** (some checked or flagged), **Nekontrolované** (none, "Nikdo nezačal") and **Hotovo** (every item of the list checked or flagged missing, *Hotovo* badge). Each group is sorted by path in Czech order.
 - "Skenovat" (bottom bar, touch devices only) opens the scanner with the root as context. On desktop the note "Skenovat lze v telefonu." takes its place.
 
@@ -677,12 +677,12 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
   - **Which sheets close by themselves:** only a plain "Nalezeno", after about 2 s. "Byla nezvěstná" (shown when the answer says `wasMissing`; it cannot occur until `items.missing_since` exists), the wrong-place "Nalezeno", "Nalezeno jinde", "Již zkontrolováno", "Archivovaná položka", "Neznámý kód" and "Cizí kód" stay until the next scan, *Zavřít* or Escape. A scan that is not saved stays too and pauses reading until it is retried or closed.
   - **"Neznámý kód"** offers only "Skenovat dál"; "Přidat novou položku" waits for the item form's `code` parameter (`POST /items` with `inventoryId` exists since 2026-10-10).
   - **Repeated readings:** a code is ignored while it stays in view and for 3 s after it was last seen (every reading renews the window), not only for 3 s after it was first read.
-  - **Counter:** from a checklist, that location's numbers; from the overview, the run's.
+  - **Counter:** from a checklist, that location's numbers; from the overview, the run's. It is the same figure as the bar of that screen (settled / everything listed, §9.4.3).
   - **Decoder:** the browser's `BarcodeDetector` where it reads QR codes, else jsQR (its own chunk, loaded only by the scanner; CSP unchanged). It reads the middle square of the picture scaled to 640 px, about 8 times a second.
   - **Not verified yet:** a real phone (the screen was driven in a desktop browser with a scripted camera), the installed PWA (no manifest yet), and an older iPhone's decoding speed.
 - **The checklist of an ended run** is read-only.
 - **`was_missing`** stays false until `items.missing_since` exists; the finish step must make a check clear that status (rule 12).
-- **Progress counts** only `expected` rows whose item is not archived, in the header and in every location row alike; the items found or added are counted apart (*Nové*). "84 / 128" therefore never passes 100 % and the locations add up to it.
+- **Progress** (*Decided* 2026-10-10, replacing "expected rows only"): the bar, its "84 / 128 · 66 %", the checklist's box and the scanner's counter are `checked + new + missing` over `checked + unchecked + new + missing`, where `unchecked` is the `expected` rows of items not archived that are neither checked nor flagged. It never passes 100 % and reads 100 % exactly when nothing is left unchecked. The API's `counts` are unchanged (`expected`, `checked`, `elsewhere`, `new`, `missing`); the SPA adds them up (`progressOf` in `inventory-summary.tsx`). A location row's "24 / 32 položek" stays the list only.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
 - **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
 
