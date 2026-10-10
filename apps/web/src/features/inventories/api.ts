@@ -40,6 +40,13 @@ export const checkInventoryItem = (id: string, itemId: string) =>
 export const uncheckInventoryItem = (id: string, itemId: string) =>
   unwrap(api.api.v1.inventories[':id'].items[':itemId'].uncheck.$post({ param: { id, itemId } }));
 
+/**
+ * Checks an item by the code on its label. `locationId` is the checklist the scanner was opened
+ * from (nothing for the overview). The answer says what happened, see `scanResultSchema`.
+ */
+export const scanInventory = (id: string, body: { code: string; locationId?: string }) =>
+  unwrap(api.api.v1.inventories[':id'].scans.$post({ param: { id }, json: { ...body, method: 'scan' } }));
+
 export const cancelInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].cancel.$post({ param: { id }, json: { version } }));
 
