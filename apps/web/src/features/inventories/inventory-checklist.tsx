@@ -1,7 +1,7 @@
 import type { InventoryDto, InventoryLocationDto } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronDown, Circle, CircleCheck, CirclePlus } from 'lucide-react';
+import { ChevronDown, Circle, CircleCheck, CirclePlus, Plus } from 'lucide-react';
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
@@ -241,6 +241,15 @@ function ChecklistBody({
           <Badge variant={statusBadge[inventory.status]} className="mt-2">
             {t(`inventory.status.${inventory.status}`)}
           </Badge>
+        )}
+        {canEdit && (
+          // The item form starts in this location and, once saved, adds the item to the run and returns here.
+          <Button asChild>
+            <Link to="/items/new" search={{ locationId: location.id, inventoryId: inventory.id }}>
+              <Plus aria-hidden />
+              {t('inventory.checklist.addItem')}
+            </Link>
+          </Button>
         )}
       </div>
 

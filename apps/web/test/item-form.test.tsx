@@ -524,6 +524,81 @@ describe('new item from a location', () => {
   });
 });
 
+describe('new item for an inventory run', () => {
+  const runId = '5d9e2a63-8b5c-4e7a-9f1b-0a2c3d4e5f60';
+  const checklist = `/inventories/${runId}/locations/${kitchen.id}`;
+
+  function openForm(created: Record<string, unknown>) {
+    const calls = api({
+      [`GET /api/v1/locations/${kitchen.id}`]: () => jsonResponse(kitchen),
+      'POST /api/v1/items': () => jsonResponse(created, { status: 201 }),
+    });
+    const user = userEvent.setup();
+    const { router } = renderApp(`/items/new?locationId=${kitchen.id}&inventoryId=${runId}`);
+    return { calls, user, router };
+  }
+
+  it('sends the run with the item and goes back to the checklist, replacing the form', async () => {
+    const { calls, user, router } = openForm({ ...detail({ id: crypto.randomUUID(), name: 'Nová police' }), addedToInventory: true });
+
+    expect(await screen.findByLabelText('Lokalita')).toHaveTextContent('Centrála Praha › Teplá kuchyně');
+    await user.type(screen.getByLabelText('Název'), 'Nová police');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(checklist));
+    expect(await bodyOf(calls, 'POST', '/api/v1/items')).toMatchObject({
+      name: 'Nová police',
+      locationId: kitchen.id,
+      inventoryId: runId,
+    });
+    expect(await screen.findByText('Položka je uložená a přidaná do inventury.')).toBeInTheDocument();
+    // The form is not in the history any more: Back does not come back to it.
+    expect(router.history.location.pathname).toBe(checklist);
+    router.history.back();
+    await waitFor(() => expect(router.state.location.pathname).not.toBe('/items/new'));
+  });
+
+  it('says so when the item was created but the run did not take it', async () => {
+    const { user, router } = openForm({ ...detail({ id: crypto.randomUUID(), name: 'Pozdě' }), addedToInventory: false });
+
+    await screen.findByLabelText('Lokalita');
+    await user.type(screen.getByLabelText('Název'), 'Pozdě');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    expect(await screen.findByText(/do inventury se nepřidala/)).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.pathname).toBe(checklist));
+  });
+
+  it('goes back to the checklist on Zrušit', async () => {
+    const { user, router } = openForm(detail());
+    await screen.findByLabelText('Lokalita');
+    await user.click(screen.getByRole('link', { name: 'Zrušit' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(checklist));
+  });
+
+  it('returns to the run when the location cannot be read', async () => {
+    api({ [`GET /api/v1/locations/${kitchen.id}`]: () => problem(404, 'not_found') });
+    const user = userEvent.setup();
+    const { router } = renderApp(`/items/new?locationId=${kitchen.id}&inventoryId=${runId}`);
+    await screen.findByPlaceholderText(/Hledat lokalitu/);
+    await user.click(screen.getByRole('link', { name: 'Zrušit' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/inventories/${runId}`));
+  });
+
+  it('ignores an inventory id that is no id', async () => {
+    const calls = api({
+      [`GET /api/v1/locations/${kitchen.id}`]: () => jsonResponse(kitchen),
+      'POST /api/v1/items': () => jsonResponse(detail({ id: crypto.randomUUID() }), { status: 201 }),
+    });
+    const user = userEvent.setup();
+    renderApp(`/items/new?locationId=${kitchen.id}&inventoryId=nope`);
+    await screen.findByLabelText('Lokalita');
+    await user.type(screen.getByLabelText('Název'), 'Police');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+    await waitFor(async () => expect(await bodyOf(calls, 'POST', '/api/v1/items')).not.toHaveProperty('inventoryId'));
+  });
+});
+
 describe('shared cache', () => {
   it('does not break the location form, which searches locations too, after the item form was open', async () => {
     const hq = location({ name: 'Centrála Praha' });

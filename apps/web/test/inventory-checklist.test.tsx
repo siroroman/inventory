@@ -212,6 +212,28 @@ describe('inventory checklist', () => {
     });
   });
 
+  describe('adding an item', () => {
+    it('offers a writer a link to the item form, in this location and for this run', async () => {
+      openChecklist([row('Mixér tyčový')]);
+      const add = await screen.findByRole('link', { name: 'Přidat položku' });
+      expect(add).toHaveAttribute('href', `/items/new?locationId=${kitchen.id}&inventoryId=${runId}`);
+    });
+
+    it('offers nothing to a reader, nor on a run that has ended', async () => {
+      openChecklist([row('Mixér tyčový')], { role: 'read' });
+      await screen.findByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 });
+      expect(screen.queryByRole('link', { name: 'Přidat položku' })).not.toBeInTheDocument();
+    });
+
+    it('is not offered once the run has ended', async () => {
+      openChecklist([row('Mixér tyčový')], {
+        run: { status: 'finished', endedAt: '2026-10-04T14:02:00.000Z', endedBy: jan },
+      });
+      expect(await screen.findByText('Dokončená')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Přidat položku' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('summary and search', () => {
     /** The figure under a label of the summary ("Zkontrolováno" → "1"). */
     const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;

@@ -325,6 +325,8 @@
   "itemForm": {
     "newTitle": "Nová položka",
     "editTitle": "Upravit položku",
+    "addedToInventory": "Položka je uložená a přidaná do inventury.",
+    "notAddedToInventory": "Položka je uložená, ale do inventury se nepřidala: inventura už skončila nebo je lokalita mimo ni.",
     "sections": {
       "registration": "Registrace, záruka a servis"
     },
@@ -569,6 +571,7 @@
       "unchecked": "Nezkontrolované",
       "checked": "Zkontrolované",
       "added": "Nové",
+      "addItem": "Přidat položku",
       "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
       "emptyTitle": "Žádné položky",
       "emptyHint": "V této lokalitě teď nejsou žádné položky ke kontrole.",
