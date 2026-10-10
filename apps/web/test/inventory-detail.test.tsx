@@ -42,13 +42,17 @@ describe('inventory run overview', () => {
     expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
     expect(screen.getByText('Centrála Praha')).toBeInTheDocument();
     expect(screen.queryByText('Probíhá')).not.toBeInTheDocument();
-    expect(screen.getByText(/Inventura od 3\. 10\. 2026 · zahájil RS/)).toBeInTheDocument();
+    const started = screen.getByText(/Inventura od 3\. 10\. 2026 · zahájil RS/);
     expect(screen.getByText('84 / 128 zkontrolováno · 66 %')).toBeInTheDocument();
     const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
     expect(bar).toHaveAttribute('aria-valuenow', '84');
     expect(bar).toHaveAttribute('aria-valuemax', '128');
-    // The people are named for a screen reader next to their initials.
-    expect(screen.getByText('Roman Siro, Jan Novák')).toBeInTheDocument();
+    // Who started it is the last line of the box, below the progress and the figures; the box has
+    // no circles of the participants (the locations name who worked in them).
+    const box = started.closest('section')!;
+    expect(box.lastElementChild).toBe(started);
+    expect(box.contains(bar)).toBe(true);
+    expect(within(box).queryByText('Roman Siro, Jan Novák')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/?tab=inventory');
   });
 

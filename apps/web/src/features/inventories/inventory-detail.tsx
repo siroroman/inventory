@@ -168,18 +168,13 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
-        <RunLines inventory={inventory} />
         <Progression inventory={inventory} />
         {inventory.activeNow.length > 0 && (
           <p className="text-sm text-muted-foreground">
             {t('inventory.activeNow', { count: inventory.activeNow.length, who: shortNames(inventory.activeNow) })}
           </p>
         )}
-        {inventory.participants.length > 0 && (
-          <div className="flex items-center gap-2">
-            <AvatarStack people={inventory.participants} />
-          </div>
-        )}
+        <RunLines inventory={inventory} />
       </section>
 
       {groups.map((group) => {
