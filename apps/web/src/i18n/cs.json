@@ -149,17 +149,12 @@
       "noClosedTitle": "Zatím žádná dokončená inventura",
       "noClosedHint": "Dokončené a zrušené inventury se zobrazí tady.",
       "start": "Zahájit inventuru",
-      "continue": "Pokračovat",
-      "view": "Zobrazit",
       "startedOn": "Zahájil {{who}} · {{date}} v {{time}}",
       "startedBy": "zahájil {{who}}",
       "result": {
         "found": "{{count}} nalezeno",
         "elsewhere": "{{count}} jinde",
-        "missing_one": "{{count}} nezvěstná",
-        "missing_few": "{{count}} nezvěstné",
-        "missing_many": "{{count}} nezvěstné",
-        "missing_other": "{{count}} nezvěstných",
+        "missing": "{{count}} chybí",
         "cancelled": "{{checked}} z {{expected}} zkontrolováno"
       },
       "columns": {
@@ -169,7 +164,9 @@
         "status": "Stav"
       },
       "open": "Probíhající",
-      "closed": "Dokončené"
+      "closed": "Dokončené",
+      "archived": "Archivované",
+      "archivedEmptyTitle": "Žádné archivované inventury"
     }
   },
   "locationDetail": {

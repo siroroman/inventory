@@ -89,12 +89,16 @@ export const startInventory = (locationId: string) => unwrap(api.api.v1.inventor
 
 /**
  * Pages of the runs in progress (`open`, newest start first) or the finished and cancelled ones
- * (`closed`, newest end first); `q` searches the root location. Always fetched fresh, so the tab
- * shows the others' runs when it is opened or focused.
+ * (`closed`, newest end first), or with `archived` the archived runs; `q` searches the root
+ * location. Always fetched fresh, so the tab shows the others' runs when it is opened or focused.
  */
-export const inventoryListQueryOptions = (state: 'open' | 'closed', q: string) => ({
-  ...pagedListQueryOptions(`inventories:${state}`, q, ({ q: search, cursor, limit }) =>
-    unwrap(api.api.v1.inventories.$get({ query: { q: search, cursor, limit, state } })),
+export const inventoryListQueryOptions = (state: 'open' | 'closed', q: string, archived = false) => ({
+  ...pagedListQueryOptions(
+    `inventories:${state}`,
+    q,
+    ({ q: search, archived: onlyArchived, cursor, limit }) =>
+      unwrap(api.api.v1.inventories.$get({ query: { q: search, archived: onlyArchived, cursor, limit, state } })),
+    archived,
   ),
   staleTime: 0,
 });
