@@ -592,7 +592,6 @@
       "noLocation": "bez lokality",
       "moved": "přesunuto",
       "addedDuringInventory": "přidáno při inventuře",
-      "openItem": "Otevřít detail položky {{name}}",
       "flag": "Označit jako chybějící: {{name}}",
       "unflag": "Zrušit označení chybějící položky: {{name}}",
       "flaggedToast": "{{name}}: označeno jako chybějící",

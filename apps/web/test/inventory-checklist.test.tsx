@@ -112,7 +112,12 @@ async function rowsLoaded() {
   for (const bar of screen.queryAllByRole('button', { expanded: false })) {
     if (bar.hasAttribute('aria-controls')) await userEvent.click(bar);
   }
-  return screen.findAllByRole('link', { name: /^Otevřít detail položky / });
+  // The item links (the page has others: Zpět, Přidat položku), once the rows are in.
+  return waitFor(() => {
+    const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('section[aria-labelledby] a'));
+    expect(links.length).toBeGreaterThan(0);
+    return links;
+  });
 }
 
 /** The checkbox of an item, once the sections are open (they start folded). */
@@ -123,11 +128,11 @@ async function checkbox(name: string) {
 
 /** The card with this heading ("Nezkontrolované", "Zkontrolované"). */
 const group = (title: RegExp | string) => screen.getByRole('region', { name: typeof title === 'string' ? new RegExp(`^${title}`) : title });
-/** The names of the items in a card, from their "open the item" links (they exist for every role). */
+/** The names of the items in a card, from their links to the item (they exist for every role). */
 const names = (card: HTMLElement) =>
   within(card)
-    .getAllByRole('link', { name: /^Otevřít detail položky /, hidden: true })
-    .map((link) => link.getAttribute('aria-label')!.replace('Otevřít detail položky ', ''));
+    .getAllByRole('link', { hidden: true })
+    .map((link) => link.textContent!);
 
 describe('inventory checklist', () => {
   it('shows the location, how far it is and who checked there, with the unchecked items first', async () => {
@@ -170,7 +175,7 @@ describe('inventory checklist', () => {
         expect(bar(title)).toHaveAttribute('aria-expanded', 'false');
       }
       // Folded rows are out of sight and out of the accessibility tree.
-      expect(screen.queryByRole('link', { name: /^Otevřít detail položky / })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Mixér tyčový' })).not.toBeInTheDocument();
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 
@@ -216,9 +221,9 @@ describe('inventory checklist', () => {
 
       // No fold buttons, rows in sight.
       expect(screen.queryByRole('button', { name: /^Nezkontrolované/ })).not.toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Otevřít detail položky Kávovar' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Otevřít detail položky Nová police' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'Otevřít detail položky Pokladní systém' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Kávovar' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Nová police' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Pokladní systém' })).toBeInTheDocument();
     });
   });
 
@@ -346,12 +351,16 @@ describe('inventory checklist', () => {
     expect(within(group('Nezkontrolované')).queryByText(/·/)).not.toBeInTheDocument();
   });
 
-  it('shows the ID of each item and a link to its detail', async () => {
+  it('shows the ID of each item, and the name, underlined, as the link to its detail', async () => {
     const mixer = row('Mixér tyčový', { code: 'INV-73-2023016' });
     openChecklist([mixer]);
     await rowsLoaded();
     expect(screen.getByText('INV-73-2023016')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Otevřít detail položky Mixér tyčový' })).toHaveAttribute('href', `/items/${mixer.id}`);
+    const link = screen.getByRole('link', { name: 'Mixér tyčový' });
+    expect(link).toHaveAttribute('href', `/items/${mixer.id}`);
+    expect(link).toHaveClass('underline');
+    // The name is the link; there is no chevron to open the item with.
+    expect(screen.getAllByRole('link').filter((candidate) => candidate.getAttribute('href') === `/items/${mixer.id}`)).toHaveLength(1);
   });
 
   describe('rows that were not on the list', () => {
@@ -512,6 +521,19 @@ describe('inventory checklist', () => {
       await userEvent.click(screen.getByText('INV-00046'));
       await waitFor(() => expect(names(group('Zkontrolované'))).toEqual(['Mixér tyčový']));
       expect(posts(calls)).toHaveLength(1);
+    });
+
+    it('opens the item from its name instead of ticking it', async () => {
+      const mixer = row('Mixér tyčový');
+      const { router, calls } = openChecklist([mixer]);
+      await rowsLoaded();
+      const box = screen.getByRole('checkbox', { name: 'Mixér tyčový' });
+
+      await userEvent.click(screen.getByRole('link', { name: 'Mixér tyčový' }));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${mixer.id}`));
+      expect(box).not.toBeChecked();
+      expect(posts(calls)).toHaveLength(0);
     });
 
     it('shows who checked the item first when somebody else was quicker', async () => {
@@ -747,7 +769,8 @@ describe('inventory checklist', () => {
       expect(names(group('Nezkontrolované'))).toEqual(['Mixér tyčový']);
       expect(names(group('Zkontrolované'))).toEqual(['Kávovar']);
       // They can still open the item.
-      expect(screen.getAllByRole('link', { name: /^Otevřít detail položky / })).toHaveLength(2);
+      expect(screen.getByRole('link', { name: 'Mixér tyčový' })).toHaveAttribute('href', expect.stringMatching(/^\/items\//));
+      expect(screen.getByRole('link', { name: 'Kávovar' })).toHaveAttribute('href', expect.stringMatching(/^\/items\//));
     });
 
     it('shows a writer the checkboxes, and leaves cancelling the run to the overview', async () => {

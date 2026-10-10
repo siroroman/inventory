@@ -1,6 +1,6 @@
 import type { InventoryRowDto } from '@inventory/shared';
 import { Link } from '@tanstack/react-router';
-import { Check, ChevronRight, ScanLine, SearchX } from 'lucide-react';
+import { Check, ScanLine, SearchX } from 'lucide-react';
 import { type ReactNode, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
@@ -73,7 +73,8 @@ function CheckInfo({ row }: { row: InventoryRowDto }) {
 
 /**
  * One item of a checklist. For a writer the whole row is a label of a checkbox (a tap anywhere and
- * Space toggle it, nothing else to build); the chevron beside it opens the item. The checkbox is the
+ * Space toggle it, nothing else to build); the item's name, underlined, is a link that opens the
+ * item instead of toggling (a link inside a label does not activate it). The checkbox is the
  * native one, hidden visually, so a screen reader and the keyboard get the real control.
  */
 export function ChecklistRow({ row, canEdit, pending, onToggle, onToggleMissing }: Props) {
@@ -93,7 +94,14 @@ export function ChecklistRow({ row, canEdit, pending, onToggle, onToggleMissing 
     <>
       <span className="min-w-0">
         <span id={nameId} className="block text-[15px] font-semibold break-words">
-          {row.name}
+          {/* The padding makes the link taller to hit than its line of text, without moving the lines. */}
+          <Link
+            to="/items/$id"
+            params={{ id: row.id }}
+            className="-my-1.5 inline-block rounded-sm py-1.5 underline underline-offset-2 hover:text-primary focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {row.name}
+          </Link>
         </span>
         <RowDetails row={row} id={detailId} />
       </span>
@@ -143,21 +151,13 @@ export function ChecklistRow({ row, canEdit, pending, onToggle, onToggleMissing 
           disabled={pending !== undefined}
           onClick={() => onToggleMissing(!row.missing)}
           className={cn(
-            'flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+            'mr-1 flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
             row.missing ? 'bg-danger-soft text-destructive' : 'text-muted-foreground',
           )}
         >
           <SearchX aria-hidden className="size-4" />
         </button>
       )}
-      <Link
-        to="/items/$id"
-        params={{ id: row.id }}
-        aria-label={t('inventory.checklist.openItem', { name: row.name })}
-        className="mr-1 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <ChevronRight aria-hidden className="size-4" />
-      </Link>
     </li>
   );
 }
