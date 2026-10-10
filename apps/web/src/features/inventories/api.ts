@@ -54,6 +54,10 @@ export const cancelInventory = (id: string, version: number) =>
 export const finishInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].finish.$post({ param: { id }, json: { version } }));
 
+/** Takes a finished run back into progress; what the finish marked missing waits for a check again. */
+export const reopenInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].reopen.$post({ param: { id }, json: { version } }));
+
 export const archiveInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].archive.$post({ param: { id }, json: { version } }));
 

@@ -309,6 +309,104 @@ describe('POST /inventories/{id}/finish', () => {
   });
 });
 
+describe('POST /inventories/{id}/reopen', () => {
+  it('takes a finished run back, clears what the finish marked and audits it', async () => {
+    const { read, write } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+    const finished = await expectJson(
+      await write.post(`/inventories/${run.id}/finish`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+    expect(finished.counts).toMatchObject({ checked: 1, missing: 4 });
+
+    const body = await expectJson(
+      await write.post(`/inventories/${run.id}/reopen`, { version: finished.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(body).toMatchObject({
+      status: 'in_progress',
+      version: finished.version + 1,
+      endedAt: null,
+      endedBy: null,
+      counts: { expected: 5, checked: 1, missing: 0 },
+    });
+    const outcomes = await db().app.select({ outcome: inventoryItems.outcome }).from(inventoryItems);
+    expect(outcomes.every((r) => r.outcome === null)).toBe(true);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check', 'finish', 'reopen']);
+    expect(audit[3]!.changes).toEqual({
+      status: { from: 'finished', to: 'in_progress' },
+      missing: { from: 4, to: 0 },
+    });
+    // It is among the runs in progress again, and takes ticks.
+    const open = await expectJson(await read.get('/inventories?state=open'), 200, inventoryListSchema);
+    expect(open.items.map((r) => r.id)).toEqual([run.id]);
+    const closed = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(closed.items).toEqual([]);
+    const ladder = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    const another = ladder.items.find((r) => !r.checkedAt)!;
+    expect((await write.post(`/inventories/${run.id}/items/${another.id}/check`)).status).toBe(200);
+  });
+
+  it('answers 409 inventory_overlap while another run is in progress there', async () => {
+    const { write } = await setup();
+    const { top, patro } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    const finished = await expectJson(
+      await write.post(`/inventories/${run.id}/finish`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+    const other = await expectJson(await write.post('/inventories', { locationId: patro.id }), 201, inventorySchema);
+
+    const problem = await expectProblem(
+      await write.post(`/inventories/${run.id}/reopen`, { version: finished.version }),
+      409,
+      'inventory_overlap',
+    );
+    expect(problem.details).toEqual({ inventoryId: other.id });
+  });
+
+  it('answers 409 for a run in progress, a cancelled one, an archived one and a stale version', async () => {
+    const { write } = await setup();
+    const { top } = await praha();
+    const open = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    await expectProblem(await write.post(`/inventories/${open.id}/reopen`, { version: open.version }), 409, 'inventory_in_progress');
+
+    await write.post(`/inventories/${open.id}/cancel`, { version: open.version });
+    await expectProblem(await write.post(`/inventories/${open.id}/reopen`, { version: 2 }), 409, 'inventory_not_finished');
+
+    const second = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    const finished = await expectJson(
+      await write.post(`/inventories/${second.id}/finish`, { version: second.version }),
+      200,
+      inventorySchema,
+    );
+    await expectProblem(await write.post(`/inventories/${second.id}/reopen`, { version: 99 }), 409, 'conflict');
+    const archived = await expectJson(
+      await write.post(`/inventories/${second.id}/archive`, { version: finished.version }),
+      200,
+      inventorySchema,
+    );
+    await expectProblem(await write.post(`/inventories/${second.id}/reopen`, { version: archived.version }), 409, 'archived');
+    await expectProblem(await write.post(`/inventories/${MISSING}/reopen`, { version: 1 }), 404, 'not_found');
+  });
+
+  it('is for writers and signed-in users, and needs a version', async () => {
+    const { app, read, write } = await setup();
+    const { top } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    await write.post(`/inventories/${run.id}/finish`, { version: run.version });
+    await expectProblem(await read.post(`/inventories/${run.id}/reopen`, { version: 2 }), 403, 'forbidden');
+    await expectProblem(await api(app).post(`/inventories/${run.id}/reopen`, { version: 2 }), 401, 'unauthenticated');
+    await expectProblem(await write.post(`/inventories/${run.id}/reopen`, {}), 400, 'validation_error');
+  });
+});
+
 describe('POST /inventories/{id}/archive and /restore', () => {
   async function finishedRun(write: Awaited<ReturnType<typeof setup>>['write']) {
     const { top } = await praha();

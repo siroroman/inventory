@@ -1,6 +1,6 @@
 import type { InventoryDto } from '@inventory/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Archive, ArchiveRestore, Ban, CheckCheck, MoreHorizontal } from 'lucide-react';
+import { Archive, ArchiveRestore, Ban, CheckCheck, MoreHorizontal, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -16,16 +16,22 @@ import {
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { invalidateAfterWrite } from '@/lib/query';
-import { archiveInventory, cancelInventory, finishInventory, restoreInventory } from './api';
+import { archiveInventory, cancelInventory, finishInventory, reopenInventory, restoreInventory } from './api';
 
-type Action = 'finish' | 'cancel' | 'archive' | 'restore';
+type Action = 'finish' | 'cancel' | 'reopen' | 'archive' | 'restore';
 
-const request = { finish: finishInventory, cancel: cancelInventory, archive: archiveInventory, restore: restoreInventory };
+const request = {
+  finish: finishInventory,
+  cancel: cancelInventory,
+  reopen: reopenInventory,
+  archive: archiveInventory,
+  restore: restoreInventory,
+};
 
 /**
- * The "…" menu of a run's overview: a run in progress can be finished or cancelled, an ended one
- * archived, an archived one restored. Finishing, cancelling and archiving ask first; restoring
- * loses nothing and does not. Whoever renders it decides who may see it (writers).
+ * The "…" menu of a run's overview: a run in progress can be finished or cancelled, a finished one
+ * reopened or archived, a cancelled one archived, an archived one restored. Everything but
+ * restoring asks first (reopening takes back what the finish marked missing). Whoever renders it decides who may see it (writers).
  * A failure (somebody ended it meanwhile, a stale version) is toasted by the query client, and the
  * open screen refetches to show the run that won.
  */
@@ -45,6 +51,8 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
   const unchecked = Math.max(expected - checked, 0);
   const inProgress = inventory.status === 'in_progress';
   const archived = inventory.archivedAt !== null;
+  // A cancelled run is final; an archived one is restored first.
+  const canReopen = inventory.status === 'finished' && !archived;
 
   return (
     <>
@@ -67,6 +75,12 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
                 {t('inventory.actions.cancel')}
               </DropdownMenuItem>
             </>
+          )}
+          {canReopen && (
+            <DropdownMenuItem onSelect={() => setAsking('reopen')}>
+              <RotateCcw aria-hidden />
+              {t('inventory.actions.reopen')}
+            </DropdownMenuItem>
           )}
           {!inProgress && !archived && (
             <DropdownMenuItem onSelect={() => setAsking('archive')}>

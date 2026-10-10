@@ -80,6 +80,7 @@ describe('statusByCode', () => {
       'inventory_overlap',
       'inventory_closed',
       'inventory_in_progress',
+      'inventory_not_finished',
       'email_taken',
       'last_admin',
     ],

@@ -141,6 +141,19 @@ const finish = defineRoute({
   responses: { 200: { description: 'The finished run', content: jsonContent(inventorySchema) } },
 });
 
+const reopen = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/reopen',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Take a finished run back into progress: what the finish marked missing waits for a check again. ' +
+    'Refused while another run is in progress on the location',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The reopened run', content: jsonContent(inventorySchema) } },
+});
+
 const archive = defineRoute({
   method: 'post',
   path: '/inventories/{id}/archive',
@@ -206,6 +219,10 @@ export function createInventoryRoutes(inventories: InventoryService) {
     })
     .openapi(finish, async (c) => {
       const row = await inventories.finish(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(reopen, async (c) => {
+      const row = await inventories.reopen(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
       return c.json(toInventoryDto(row), 200);
     })
     .openapi(archive, async (c) => {

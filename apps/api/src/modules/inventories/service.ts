@@ -480,6 +480,44 @@ export function createInventoryService({ repos, transact, now = () => new Date()
      */
     finish: (actor: Actor, id: string, version: number) => close(actor, id, version, 'finished'),
 
+    /**
+     * Takes a finished run back into progress, so that more can be checked and finished again.
+     * What the finish marked is taken back (the items wait for a check once more), and the
+     * location must be free of another run in progress, as for a start. A cancelled run is final,
+     * and an archived one is restored first.
+     */
+    async reopen(actor: Actor, id: string, version: number): Promise<InventoryDetail> {
+      assertRole(actor, 'write');
+      await transact(async (r) => {
+        // Serialised with the starts: another run may have been started on the location since the finish.
+        await r.inventories.lockStarts();
+        const current = await r.inventories.lock(id);
+        if (!current) throw new DomainError('not_found');
+        if (current.status === 'in_progress') throw new DomainError('inventory_in_progress');
+        if (current.status !== 'finished') throw new DomainError('inventory_not_finished');
+        if (current.archivedAt) throw new DomainError('archived');
+        if (current.version !== version) throw new DomainError('conflict');
+        const overlapping = await r.inventories.findOverlapping(current.locationId);
+        if (overlapping) throw new DomainError('inventory_overlap', { inventoryId: overlapping.id });
+        const updated = await r.inventories.update(id, version, {
+          status: 'in_progress',
+          endedAt: null,
+          endedBy: null,
+          updatedBy: actor.id,
+        });
+        if (!updated) throw new DomainError('conflict');
+        const missing = await r.inventories.clearOutcomes(id);
+        await r.audit.record({
+          userId: actor.id,
+          entityType: 'inventory',
+          entityId: id,
+          action: 'reopen',
+          changes: { ...changedFields(current, updated, ['status']), missing: { from: missing, to: 0 } },
+        });
+      });
+      return get(actor, id);
+    },
+
     /** Takes an ended run out of the lists. It can be restored; nothing about the run changes. */
     archive: (actor: Actor, id: string, version: number) => setArchived(actor, id, version, true),
     restore: (actor: Actor, id: string, version: number) => setArchived(actor, id, version, false),

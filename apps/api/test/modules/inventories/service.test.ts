@@ -369,6 +369,98 @@ describe('inventory service', () => {
     });
   });
 
+  describe('reopen', () => {
+    it('takes a finished run back into progress, taking back what the finish marked', async () => {
+      const { store, service, actor, praha, users } = await setup();
+      const checked = await store.addItem(praha.id, 'Tiskárna');
+      await store.addItem(praha.id, 'Kávovar');
+      await store.addItem(praha.id, 'Lednice');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      store.check(run.id, checked.id, users.write.id);
+      const finished = await service.finish(actor('write'), run.id, run.version);
+      expect(finished.counts).toMatchObject({ checked: 1, missing: 2 });
+
+      const reopened = await service.reopen(actor('write', users.other), run.id, finished.version);
+
+      expect(reopened).toMatchObject({
+        status: 'in_progress',
+        version: finished.version + 1,
+        endedAt: null,
+        endedBy: null,
+        closedBy: null,
+        counts: { expected: 3, checked: 1, missing: 0 },
+      });
+      expect(store.state.rows.every((r) => r.outcome === null)).toBe(true);
+      // Checked rows stay checked, and the run takes ticks again.
+      expect(store.state.rows.find((r) => r.itemId === checked.id)!.checkedAt).not.toBeNull();
+      const open = store.state.rows.find((r) => !r.checkedAt)!;
+      await expect(service.check(actor('write'), run.id, open.itemId)).resolves.toMatchObject({ checkedAt: expect.any(Date) });
+      expect(store.state.audit.filter((e) => e.action === 'reopen')).toEqual([
+        expect.objectContaining({
+          userId: users.other.id,
+          entityType: 'inventory',
+          entityId: run.id,
+          changes: { status: { from: 'finished', to: 'in_progress' }, missing: { from: 2, to: 0 } },
+        }),
+      ]);
+    });
+
+    it('can be finished again, and then marks only what is still unchecked', async () => {
+      const { store, service, actor, praha } = await setup();
+      const first = await store.addItem(praha.id, 'Tiskárna');
+      await store.addItem(praha.id, 'Kávovar');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const finished = await service.finish(actor('write'), run.id, run.version);
+      const reopened = await service.reopen(actor('write'), run.id, finished.version);
+      await service.check(actor('write'), run.id, first.id);
+
+      const again = await service.finish(actor('write'), run.id, reopened.version);
+
+      expect(again).toMatchObject({ status: 'finished', counts: { checked: 1, missing: 1 } });
+    });
+
+    it('is refused while another run is in progress on the location, one above it or one below it', async () => {
+      const { store, service, actor, praha } = await setup();
+      const patro = await store.itemStore.addLocation('Patro', praha.id);
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const finished = await service.finish(actor('write'), run.id, run.version);
+      const other = await service.start(actor('write'), { locationId: patro.id });
+
+      await expect(service.reopen(actor('write'), run.id, finished.version)).rejects.toMatchObject({
+        code: 'inventory_overlap',
+        details: { inventoryId: other.id },
+      });
+      expect(store.state.inventories.find((r) => r.id === run.id)!.status).toBe('finished');
+
+      // Once that one has ended, the finished run can be taken back.
+      await service.cancel(actor('write'), other.id, other.version);
+      await expect(service.reopen(actor('write'), run.id, finished.version)).resolves.toMatchObject({ status: 'in_progress' });
+    });
+
+    it('refuses a run in progress, a cancelled run and an archived one', async () => {
+      const { service, actor, praha } = await setup();
+      const open = await service.start(actor('write'), { locationId: praha.id });
+      await expectCode(service.reopen(actor('write'), open.id, open.version), 'inventory_in_progress');
+
+      const cancelled = await service.cancel(actor('write'), open.id, open.version);
+      await expectCode(service.reopen(actor('write'), open.id, cancelled.version), 'inventory_not_finished');
+
+      const second = await service.start(actor('write'), { locationId: praha.id });
+      const finished = await service.finish(actor('write'), second.id, second.version);
+      const archived = await service.archive(actor('write'), second.id, finished.version);
+      await expectCode(service.reopen(actor('write'), second.id, archived.version), 'archived');
+    });
+
+    it('refuses a stale version, an unknown run and a reader', async () => {
+      const { service, actor, praha } = await setup();
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const finished = await service.finish(actor('write'), run.id, run.version);
+      await expectCode(service.reopen(actor('write'), run.id, 99), 'conflict');
+      await expectCode(service.reopen(actor('write'), crypto.randomUUID(), 1), 'not_found');
+      await expectCode(service.reopen(actor('read'), run.id, finished.version), 'forbidden');
+    });
+  });
+
   describe('archive and restore', () => {
     async function endedRun() {
       const ctx = await setup();

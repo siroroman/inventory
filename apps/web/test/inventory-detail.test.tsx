@@ -381,6 +381,71 @@ describe('inventory run overview', () => {
       expect(await within(await screen.findByRole('alertdialog')).findByText(/Všechny položky ze seznamu jsou zkontrolované/)).toBeInTheDocument();
     });
 
+    it('reopens a finished run after a question and shows it in progress again', async () => {
+      let reopened = false;
+      const calls = stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/inventories/${id}`]: () =>
+          jsonResponse(
+            reopened
+              ? inventory({ id, version: 6, counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 0 } })
+              : inventory({
+                  id,
+                  version: 5,
+                  status: 'finished',
+                  counts: { expected: 10, checked: 7, elsewhere: 0, new: 0, missing: 3 },
+                  ...ended,
+                }),
+          ),
+        [`POST /api/v1/inventories/${id}/reopen`]: () => {
+          reopened = true;
+          return jsonResponse(inventory({ id, version: 6 }));
+        },
+      });
+      renderApp(`/inventories/${id}`);
+      expect(await screen.findByText('Dokončená')).toBeInTheDocument();
+      expect(screen.getByText('Chybí', { selector: 'dt' }).nextElementSibling).toHaveTextContent('3');
+
+      await choose('Znovu otevřít inventuru');
+      const dialog = await screen.findByRole('alertdialog');
+      expect(within(dialog).getByText('Znovu otevřít inventuru?')).toBeInTheDocument();
+      expect(within(dialog).getByText(/budou znovu čekat na kontrolu/)).toBeInTheDocument();
+      expect(calls.some((call) => call.method === 'POST')).toBe(false);
+
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Znovu otevřít inventuru' }));
+
+      expect(await screen.findByText('Inventura znovu otevřena')).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByText('Dokončená')).not.toBeInTheDocument());
+      expect(screen.getByText('Chybí', { selector: 'dt' }).nextElementSibling).toHaveTextContent('0');
+      expect(await calls.find((call) => call.url.endsWith('/reopen'))!.clone().json()).toEqual({ version: 5 });
+      // In progress again: finish and cancel are offered.
+      await userEvent.click(screen.getByRole('button', { name: 'Akce inventury' }));
+      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+        'Dokončit inventuru',
+        'Zrušit inventuru',
+      ]);
+    });
+
+    it('tells the user when another run is in progress on the location', async () => {
+      stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/inventories/${id}`]: () => jsonResponse(inventory({ id, version: 5, status: 'finished', ...ended })),
+        [`POST /api/v1/inventories/${id}/reopen`]: () => problem(409, 'inventory_overlap'),
+      });
+      renderApp(`/inventories/${id}`);
+      await choose('Znovu otevřít inventuru');
+      await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Znovu otevřít inventuru' }));
+      expect(await screen.findByText('Pro tuto lokalitu už probíhá inventura.')).toBeInTheDocument();
+      expect(screen.getByText('Dokončená')).toBeInTheDocument();
+    });
+
+    it('does not offer to reopen a cancelled run', async () => {
+      signedIn(() => jsonResponse(inventory({ id, status: 'cancelled', ...ended })));
+      renderApp(`/inventories/${id}`);
+      await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
+      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Archivovat']);
+    });
+
     it('archives an ended run after a question, and restores an archived one at once', async () => {
       let archived = false;
       const calls = stubApi({
@@ -403,8 +468,11 @@ describe('inventory run overview', () => {
       renderApp(`/inventories/${id}`);
 
       await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
-      // An ended run offers only to archive it.
-      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual(['Archivovat']);
+      // A finished run can be taken back or archived.
+      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
+        'Znovu otevřít inventuru',
+        'Archivovat',
+      ]);
       await userEvent.click(screen.getByRole('menuitem', { name: 'Archivovat' }));
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Archivovat inventuru?')).toBeInTheDocument();

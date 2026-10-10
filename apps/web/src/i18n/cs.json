@@ -280,7 +280,8 @@
     "duplicate_external_id": "Toto externí ID už je u jiné položky použité.",
     "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
     "inventory_closed": "Inventura už je ukončená.",
-    "inventory_in_progress": "Inventura ještě probíhá. Archivovat jde až ukončená inventura.",
+    "inventory_in_progress": "Inventura ještě probíhá. Tohle jde až u ukončené inventury.",
+    "inventory_not_finished": "Znovu otevřít jde jen dokončená inventura.",
     "item_not_in_inventory": "Tato položka v inventuře není.",
     "location_outside_inventory": "Tato lokalita do inventury nepatří.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
@@ -555,6 +556,7 @@
       "menu": "Akce inventury",
       "finish": "Dokončit inventuru",
       "cancel": "Zrušit inventuru",
+      "reopen": "Znovu otevřít inventuru",
       "archive": "Archivovat",
       "restore": "Obnovit",
       "scan": "Skenovat"
@@ -562,6 +564,7 @@
     "toast": {
       "finish": "Inventura dokončena",
       "cancel": "Inventura zrušena",
+      "reopen": "Inventura znovu otevřena",
       "archive": "Inventura archivována",
       "restore": "Inventura obnovena"
     },
@@ -609,6 +612,10 @@
     "cancel": {
       "title": "Zrušit inventuru?",
       "hint": "Nic se neoznačí jako chybějící a inventura zůstane v seznamu jako Zrušená."
+    },
+    "reopen": {
+      "title": "Znovu otevřít inventuru?",
+      "hint": "Inventura se vrátí mezi probíhající a položky označené jako chybějící budou znovu čekat na kontrolu. Dokončit ji půjde znovu."
     },
     "archive": {
       "title": "Archivovat inventuru?",

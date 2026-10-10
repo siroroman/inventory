@@ -233,6 +233,14 @@ export function createFakeInventoryStore() {
       Object.assign(row, found);
       return true;
     },
+    async clearOutcomes(inventoryId) {
+      let missing = 0;
+      for (const row of rowsOf(inventoryId)) {
+        if (row.outcome === 'missing') missing += 1;
+        row.outcome = null;
+      }
+      return missing;
+    },
     async recordNew(inventoryId, itemId, added) {
       state.rows.push({
         id: randomUUID(),

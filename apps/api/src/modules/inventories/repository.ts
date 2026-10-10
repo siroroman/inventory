@@ -336,6 +336,20 @@ export function createInventoryRepository(db: DbExecutor) {
       return result.rows.filter((row) => row.outcome === 'missing').length;
     },
 
+    /**
+     * Takes back what a finish marked: the unchecked rows of the list go back to waiting for a check.
+     * Returns how many were marked missing.
+     */
+    async clearOutcomes(inventoryId: string): Promise<number> {
+      // `o` is the rows as they were, so RETURNING can tell what was cleared.
+      const result = await db.execute<{ outcome: string }>(sql`
+        UPDATE inventory_items r SET outcome = NULL
+          FROM (SELECT id, outcome FROM inventory_items WHERE inventory_id = ${inventoryId} AND outcome IS NOT NULL) o
+         WHERE r.id = o.id
+        RETURNING o.outcome AS outcome`);
+      return result.rows.filter((row) => row.outcome === 'missing').length;
+    },
+
     /** Adds an item created during the run to it as a checked `new` row, at the item's location. */
     async recordNew(
       inventoryId: string,
