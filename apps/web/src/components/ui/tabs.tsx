@@ -7,11 +7,13 @@ function Tabs(props: React.ComponentProps<typeof TabsPrimitive.Root>) {
   return <TabsPrimitive.Root data-slot="tabs" {...props} />;
 }
 
+// The tabs scroll sideways when they do not fit (five on a phone); the scrollbar is hidden, a tab cut
+// off at the edge shows there is more.
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn('flex gap-1 border-b', className)}
+      className={cn('flex gap-1 overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', className)}
       {...props}
     />
   );
@@ -23,7 +25,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        '-mb-px inline-flex h-11 items-center justify-center border-b-2 border-transparent px-4 text-[15px] font-semibold text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=active]:border-primary data-[state=active]:text-foreground',
+        '-mb-px inline-flex h-11 shrink-0 items-center justify-center border-b-2 border-transparent px-4 text-[15px] whitespace-nowrap font-semibold text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=active]:border-primary data-[state=active]:text-foreground',
         className,
       )}
       {...props}

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@tanstack/react-router';
 import { ChevronDown, LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Avatar } from '@/components/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { meQueryOptions, signOut } from './api';
-import { initials } from './initials';
-
-const avatarClass =
-  'flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground';
 
 /**
  * Who is signed in and how to sign out. The avatar in the top bar, or in `sidebar` form (Home on
@@ -49,9 +46,7 @@ export function UserMenu({ variant = 'avatar' }: { variant?: 'avatar' | 'sidebar
             : 'flex size-11 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50'
         }
       >
-        <span aria-hidden className={avatarClass}>
-          {initials(me.name, me.email)}
-        </span>
+        <Avatar name={me.name} email={me.email} />
         {sidebar && (
           <>
             <span className="min-w-0 flex-1">

@@ -137,6 +137,39 @@
         "brands": "Značky"
       },
       "add": "Přidat dodavatele"
+    },
+    "inventory": {
+      "tab": "Inventura",
+      "searchLabel": "Hledat inventury",
+      "searchPlaceholder": "Hledat podle lokality…",
+      "emptyTitle": "Zatím žádná inventura",
+      "emptyHint": "Inventura ověří, že jsou položky tam, kde je uvádí evidence.",
+      "noOpenTitle": "Žádná inventura neprobíhá",
+      "noOpenHint": "Zahájit ji může editor nebo správce.",
+      "noClosedTitle": "Zatím žádná dokončená inventura",
+      "noClosedHint": "Dokončené a zrušené inventury se zobrazí tady.",
+      "start": "Zahájit inventuru",
+      "continue": "Pokračovat",
+      "view": "Zobrazit",
+      "startedOn": "Zahájil {{who}} · {{date}} v {{time}}",
+      "startedBy": "zahájil {{who}}",
+      "result": {
+        "found": "{{count}} nalezeno",
+        "elsewhere": "{{count}} jinde",
+        "missing_one": "{{count}} nezvěstná",
+        "missing_few": "{{count}} nezvěstné",
+        "missing_many": "{{count}} nezvěstné",
+        "missing_other": "{{count}} nezvěstných",
+        "cancelled": "{{checked}} z {{expected}} zkontrolováno"
+      },
+      "columns": {
+        "location": "Lokalita",
+        "date": "Datum",
+        "result": "Výsledek",
+        "status": "Stav"
+      },
+      "open": "Probíhající",
+      "closed": "Dokončené"
     }
   },
   "locationDetail": {
@@ -248,6 +281,9 @@
     "duplicate_provider": "Takový servisní dodavatel už existuje.",
     "duplicate_manufacturer": "Výrobce s tímto názvem už existuje.",
     "duplicate_external_id": "Toto externí ID už je u jiné položky použité.",
+    "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
+    "inventory_closed": "Inventura už je ukončená.",
+    "item_not_in_inventory": "Tato položka v inventuře není.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
     "last_admin": "Posledního administrátora nelze odebrat ani deaktivovat.",
     "parent_not_found": "Nadřazená lokalita neexistuje.",
@@ -475,5 +511,96 @@
     "call": "Zavolat: {{name}}",
     "email": "Napsat e-mail: {{name}}",
     "web": "Otevřít web: {{name}}"
+  },
+  "inventory": {
+    "notFoundTitle": "Inventura nenalezena",
+    "notFoundHint": "Inventura neexistuje nebo byla odstraněna.",
+    "status": {
+      "in_progress": "Probíhá",
+      "finished": "Dokončená",
+      "cancelled": "Zrušená"
+    },
+    "startedBy": "Inventura od {{date}} · zahájil {{who}}",
+    "startedOn": "Inventura od {{date}}",
+    "cancelledBy": "Zrušil {{who}} · {{date}} v {{time}}",
+    "cancelledOn": "Zrušeno {{date}} v {{time}}",
+    "progressLabel": "Průběh inventury",
+    "progress": "{{checked}} / {{total}} zkontrolováno · {{percent}} %",
+    "noItems": "V lokalitě nejsou žádné položky.",
+    "activeNow_one": "{{who}} právě pracuje",
+    "activeNow_few": "{{who}} právě pracují",
+    "activeNow_many": "{{who}} právě pracují",
+    "activeNow_other": "{{who}} právě pracují",
+    "locations": {
+      "inProgress": "Probíhající ({{count}})",
+      "notStarted": "Nekontrolované ({{count}})",
+      "done": "Hotovo ({{count}})",
+      "items": "{{checked}} / {{total}} položek",
+      "nobodyStarted": "Nikdo nezačal",
+      "doneBadge": "Hotovo"
+    },
+    "actions": {
+      "cancel": "Zrušit inventuru"
+    },
+    "checklist": {
+      "searchLabel": "Hledat položky v lokalitě",
+      "searchPlaceholder": "Hledat podle názvu nebo ID…",
+      "unchecked": "Nezkontrolované",
+      "checked": "Zkontrolované",
+      "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
+      "emptyTitle": "Žádné položky",
+      "emptyHint": "V této lokalitě teď nejsou žádné položky ke kontrole.",
+      "moreChecked_one": "… a další {{count}} zkontrolovaná",
+      "moreChecked_few": "… a další {{count}} zkontrolované",
+      "moreChecked_many": "… a další {{count}} zkontrolované",
+      "moreChecked_other": "… a dalších {{count}} zkontrolovaných",
+      "showLess": "Zobrazit méně",
+      "method": {
+        "scan": "sken",
+        "manual": "ručně"
+      },
+      "elsewhere": "Jinde",
+      "new": "Nové",
+      "registeredIn": "Vedeno v: {{path}}",
+      "noLocation": "bez lokality",
+      "moved": "přesunuto",
+      "addedDuringInventory": "přidáno při inventuře",
+      "openItem": "Otevřít detail položky {{name}}",
+      "undo": "Vrátit",
+      "uncheckedToast": "{{name}}: kontrola zrušena",
+      "notSaved": "Zaškrtnutí se neuložilo",
+      "notFoundTitle": "Lokalita v inventuře není",
+      "notFoundHint": "Tato lokalita nemá v inventuře žádné položky ke kontrole.",
+      "toOverview": "Zpět na přehled inventury"
+    },
+    "cancel": {
+      "title": "Zrušit inventuru?",
+      "hint": "Nic se neoznačí jako nezvěstné a inventura zůstane v seznamu jako Zrušená.",
+      "back": "Zpět",
+      "done": "Inventura zrušena"
+    }
+  },
+  "inventoryStart": {
+    "title": "Zahájit inventuru",
+    "location": "Lokalita",
+    "locationPlaceholder": "Hledat lokalitu podle názvu nebo ID",
+    "noLocations": "Žádná lokalita nenalezena",
+    "willCheck_one": "Zkontroluje se {{count}} položka",
+    "willCheck_few": "Zkontrolují se {{count}} položky",
+    "willCheck_many": "Zkontrolují se {{count}} položky",
+    "willCheck_other": "Zkontroluje se {{count}} položek",
+    "inLocations_one": "v {{count}} lokalitě",
+    "inLocations_few": "v {{count}} lokalitách",
+    "inLocations_many": "v {{count}} lokalitách",
+    "inLocations_other": "v {{count}} lokalitách",
+    "noItems": "V lokalitě nejsou žádné položky.",
+    "noItemsHint": "Inventuru lze přesto zahájit, například k zapsání nových položek.",
+    "overlap": "Pro tuto lokalitu už probíhá inventura: {{location}}, zahájil {{who}} {{date}}",
+    "overlapNoWho": "Pro tuto lokalitu už probíhá inventura: {{location}}, zahájená {{date}}",
+    "open": "Otevřít",
+    "cancel": "Zrušit",
+    "submit": "Zahájit inventuru",
+    "submitting": "Zahajuji…",
+    "started": "Inventura zahájena"
   }
 }

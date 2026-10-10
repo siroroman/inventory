@@ -7,11 +7,20 @@ import { migrationsFolder, runMigrations } from '../../src/db/migrate.ts';
 import { createDatabase, dropDatabase, urlFor, useTestDb } from '../helpers/db.ts';
 
 const AUDITED_TABLES = ['location_types', 'locations', 'items', 'manufacturers', 'service_providers', 'service_records'];
-// Documents are versioned (rename) but deleted for real: no archived_at.
-const VERSIONED_TABLES = [...AUDITED_TABLES, 'service_record_documents'];
+// Documents are versioned (rename) but deleted for real, and runs end instead of being archived: no archived_at.
+const NO_ARCHIVE_TABLES = ['service_record_documents', 'inventories'];
+const VERSIONED_TABLES = [...AUDITED_TABLES, ...NO_ARCHIVE_TABLES];
 const COMMON_COLUMNS = ['created_at', 'created_by', 'updated_at', 'updated_by', 'archived_at', 'version'];
-// Users are never deleted, so author references need no index for ON DELETE checks.
-const UNINDEXED_FK_ALLOWLIST = new Set(['created_by', 'updated_by', 'audit_log.user_id']);
+// Users are never deleted, so author references need no index for ON DELETE checks. Who ended a run,
+// checked or moved an item is never a filter either.
+const UNINDEXED_FK_ALLOWLIST = new Set([
+  'created_by',
+  'updated_by',
+  'ended_by',
+  'checked_by',
+  'moved_by',
+  'audit_log.user_id',
+]);
 
 describe('migrations', () => {
   let scratch: string | undefined;
@@ -34,7 +43,7 @@ describe('migrations', () => {
     );
     await pool.end();
     expect(applied.rows[0]).toEqual({ n: journal.entries.length });
-    expect(tables.rows[0]).toEqual({ n: 15 });
+    expect(tables.rows[0]).toEqual({ n: 17 });
   });
 });
 
@@ -48,7 +57,7 @@ describe('schema', () => {
     expect(versioned.rows.map((r) => r.table_name)).toEqual([...VERSIONED_TABLES].sort());
 
     for (const table of VERSIONED_TABLES) {
-      const common = table === 'service_record_documents' ? COMMON_COLUMNS.filter((c) => c !== 'archived_at') : COMMON_COLUMNS;
+      const common = NO_ARCHIVE_TABLES.includes(table) ? COMMON_COLUMNS.filter((c) => c !== 'archived_at') : COMMON_COLUMNS;
       const cols = await t().owner.execute(sql`
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND table_name = ${table}`);

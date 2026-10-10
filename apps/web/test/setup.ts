@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
+import { toast } from 'sonner';
 import { afterEach, vi } from 'vitest';
 import '../src/i18n';
 
@@ -21,10 +22,17 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
+// jsdom has no pointer capture; sonner's toasts call it on a press (their buttons, such as "Vrátit").
+Element.prototype.setPointerCapture ??= () => {};
+Element.prototype.releasePointerCapture ??= () => {};
+
 // The router restores scroll positions; jsdom only logs "not implemented".
 window.scrollTo = () => {};
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  // sonner keeps its toasts in a module-level store and shows the active ones again in the next
+  // Toaster that mounts, so a toast would live on into the next test of the file.
+  toast.dismiss();
 });

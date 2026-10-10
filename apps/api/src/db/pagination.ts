@@ -64,6 +64,22 @@ export function decodeDateCursor(cursor: string): DateKey {
   return { on: key.on!, id: key.id };
 }
 
+/**
+ * Sort key for lists ordered by a moment, newest first, with the id as a tie-breaker. `at` is an
+ * ISO instant with milliseconds, which is all a JS `Date` holds: the column must therefore be
+ * written with millisecond precision (by the service, from its clock), or a row with microseconds
+ * would sort after its own cursor and show up on the next page again.
+ */
+export type TimestampKey = { at: string; id: string };
+
+export function decodeTimestampCursor(cursor: string): TimestampKey {
+  const key = decodeJson(cursor) as Partial<TimestampKey> | null;
+  const at = key?.at;
+  const valid = typeof at === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(at) && !Number.isNaN(Date.parse(at));
+  if (!valid || typeof key?.id !== 'string' || !UUID.test(key.id)) throw new InvalidCursorError();
+  return { at, id: key.id };
+}
+
 export function decodeIdCursor(cursor: string): number {
   const key = decodeJson(cursor) as { id?: unknown } | null;
   if (!Number.isSafeInteger(key?.id) || (key!.id as number) < 1) throw new InvalidCursorError();
@@ -85,6 +101,13 @@ export function beforeDate(on: AnyColumn, id: AnyColumn, cursor: string | undefi
   if (!cursor) return undefined;
   const key = decodeDateCursor(cursor);
   return sql`(${on}, ${id}) < (${key.on}::date, ${key.id}::uuid)`;
+}
+
+/** Rows after the cursor in `ORDER BY at DESC, id DESC` order (the next ones are older). */
+export function beforeTimestamp(at: AnyColumn, id: AnyColumn, cursor: string | undefined): SQL | undefined {
+  if (!cursor) return undefined;
+  const key = decodeTimestampCursor(cursor);
+  return sql`(${at}, ${id}) < (${key.at}::timestamptz, ${key.id}::uuid)`;
 }
 
 /** Rows after the cursor in `ORDER BY path, id` order; `path` is a cs_cz `text[]` expression. */

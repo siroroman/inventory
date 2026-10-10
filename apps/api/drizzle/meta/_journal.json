@@ -134,6 +134,27 @@
       "when": 1791030882446,
       "tag": "0018_item_purchase_price",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791557304476,
+      "tag": "0019_inventories",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791557313695,
+      "tag": "0020_inventories_grants_and_versioning",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791557347011,
+      "tag": "0021_audit_inventory_actions",
+      "breakpoints": true
     }
   ]
 }

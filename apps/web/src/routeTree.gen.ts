@@ -12,12 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppInventoriesNewRouteImport } from './routes/_app/inventories/new'
 import { Route as AppItemsNewRouteImport } from './routes/_app/items/new'
 import { Route as AppLocationsIdRouteImport } from './routes/_app/locations/$id'
 import { Route as AppLocationsNewRouteImport } from './routes/_app/locations/new'
 import { Route as AppManufacturersIdRouteImport } from './routes/_app/manufacturers/$id'
 import { Route as AppServiceProvidersNewRouteImport } from './routes/_app/service-providers/new'
 import { Route as AppServiceRecordsNewRouteImport } from './routes/_app/service-records/new'
+import { Route as AppInventoriesIdIndexRouteImport } from './routes/_app/inventories/$id/index'
 import { Route as AppItemsIdIndexRouteImport } from './routes/_app/items/$id/index'
 import { Route as AppItemsIdEditRouteImport } from './routes/_app/items/$id/edit'
 import { Route as AppLocationsIdEditRouteImport } from './routes/_app/locations/$id_.edit'
@@ -25,6 +27,7 @@ import { Route as AppServiceProvidersIdIndexRouteImport } from './routes/_app/se
 import { Route as AppServiceProvidersIdEditRouteImport } from './routes/_app/service-providers/$id/edit'
 import { Route as AppServiceRecordsIdIndexRouteImport } from './routes/_app/service-records/$id/index'
 import { Route as AppServiceRecordsIdEditRouteImport } from './routes/_app/service-records/$id/edit'
+import { Route as AppInventoriesIdLocationsLocationIdRouteImport } from './routes/_app/inventories/$id/locations/$locationId'
 import { Route as AppItemsIdServiceRecordsNewRouteImport } from './routes/_app/items/$id/service-records/new'
 
 const AppRoute = AppRouteImport.update({
@@ -39,6 +42,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventoriesNewRoute = AppInventoriesNewRouteImport.update({
+  id: '/inventories/new',
+  path: '/inventories/new',
   getParentRoute: () => AppRoute,
 } as any)
 const AppItemsNewRoute = AppItemsNewRouteImport.update({
@@ -69,6 +77,11 @@ const AppServiceProvidersNewRoute = AppServiceProvidersNewRouteImport.update({
 const AppServiceRecordsNewRoute = AppServiceRecordsNewRouteImport.update({
   id: '/service-records/new',
   path: '/service-records/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInventoriesIdIndexRoute = AppInventoriesIdIndexRouteImport.update({
+  id: '/inventories/$id/',
+  path: '/inventories/$id/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppItemsIdIndexRoute = AppItemsIdIndexRouteImport.update({
@@ -109,6 +122,12 @@ const AppServiceRecordsIdEditRoute = AppServiceRecordsIdEditRouteImport.update({
   path: '/service-records/$id/edit',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInventoriesIdLocationsLocationIdRoute =
+  AppInventoriesIdLocationsLocationIdRouteImport.update({
+    id: '/inventories/$id/locations/$locationId',
+    path: '/inventories/$id/locations/$locationId',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppItemsIdServiceRecordsNewRoute =
   AppItemsIdServiceRecordsNewRouteImport.update({
     id: '/items/$id/service-records/new',
@@ -119,6 +138,7 @@ const AppItemsIdServiceRecordsNewRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/inventories/new': typeof AppInventoriesNewRoute
   '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
   '/locations/new': typeof AppLocationsNewRoute
@@ -129,14 +149,17 @@ export interface FileRoutesByFullPath {
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/service-providers/$id/edit': typeof AppServiceProvidersIdEditRoute
   '/service-records/$id/edit': typeof AppServiceRecordsIdEditRoute
+  '/inventories/$id/': typeof AppInventoriesIdIndexRoute
   '/items/$id/': typeof AppItemsIdIndexRoute
   '/service-providers/$id/': typeof AppServiceProvidersIdIndexRoute
   '/service-records/$id/': typeof AppServiceRecordsIdIndexRoute
+  '/inventories/$id/locations/$locationId': typeof AppInventoriesIdLocationsLocationIdRoute
   '/items/$id/service-records/new': typeof AppItemsIdServiceRecordsNewRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
+  '/inventories/new': typeof AppInventoriesNewRoute
   '/items/new': typeof AppItemsNewRoute
   '/locations/$id': typeof AppLocationsIdRoute
   '/locations/new': typeof AppLocationsNewRoute
@@ -147,9 +170,11 @@ export interface FileRoutesByTo {
   '/locations/$id/edit': typeof AppLocationsIdEditRoute
   '/service-providers/$id/edit': typeof AppServiceProvidersIdEditRoute
   '/service-records/$id/edit': typeof AppServiceRecordsIdEditRoute
+  '/inventories/$id': typeof AppInventoriesIdIndexRoute
   '/items/$id': typeof AppItemsIdIndexRoute
   '/service-providers/$id': typeof AppServiceProvidersIdIndexRoute
   '/service-records/$id': typeof AppServiceRecordsIdIndexRoute
+  '/inventories/$id/locations/$locationId': typeof AppInventoriesIdLocationsLocationIdRoute
   '/items/$id/service-records/new': typeof AppItemsIdServiceRecordsNewRoute
 }
 export interface FileRoutesById {
@@ -157,6 +182,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/inventories/new': typeof AppInventoriesNewRoute
   '/_app/items/new': typeof AppItemsNewRoute
   '/_app/locations/$id': typeof AppLocationsIdRoute
   '/_app/locations/new': typeof AppLocationsNewRoute
@@ -167,9 +193,11 @@ export interface FileRoutesById {
   '/_app/locations/$id_/edit': typeof AppLocationsIdEditRoute
   '/_app/service-providers/$id/edit': typeof AppServiceProvidersIdEditRoute
   '/_app/service-records/$id/edit': typeof AppServiceRecordsIdEditRoute
+  '/_app/inventories/$id/': typeof AppInventoriesIdIndexRoute
   '/_app/items/$id/': typeof AppItemsIdIndexRoute
   '/_app/service-providers/$id/': typeof AppServiceProvidersIdIndexRoute
   '/_app/service-records/$id/': typeof AppServiceRecordsIdIndexRoute
+  '/_app/inventories/$id/locations/$locationId': typeof AppInventoriesIdLocationsLocationIdRoute
   '/_app/items/$id/service-records/new': typeof AppItemsIdServiceRecordsNewRoute
 }
 export interface FileRouteTypes {
@@ -177,6 +205,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/inventories/new'
     | '/items/new'
     | '/locations/$id'
     | '/locations/new'
@@ -187,14 +216,17 @@ export interface FileRouteTypes {
     | '/locations/$id/edit'
     | '/service-providers/$id/edit'
     | '/service-records/$id/edit'
+    | '/inventories/$id/'
     | '/items/$id/'
     | '/service-providers/$id/'
     | '/service-records/$id/'
+    | '/inventories/$id/locations/$locationId'
     | '/items/$id/service-records/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/'
+    | '/inventories/new'
     | '/items/new'
     | '/locations/$id'
     | '/locations/new'
@@ -205,15 +237,18 @@ export interface FileRouteTypes {
     | '/locations/$id/edit'
     | '/service-providers/$id/edit'
     | '/service-records/$id/edit'
+    | '/inventories/$id'
     | '/items/$id'
     | '/service-providers/$id'
     | '/service-records/$id'
+    | '/inventories/$id/locations/$locationId'
     | '/items/$id/service-records/new'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/'
+    | '/_app/inventories/new'
     | '/_app/items/new'
     | '/_app/locations/$id'
     | '/_app/locations/new'
@@ -224,9 +259,11 @@ export interface FileRouteTypes {
     | '/_app/locations/$id_/edit'
     | '/_app/service-providers/$id/edit'
     | '/_app/service-records/$id/edit'
+    | '/_app/inventories/$id/'
     | '/_app/items/$id/'
     | '/_app/service-providers/$id/'
     | '/_app/service-records/$id/'
+    | '/_app/inventories/$id/locations/$locationId'
     | '/_app/items/$id/service-records/new'
   fileRoutesById: FileRoutesById
 }
@@ -256,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventories/new': {
+      id: '/_app/inventories/new'
+      path: '/inventories/new'
+      fullPath: '/inventories/new'
+      preLoaderRoute: typeof AppInventoriesNewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/items/new': {
@@ -298,6 +342,13 @@ declare module '@tanstack/react-router' {
       path: '/service-records/new'
       fullPath: '/service-records/new'
       preLoaderRoute: typeof AppServiceRecordsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inventories/$id/': {
+      id: '/_app/inventories/$id/'
+      path: '/inventories/$id'
+      fullPath: '/inventories/$id/'
+      preLoaderRoute: typeof AppInventoriesIdIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/items/$id/': {
@@ -349,6 +400,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppServiceRecordsIdEditRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/inventories/$id/locations/$locationId': {
+      id: '/_app/inventories/$id/locations/$locationId'
+      path: '/inventories/$id/locations/$locationId'
+      fullPath: '/inventories/$id/locations/$locationId'
+      preLoaderRoute: typeof AppInventoriesIdLocationsLocationIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/items/$id/service-records/new': {
       id: '/_app/items/$id/service-records/new'
       path: '/items/$id/service-records/new'
@@ -361,6 +419,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppInventoriesNewRoute: typeof AppInventoriesNewRoute
   AppItemsNewRoute: typeof AppItemsNewRoute
   AppLocationsIdRoute: typeof AppLocationsIdRoute
   AppLocationsNewRoute: typeof AppLocationsNewRoute
@@ -371,14 +430,17 @@ interface AppRouteChildren {
   AppLocationsIdEditRoute: typeof AppLocationsIdEditRoute
   AppServiceProvidersIdEditRoute: typeof AppServiceProvidersIdEditRoute
   AppServiceRecordsIdEditRoute: typeof AppServiceRecordsIdEditRoute
+  AppInventoriesIdIndexRoute: typeof AppInventoriesIdIndexRoute
   AppItemsIdIndexRoute: typeof AppItemsIdIndexRoute
   AppServiceProvidersIdIndexRoute: typeof AppServiceProvidersIdIndexRoute
   AppServiceRecordsIdIndexRoute: typeof AppServiceRecordsIdIndexRoute
+  AppInventoriesIdLocationsLocationIdRoute: typeof AppInventoriesIdLocationsLocationIdRoute
   AppItemsIdServiceRecordsNewRoute: typeof AppItemsIdServiceRecordsNewRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppInventoriesNewRoute: AppInventoriesNewRoute,
   AppItemsNewRoute: AppItemsNewRoute,
   AppLocationsIdRoute: AppLocationsIdRoute,
   AppLocationsNewRoute: AppLocationsNewRoute,
@@ -389,9 +451,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppLocationsIdEditRoute: AppLocationsIdEditRoute,
   AppServiceProvidersIdEditRoute: AppServiceProvidersIdEditRoute,
   AppServiceRecordsIdEditRoute: AppServiceRecordsIdEditRoute,
+  AppInventoriesIdIndexRoute: AppInventoriesIdIndexRoute,
   AppItemsIdIndexRoute: AppItemsIdIndexRoute,
   AppServiceProvidersIdIndexRoute: AppServiceProvidersIdIndexRoute,
   AppServiceRecordsIdIndexRoute: AppServiceRecordsIdIndexRoute,
+  AppInventoriesIdLocationsLocationIdRoute:
+    AppInventoriesIdLocationsLocationIdRoute,
   AppItemsIdServiceRecordsNewRoute: AppItemsIdServiceRecordsNewRoute,
 }
 

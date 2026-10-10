@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import type { Db } from '../../src/db/client.ts';
 import {
+  inventories,
+  inventoryItems,
   items,
   locations,
   locationTypes,
@@ -100,6 +102,31 @@ export async function insertServiceRecordDocument(
       ...overrides,
       serviceRecordId,
     })
+    .returning();
+  return row!;
+}
+
+export async function insertInventory(db: Db, overrides: Partial<typeof inventories.$inferInsert> = {}) {
+  const locationId = overrides.locationId ?? (await insertLocation(db)).id;
+  const [row] = await db
+    .insert(inventories)
+    .values({ ...overrides, locationId })
+    .returning();
+  return row!;
+}
+
+/** An `expected` row for an item in the run's location, unchecked, unless told otherwise. */
+export async function insertInventoryItem(
+  db: Db,
+  overrides: Partial<typeof inventoryItems.$inferInsert> = {},
+) {
+  const inventoryId = overrides.inventoryId ?? (await insertInventory(db)).id;
+  const item = overrides.itemId ? undefined : await insertItem(db);
+  const itemId = overrides.itemId ?? item!.id;
+  const locationId = overrides.locationId ?? item?.locationId ?? (await insertLocation(db)).id;
+  const [row] = await db
+    .insert(inventoryItems)
+    .values({ kind: 'expected', ...overrides, inventoryId, itemId, locationId })
     .returning();
   return row!;
 }
