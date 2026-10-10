@@ -323,6 +323,43 @@ describe('inventory service', () => {
       expect(rows.get('Stojan na tácy')).toMatchObject({ kind: 'elsewhere', moved: false, registeredPath: [] });
     });
 
+    it('stops reporting an item found elsewhere as registered elsewhere once its location is the one it was found in', async () => {
+      const { store, service, actor, praha } = await setup();
+      const patro = await store.itemStore.addLocation('Patro', praha.id);
+      const sklad = await store.itemStore.addLocation('Sklad');
+      const stranger = await store.addItem(sklad.id, 'Pokladní systém');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      await service.scan(actor('write'), run.id, { code: stranger.code, locationId: patro.id });
+
+      const before = await service.listItems(actor('read'), run.id, patro.id);
+      expect(before).toMatchObject([{ kind: 'elsewhere', registeredElsewhere: true }]);
+
+      // An ordinary edit of the item: its location is now the checklist's.
+      store.itemStore.state.items.find((i) => i.id === stranger.id)!.locationId = patro.id;
+
+      const after = await service.listItems(actor('read'), run.id, patro.id);
+      // Still a find of this run (kind and counts do not change), but it is in place.
+      expect(after).toMatchObject([{ kind: 'elsewhere', registeredElsewhere: false, checkedAt: expect.any(Date) }]);
+      expect((await service.get(actor('read'), run.id)).counts).toMatchObject({ elsewhere: 1 });
+
+      // Moved somewhere else again: elsewhere once more.
+      store.itemStore.state.items.find((i) => i.id === stranger.id)!.locationId = sklad.id;
+      expect(await service.listItems(actor('read'), run.id, patro.id)).toMatchObject([{ registeredElsewhere: true }]);
+    });
+
+    it('never reports a listed item or an added one as registered elsewhere', async () => {
+      const { store, service, actor, praha, users } = await setup();
+      const listed = await store.addItem(praha.id, 'Tiskárna');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const added = await store.addItem(praha.id, 'Nová police');
+      store.addRow(run.id, added.id, praha.id, { kind: 'new', checkedAt: new Date(), checkedBy: users.write.id, method: 'manual' });
+      // The listed item moved away by an edit: its row is still a listed one.
+      store.itemStore.state.items.find((i) => i.id === listed.id)!.locationId = null;
+
+      const rows = await service.listItems(actor('read'), run.id);
+      expect(rows.map((r) => r.registeredElsewhere)).toEqual([false, false]);
+    });
+
     it('leaves out archived items and found or added items that are not checked', async () => {
       const { store, service, clock, actor, praha, users } = await setup();
       const gone = await store.addItem(praha.id, 'Vyřazeno');

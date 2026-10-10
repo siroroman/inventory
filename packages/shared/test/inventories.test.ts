@@ -78,6 +78,7 @@ describe('scanResultSchema', () => {
     checkedBy: null,
     method: null,
     registeredPath: [],
+    registeredElsewhere: false,
     moved: false,
   };
 
@@ -91,6 +92,11 @@ describe('scanResultSchema', () => {
     ]) {
       expect(scanResultSchema.safeParse(result).success).toBe(true);
     }
+  });
+
+  it('refuses a row that does not say whether its item is still registered elsewhere', () => {
+    const { registeredElsewhere: _, ...incomplete } = row;
+    expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
   });
 
   it('refuses an outcome without what it needs and an unknown outcome', () => {

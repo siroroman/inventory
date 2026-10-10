@@ -61,8 +61,13 @@ export type InventoryDetail = InventoryEntry & {
   locations: InventoryLocationEntry[];
 };
 
-/** An item of a run as the checklist shows it: the row with the path to where a found item was registered. */
-export type InventoryRunItem = RunItem & { registeredPath: PathSegment[] };
+/**
+ * An item of a run as the checklist shows it: the row with the path to where a found item was
+ * registered. `registeredElsewhere` is true for an item found elsewhere that still is registered
+ * somewhere other than where it was found; once its location is changed to that location (an
+ * ordinary edit of the item) the row is in place and shows as an ordinary check.
+ */
+export type InventoryRunItem = RunItem & { registeredPath: PathSegment[]; registeredElsewhere: boolean };
 
 /** The run in progress that blocks a start. */
 export type InventoryOverlap = {
@@ -157,6 +162,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     return rows.map((row) => ({
       ...row,
       registeredPath: (row.registeredLocationId && paths.get(row.registeredLocationId)) || [],
+      registeredElsewhere: row.kind === 'elsewhere' && row.itemLocationId !== row.locationId,
     }));
   }
 

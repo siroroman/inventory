@@ -18,13 +18,13 @@ type Props = {
   onToggle: (checked: boolean) => void;
 };
 
-/** What a row says besides its name: the item's ID and, for an item found elsewhere or added, where it came from. */
+/** What a row says besides its name: the item's ID and, for an item found elsewhere (still registered there) or added, where it came from. */
 function RowDetails({ row, id }: { row: InventoryRowDto; id: string }) {
   const { t } = useTranslation();
   return (
     <span id={id} className="block text-sm text-muted-foreground">
       <span className="block break-words">{row.code}</span>
-      {row.kind === 'elsewhere' && (
+      {row.registeredElsewhere && (
         <span className="block break-words text-warning">
           {t('inventory.checklist.registeredIn', {
             path: row.registeredPath.length > 0 ? pathLabel(row.registeredPath) : t('inventory.checklist.noLocation'),
@@ -41,7 +41,7 @@ function RowDetails({ row, id }: { row: InventoryRowDto; id: string }) {
 function CheckInfo({ row }: { row: InventoryRowDto }) {
   const { t } = useTranslation();
   const badge =
-    row.kind === 'elsewhere' ? (
+    row.registeredElsewhere ? (
       <Badge variant="warning">{t('inventory.checklist.elsewhere')}</Badge>
     ) : row.kind === 'new' ? (
       <Badge variant="info">{t('inventory.checklist.new')}</Badge>
@@ -76,7 +76,9 @@ export function ChecklistRow({ row, canEdit, pendingChecked, onToggle }: Props) 
   const nameId = useId();
   const detailId = useId();
   const checked = pendingChecked ?? row.checkedAt !== null;
-  const found = row.kind === 'elsewhere';
+  // Warning colours only while the item is registered somewhere else; once its location was set
+  // to this one, it is an ordinary check.
+  const found = row.registeredElsewhere;
 
   const text: ReactNode = (
     <>

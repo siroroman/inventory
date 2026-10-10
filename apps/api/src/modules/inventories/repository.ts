@@ -50,6 +50,8 @@ export type RunItem = {
   locationId: string;
   /** Where a found-elsewhere item was registered (null: nowhere). */
   registeredLocationId: string | null;
+  /** Where the item is registered now (null: nowhere); it changes with an ordinary edit of the item. */
+  itemLocationId: string | null;
   checkedAt: Date | null;
   checkedBy: Person | null;
   method: string | null;
@@ -75,6 +77,7 @@ const runItemColumns = {
   kind: inventoryItems.kind,
   locationId: inventoryItems.locationId,
   registeredLocationId: inventoryItems.registeredLocationId,
+  itemLocationId: items.locationId,
   checkedAt: inventoryItems.checkedAt,
   checkedBy: { id: checker.id, name: checker.name },
   method: inventoryItems.method,

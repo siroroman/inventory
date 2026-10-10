@@ -88,6 +88,7 @@ export function createFakeInventoryStore() {
       kind: row.kind,
       locationId: row.locationId,
       registeredLocationId: row.registeredLocationId,
+      itemLocationId: item.locationId,
       checkedAt: row.checkedAt,
       checkedBy: person(row.checkedBy),
       method: row.method,

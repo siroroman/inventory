@@ -491,6 +491,27 @@ describe('POST /inventories/{id}/scans', () => {
     });
   });
 
+  it('shows a found item as in place once an ordinary edit sets its location to the checklist', async () => {
+    const { read, write } = await setup();
+    const { run, patro } = await startedRun(write);
+    const sklad = await insertLocation(db().app, { name: 'Sklad' });
+    const stranger = await insertItem(db().app, { name: 'Pokladní systém', locationId: sklad.id });
+    await scan(write, run.id, { code: stranger.code, locationId: patro.id });
+    const rowsUrl = `/inventories/${run.id}/items?locationId=${patro.id}`;
+    const find = async () =>
+      (await expectJson(await read.get(rowsUrl), 200, inventoryRowsSchema)).items.find((r) => r.id === stranger.id);
+
+    expect(await find()).toMatchObject({ kind: 'elsewhere', registeredElsewhere: true });
+
+    const edited = await write.patch(`/items/${stranger.id}`, { locationId: patro.id, version: 1 });
+    expect(edited.status).toBe(200);
+
+    // Still the run's find (the counts keep it), but registered where it was found.
+    expect(await find()).toMatchObject({ kind: 'elsewhere', registeredElsewhere: false, locationId: patro.id });
+    const detail = await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts).toMatchObject({ elsewhere: 1 });
+  });
+
   it('answers that an item is already checked, with who checked it, and records nothing', async () => {
     const { write, admin } = await setup();
     const { run, mixer } = await startedRun(write);

@@ -122,8 +122,14 @@ export const inventoryRowSchema = z.object({
   checkedAt: timestamp.nullable(),
   checkedBy: personRef.nullable(),
   method: checkMethod.nullable(),
-  /** Where a found-elsewhere item was registered, from the top (the location last); empty when it had no location. */
+  /** Where a found-elsewhere item was registered when it was found, from the top (the location last); empty when it had no location. */
   registeredPath: z.array(codeRef),
+  /**
+   * A found-elsewhere item that still is registered somewhere other than the row's location. False
+   * once its location was changed to the row's: the item is where it was found and shows as an
+   * ordinary check. Always false for the other kinds.
+   */
+  registeredElsewhere: z.boolean(),
   /** The item was moved to the run's location during the run. */
   moved: z.boolean(),
 });

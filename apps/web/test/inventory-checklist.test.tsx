@@ -186,6 +186,22 @@ describe('inventory checklist', () => {
       expect(within(stand).getByText('Vedeno v: bez lokality · přesunuto')).toBeInTheDocument();
     });
 
+    it('shows an item found elsewhere as an ordinary check once its location was changed to this one', async () => {
+      const brno = ref('LOC-002', 'Centrála Brno');
+      openChecklist([
+        row('Pokladní systém', { kind: 'elsewhere', registeredElsewhere: false, registeredPath: [brno], ...done(roman) }),
+      ]);
+      await rowsLoaded();
+
+      const system = screen.getByText('Pokladní systém').closest('li')!;
+      expect(within(system).queryByText(/Vedeno v/)).not.toBeInTheDocument();
+      expect(within(system).queryByText('Jinde')).not.toBeInTheDocument();
+      // A blue checkbox, like any other check: no warning colour.
+      const box = within(system).getByRole('checkbox').nextElementSibling!;
+      expect(box).toHaveClass('bg-primary');
+      expect(box).not.toHaveClass('bg-warning');
+    });
+
     it('marks an item added during the inventory', async () => {
       openChecklist([row('Nová police', { kind: 'new', ...done(roman) })]);
       const added = (await screen.findByText('Nová police')).closest('li')!;
