@@ -6,7 +6,6 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { AvatarStack } from '@/components/avatar';
-import { BottomBar } from '@/components/bottom-bar';
 import { ListFrame, ListToolbar } from '@/components/list-toolbar';
 import { type Column, EmptyState, PagedList, pagedTotal, rowLinkClass } from '@/components/paged-list';
 import { sectionTitleClass } from '@/components/section';
@@ -16,7 +15,6 @@ import { Progress, progressPercent } from '@/components/ui/progress';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { pathLabel } from '@/features/locations/path';
 import { formatTime, formatTimestamp } from '@/lib/format';
-import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 import { inventoryListQueryOptions } from './api';
 import { progressOf, runFigures } from './inventory-summary';
 import { shortName } from './people';
@@ -127,9 +125,9 @@ function SectionHeading({ title, total }: { title: string; total: number | undef
 /**
  * Inventura tab: the runs in progress as cards, then the finished and cancelled ones (a table on a
  * wide screen), newest first. The search looks at the root location. Writers start a run from the
- * button beside the heading (desktop) or in the bar at the bottom (phone). "Zobrazit archivované"
- * swaps both lists for the archived runs (only an ended run can be archived); they open the
- * detail, where Obnovit is.
+ * button beside the heading, on a phone as well as on a desktop. "Zobrazit archivované" swaps both
+ * lists for the archived runs (only an ended run can be archived); they open the detail, where
+ * Obnovit is.
  */
 export function InventoryPanel({
   q,
@@ -145,7 +143,6 @@ export function InventoryPanel({
 }) {
   const { t } = useTranslation();
   const canWrite = useCanWrite();
-  const desktop = useMediaQuery(desktopScreen);
   const resultLine = useResultLine();
   // A run in progress is never archived, so its list is not asked for in the archive.
   const open = useInfiniteQuery({ ...inventoryListQueryOptions('open', q), enabled: !archived });
@@ -153,8 +150,8 @@ export function InventoryPanel({
   const openTotal = pagedTotal(open.data);
   const closedTotal = pagedTotal(closed.data);
 
-  const start = (className?: string) => (
-    <Button asChild className={className}>
+  const start = (
+    <Button asChild>
       <Link to="/inventories/new">
         <Plus aria-hidden />
         {t('home.inventory.start')}
@@ -206,7 +203,7 @@ export function InventoryPanel({
     <>
       <ListToolbar
         title={t('home.inventory.tab')}
-        action={canWrite && desktop ? start() : undefined}
+        action={canWrite ? start : undefined}
         archived={{ checked: archived, onChange: onArchived, label: t('home.showArchived') }}
         search={{
           value: q,
@@ -222,7 +219,7 @@ export function InventoryPanel({
           ) : (
             <>
               <EmptyState title={t('home.inventory.emptyTitle')} hint={t('home.inventory.emptyHint')} />
-              {canWrite && <div className="flex justify-center pb-8">{start()}</div>}
+              {canWrite && <div className="flex justify-center pb-8">{start}</div>}
             </>
           )}
         </ListFrame>
@@ -257,7 +254,6 @@ export function InventoryPanel({
           </ListFrame>
         </>
       )}
-      {canWrite && !desktop && <BottomBar>{start('w-full')}</BottomBar>}
     </>
   );
 }

@@ -455,7 +455,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
   - The whole card is the link to the run, for every role (*Decided* 2026-10-10: no "Pokračovat" / "Zobrazit" button).
 - **Dokončené (N):** finished and cancelled runs, newest first, paged by 20, with the date, the root and a result line ("120 nalezeno · 3 jinde · 5 chybí · 3 nezkontrolováno"). A cancelled run shows the *Zrušená* badge and "zahájil JN". On desktop this is a table: Lokalita / Datum / Výsledek / Stav.
 - **"Zobrazit archivované"** (*Decided* 2026-10-10, `?archived=true`): swaps the two lists for the archived runs (**Archivované (N)**), which carry the *Archivováno* badge and open the detail, where *Obnovit* is.
-- "Zahájit inventuru" for writers: in the bottom bar on phones, next to the heading on desktop.
+- "Zahájit inventuru" for writers (*Decided* 2026-10-10): beside the heading "Inventura", on phones and on desktop alike (it used to be in a bottom bar on phones).
 - Empty state: "Zatím žádná inventura" with "Zahájit inventuru".
 
 #### 9.4.2 Start — `/inventories/new` [18]
