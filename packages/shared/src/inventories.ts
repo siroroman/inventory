@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { codeRef, humanCode, pageOf, timestamp } from './fields.ts';
-import { searchPageQuery } from './http.ts';
+import { archivedQuery, searchPageQuery } from './http.ts';
 
 // Inventory runs (SPEC §9): a physical check of a location and everything below it.
 
@@ -17,7 +17,8 @@ const count = z.number().int().min(0);
 /**
  * What a run's rows add up to. `expected` is the list taken at the start, without the items archived
  * since; `checked` is how many of those were checked. `elsewhere` and `new` are checked items that
- * were not on the list; `missing` those marked Nezvěstná at the finish.
+ * were not on the list; `missing` the items of the list people flagged as missing (a check takes the
+ * flag back).
  */
 export const inventoryCountsSchema = z.object({
   expected: count,
@@ -38,6 +39,8 @@ const runFields = {
   startedBy: personRef.nullable(),
   endedAt: timestamp.nullable(),
   endedBy: personRef.nullable(),
+  /** Set when an ended run was archived; a run in progress is never archived. */
+  archivedAt: timestamp.nullable(),
   counts: inventoryCountsSchema,
   /** The person who started the run, then everyone who checked something. */
   participants: z.array(personRef),
@@ -49,16 +52,30 @@ export type InventoryListEntryDto = z.infer<typeof inventoryListEntrySchema>;
 
 export const inventoryListSchema = pageOf(inventoryListEntrySchema);
 
-/** `open`: runs in progress, newest start first. `closed`: finished and cancelled ones, newest end first. */
-export const inventoryListQuery = searchPageQuery.extend({ state: z.enum(['open', 'closed']).default('open') });
+/**
+ * `open`: runs in progress, newest start first. `closed`: finished and cancelled ones, newest end
+ * first. `archived=true` lists the archived runs instead of the active ones (only ended runs can be
+ * archived, so `open` is then empty).
+ */
+export const inventoryListQuery = searchPageQuery
+  .extend({ state: z.enum(['open', 'closed']).default('open') })
+  .extend(archivedQuery.shape);
 
-/** A location of the run that has rows in it: its path from the top (itself last) and its numbers. */
+/**
+ * A location of the run that has rows in it: its path from the top (itself last) and its numbers.
+ * `total` and `checked` count only the list taken at the start (the items archived since are left
+ * out), so the locations add up to the run's `counts.expected` and `counts.checked`; items found or
+ * added there are `extra`.
+ */
 export const inventoryLocationSchema = z.object({
   ...codeRef.shape,
   path: z.array(codeRef),
-  /** The rows a person sees there: the list taken at the start plus items found or added. */
   total: count,
   checked: count,
+  /** Items found or added in this location (checked ones; they are not on the list). */
+  extra: count,
+  /** List items flagged as missing. */
+  missing: count,
   participants: z.array(personRef),
 });
 export type InventoryLocationDto = z.infer<typeof inventoryLocationSchema>;
@@ -114,8 +131,19 @@ export const inventoryRowSchema = z.object({
   checkedAt: timestamp.nullable(),
   checkedBy: personRef.nullable(),
   method: checkMethod.nullable(),
-  /** Where a found-elsewhere item was registered, from the top (the location last); empty when it had no location. */
+  /**
+   * A person flagged the item of the list as missing: looked for and not there. Never true for a
+   * checked row (a check takes the flag back) or for an item found elsewhere or added.
+   */
+  missing: z.boolean(),
+  /** Where a found-elsewhere item was registered when it was found, from the top (the location last); empty when it had no location. */
   registeredPath: z.array(codeRef),
+  /**
+   * A found-elsewhere item that still is registered somewhere other than the row's location. False
+   * once its location was changed to the row's: the item is where it was found and shows as an
+   * ordinary check. Always false for the other kinds.
+   */
+  registeredElsewhere: z.boolean(),
   /** The item was moved to the run's location during the run. */
   moved: z.boolean(),
 });

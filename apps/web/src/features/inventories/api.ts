@@ -40,6 +40,14 @@ export const checkInventoryItem = (id: string, itemId: string) =>
 export const uncheckInventoryItem = (id: string, itemId: string) =>
   unwrap(api.api.v1.inventories[':id'].items[':itemId'].uncheck.$post({ param: { id, itemId } }));
 
+/** Flags an unchecked item of the list as missing. An item somebody checked first stays checked; the answer says so. */
+export const markInventoryItemMissing = (id: string, itemId: string) =>
+  unwrap(api.api.v1.inventories[':id'].items[':itemId']['mark-missing'].$post({ param: { id, itemId } }));
+
+/** Takes the missing flag of an item back; the item is not checked. */
+export const unmarkInventoryItemMissing = (id: string, itemId: string) =>
+  unwrap(api.api.v1.inventories[':id'].items[':itemId']['unmark-missing'].$post({ param: { id, itemId } }));
+
 /**
  * Checks an item by the code on its label. `locationId` is the checklist the scanner was opened
  * from (nothing for the overview). The answer says what happened, see `scanResultSchema`.
@@ -49,6 +57,20 @@ export const scanInventory = (id: string, body: { code: string; locationId?: str
 
 export const cancelInventory = (id: string, version: number) =>
   unwrap(api.api.v1.inventories[':id'].cancel.$post({ param: { id }, json: { version } }));
+
+/** Ends a run in progress; the items flagged as missing are the ones missing, the other unchecked ones stay not checked. */
+export const finishInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].finish.$post({ param: { id }, json: { version } }));
+
+/** Takes a finished run back into progress; checks and missing flags stay. */
+export const reopenInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].reopen.$post({ param: { id }, json: { version } }));
+
+export const archiveInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].archive.$post({ param: { id }, json: { version } }));
+
+export const restoreInventory = (id: string, version: number) =>
+  unwrap(api.api.v1.inventories[':id'].restore.$post({ param: { id }, json: { version } }));
 
 /**
  * Locations at every level matching `q`, each followed by those below it. The label is the name;
@@ -79,12 +101,16 @@ export const startInventory = (locationId: string) => unwrap(api.api.v1.inventor
 
 /**
  * Pages of the runs in progress (`open`, newest start first) or the finished and cancelled ones
- * (`closed`, newest end first); `q` searches the root location. Always fetched fresh, so the tab
- * shows the others' runs when it is opened or focused.
+ * (`closed`, newest end first), or with `archived` the archived runs; `q` searches the root
+ * location. Always fetched fresh, so the tab shows the others' runs when it is opened or focused.
  */
-export const inventoryListQueryOptions = (state: 'open' | 'closed', q: string) => ({
-  ...pagedListQueryOptions(`inventories:${state}`, q, ({ q: search, cursor, limit }) =>
-    unwrap(api.api.v1.inventories.$get({ query: { q: search, cursor, limit, state } })),
+export const inventoryListQueryOptions = (state: 'open' | 'closed', q: string, archived = false) => ({
+  ...pagedListQueryOptions(
+    `inventories:${state}`,
+    q,
+    ({ q: search, archived: onlyArchived, cursor, limit }) =>
+      unwrap(api.api.v1.inventories.$get({ query: { q: search, archived: onlyArchived, cursor, limit, state } })),
+    archived,
   ),
   staleTime: 0,
 });

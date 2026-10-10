@@ -112,6 +112,8 @@ describe('inventory repository', () => {
       await row(patro.id, { kind: 'elsewhere' }); // unticked: hidden
       await row(praha.id, { kind: 'new', ...check(b.id, 5) });
       await row(patro.id, { outcome: 'missing' });
+      const gone = await row(patro.id, { outcome: 'missing' });
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, gone.itemId));
 
       const counts = (await repo().counts([inventory.id])).get(inventory.id);
       expect(counts).toEqual({ expected: 4, checked: 2, elsewhere: 1, new: 1, missing: 1 });
@@ -119,20 +121,75 @@ describe('inventory repository', () => {
       expect((await repo().counts([])).size).toBe(0);
     });
 
-    it('sums each location by the rows a person sees there', async () => {
+    it('sums each location by the list, with the items found or added there apart', async () => {
       const { inventory, praha, patro, zasedacka, a, row, check } = await run();
       await row(praha.id, check(a.id, 1));
       await row(patro.id);
       await row(patro.id, check(a.id, 2));
+      await row(patro.id, { outcome: 'missing' });
       const archived = await row(patro.id);
       await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archived.itemId));
+      await row(patro.id, { kind: 'elsewhere', ...check(a.id, 3) });
+      await row(praha.id, { kind: 'new', ...check(a.id, 4) });
       await row(zasedacka.id, { kind: 'elsewhere' }); // unticked: no row, so no location
 
-      const progress = await repo().locationProgress(inventory.id);
-      expect(progress.sort((x, y) => y.total - x.total)).toEqual([
-        { locationId: patro.id, total: 2, checked: 1 },
-        { locationId: praha.id, total: 1, checked: 1 },
+      const progress = new Map((await repo().locationProgress(inventory.id)).map((p) => [p.locationId, p]));
+      expect(progress.size).toBe(2);
+      expect(progress.get(patro.id)).toEqual({ locationId: patro.id, total: 3, checked: 1, extra: 1, missing: 1 });
+      expect(progress.get(praha.id)).toEqual({ locationId: praha.id, total: 1, checked: 1, extra: 1, missing: 0 });
+    });
+
+    it('keeps a location that holds only found items, with nothing on its list', async () => {
+      const { inventory, zasedacka, a, row, check } = await run();
+      await row(zasedacka.id, { kind: 'elsewhere', ...check(a.id, 1) });
+
+      expect(await repo().locationProgress(inventory.id)).toEqual([
+        { locationId: zasedacka.id, total: 0, checked: 0, extra: 1, missing: 0 },
       ]);
+    });
+
+    it('settles the unchecked rows of the list at the finish: flagged ones stay missing, archived ones are skipped, the rest has no outcome', async () => {
+      const { inventory, praha, patro, a, row, check } = await run();
+      const checked = await row(praha.id, check(a.id, 1));
+      const flagged = await row(patro.id, { outcome: 'missing' });
+      const plain = await row(patro.id);
+      const archived = await row(patro.id);
+      const archivedFlagged = await row(patro.id, { outcome: 'missing' });
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archived.itemId));
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archivedFlagged.itemId));
+      const found = await row(patro.id, { kind: 'elsewhere', ...check(a.id, 2) });
+      const unticked = await row(patro.id, { kind: 'elsewhere' });
+
+      expect(await repo().settleUnchecked(inventory.id)).toBe(1);
+      expect(await repo().settleUnchecked(inventory.id)).toBe(1); // idempotent
+
+      const rows = await t().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, inventory.id));
+      const outcome = (itemId: string) => rows.find((r) => r.itemId === itemId)!.outcome;
+      expect(outcome(checked.itemId)).toBeNull();
+      expect(outcome(flagged.itemId)).toBe('missing');
+      expect(outcome(plain.itemId)).toBeNull();
+      expect(outcome(archived.itemId)).toBe('skipped');
+      expect(outcome(archivedFlagged.itemId)).toBe('skipped');
+      expect(outcome(found.itemId)).toBeNull();
+      expect(outcome(unticked.itemId)).toBeNull();
+      // The skipped rows are not counted as missing, nor are the archived items on the list.
+      expect((await repo().counts([inventory.id])).get(inventory.id)).toMatchObject({ expected: 3, checked: 1, missing: 1 });
+    });
+
+    it('takes back what a finish set, and leaves the flags people set', async () => {
+      const { inventory, praha, a, row, check } = await run();
+      const flagged = await row(praha.id, { outcome: 'missing' });
+      const archived = await row(praha.id, { outcome: 'skipped' });
+      const checked = await row(praha.id, check(a.id, 1));
+
+      expect(await repo().clearSkipped(inventory.id)).toBe(1);
+      expect(await repo().clearSkipped(inventory.id)).toBe(0);
+
+      const rows = await t().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, inventory.id));
+      const outcome = (itemId: string) => rows.find((r) => r.itemId === itemId)!.outcome;
+      expect(outcome(flagged.itemId)).toBe('missing');
+      expect(outcome(archived.itemId)).toBeNull();
+      expect(outcome(checked.itemId)).toBeNull();
     });
 
     it('lists the people: the starter first, then the checkers in order of their first check', async () => {
@@ -350,6 +407,47 @@ describe('inventory repository', () => {
       expect(await repo().markUnchecked(inventory.id, itemId)).toBe(false);
       expect(await repo().findRunItem(inventory.id, itemId)).toMatchObject({ checkedAt: null, checkedBy: null, method: null });
       expect(await tick(boris.id, 3)).toBe(true);
+    });
+
+    it('flags an unchecked item of the list as missing, and takes the flag back', async () => {
+      const { inventory, praha, row } = await run();
+      const { itemId } = await row('Mixér', praha.id);
+      const find = async () => (await repo().findRunItem(inventory.id, itemId))!;
+
+      expect(await repo().unmarkMissing(inventory.id, itemId)).toBe(false);
+      expect(await repo().markMissing(inventory.id, itemId)).toBe(true);
+      expect(await find()).toMatchObject({ missing: true, checkedAt: null });
+      expect(await repo().markMissing(inventory.id, itemId)).toBe(false);
+      // The flagged row is still listed, and counted as missing.
+      expect((await repo().runItems(inventory.id)).map((r) => [r.name, r.missing])).toEqual([['Mixér', true]]);
+      expect((await repo().counts([inventory.id])).get(inventory.id)).toMatchObject({ expected: 1, checked: 0, missing: 1 });
+
+      expect(await repo().unmarkMissing(inventory.id, itemId)).toBe(true);
+      expect(await find()).toMatchObject({ missing: false });
+      expect(await repo().unmarkMissing(inventory.id, itemId)).toBe(false);
+    });
+
+    it('does not flag a checked row or a row that is not on the list', async () => {
+      const { inventory, praha, anna, row, check } = await run();
+      const checked = await row('Zkontrolováno', praha.id, check(anna.id, 1));
+      const found = await row('Nalezeno jinde', praha.id, { kind: 'elsewhere', ...check(anna.id, 2) });
+      const added = await row('Nová', praha.id, { kind: 'new', ...check(anna.id, 3) });
+
+      for (const { itemId } of [checked, found, added]) {
+        expect(await repo().markMissing(inventory.id, itemId)).toBe(false);
+      }
+      expect(await repo().markMissing(inventory.id, crypto.randomUUID())).toBe(false);
+      expect((await repo().runItems(inventory.id)).some((r) => r.missing)).toBe(false);
+    });
+
+    it('takes the flag back with a check', async () => {
+      const { inventory, praha, anna, row } = await run();
+      const { itemId } = await row('Mixér', praha.id, { outcome: 'missing' });
+
+      expect(await repo().markChecked(inventory.id, itemId, { checkedAt: at(1), checkedBy: anna.id, method: 'scan' })).toBe(true);
+
+      expect(await repo().findRunItem(inventory.id, itemId)).toMatchObject({ missing: false, checkedAt: at(1) });
+      expect((await repo().counts([inventory.id])).get(inventory.id)).toMatchObject({ checked: 1, missing: 0 });
     });
 
     it('leaves the version of the run alone', async () => {

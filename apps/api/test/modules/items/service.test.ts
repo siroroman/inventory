@@ -156,6 +156,99 @@ describe('item service', () => {
     });
   });
 
+  describe('create for an inventory run', () => {
+    const startRun = (
+      store: Awaited<ReturnType<typeof setup>>['store'],
+      locationId: string,
+      status: 'in_progress' | 'finished' | 'cancelled' = 'in_progress',
+    ) => {
+      const run = { id: randomUUID(), locationId, status };
+      store.state.runs.push(run);
+      return run;
+    };
+
+    it('adds the item to the run as a checked new row in its location, and audits it on the run', async () => {
+      const { store, praha, kuchyne, create } = await setup();
+      const run = startRun(store, praha.id);
+
+      const item = await create('Nová police', { inventoryId: run.id });
+
+      expect(item.addedToInventory).toBe(true);
+      expect(store.state.addedToRuns).toEqual([
+        {
+          inventoryId: run.id,
+          itemId: item.id,
+          locationId: kuchyne.id,
+          checkedAt: expect.any(Date),
+          checkedBy: writer.id,
+          method: 'manual',
+        },
+      ]);
+      expect(store.state.audit.map((e) => [e.entityType, e.action])).toEqual([
+        ['item', 'create'],
+        ['inventory', 'check'],
+      ]);
+      expect(store.state.audit[1]).toMatchObject({
+        userId: writer.id,
+        entityId: run.id,
+        changes: {
+          itemId: { from: null, to: item.id },
+          kind: { from: null, to: 'new' },
+          method: { from: null, to: 'manual' },
+          locationId: { from: null, to: kuchyne.id },
+        },
+      });
+    });
+
+    it('adds an item placed in the root of the run itself', async () => {
+      const { store, praha, service } = await setup();
+      const run = startRun(store, praha.id);
+      const item = await service.create(writer, { name: 'Recepce', locationId: praha.id, inventoryId: run.id });
+      expect(item.addedToInventory).toBe(true);
+    });
+
+    it('only creates the item when the run is no longer in progress', async () => {
+      const { store, praha, create } = await setup();
+      for (const status of ['finished', 'cancelled'] as const) {
+        const item = await create(`Po ${status}`, { inventoryId: startRun(store, praha.id, status).id });
+        expect(item.addedToInventory).toBe(false);
+      }
+      expect(store.state.addedToRuns).toEqual([]);
+      expect(store.state.items).toHaveLength(2);
+      expect(store.state.audit.map((e) => e.entityType)).toEqual(['item', 'item']);
+    });
+
+    it('only creates the item when its location is not in the run, or when it has none', async () => {
+      const { store, sklad, kuchyne, service, create } = await setup();
+      const elsewhere = startRun(store, sklad.id);
+      expect((await create('Jinde', { inventoryId: elsewhere.id })).addedToInventory).toBe(false);
+
+      const here = startRun(store, kuchyne.id);
+      const nowhere = await service.create(writer, { name: 'Bez lokality', inventoryId: here.id });
+      expect(nowhere.addedToInventory).toBe(false);
+      expect(store.state.addedToRuns).toEqual([]);
+    });
+
+    it('only creates the item for a run that does not exist', async () => {
+      const { store, create } = await setup();
+      const item = await create('Nikam', { inventoryId: randomUUID() });
+      expect(item.addedToInventory).toBe(false);
+      expect(store.state.items).toHaveLength(1);
+    });
+
+    it('reports that nothing was added when no run is named', async () => {
+      const { create } = await setup();
+      await expect(create('Obyčejná')).resolves.toMatchObject({ addedToInventory: false });
+    });
+
+    it('adds nothing when the item cannot be created at all', async () => {
+      const { store, praha, create } = await setup();
+      const run = startRun(store, praha.id);
+      await expectCode(create('X', { inventoryId: run.id, locationId: randomUUID() }), 'location_not_found');
+      expect(store.state.addedToRuns).toEqual([]);
+    });
+  });
+
   describe('get and list', () => {
     it('returns the item with manufacturer, external IDs and the location path', async () => {
       const { praha, kuchyne, rational, service, create } = await setup();

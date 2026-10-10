@@ -1,0 +1,2 @@
+ALTER TABLE "audit_log" DROP CONSTRAINT "audit_log_action_valid";--> statement-breakpoint
+ALTER TABLE "audit_log" ADD CONSTRAINT "audit_log_action_valid" CHECK ("audit_log"."action" in ('create', 'update', 'archive', 'restore', 'delete', 'start', 'check', 'uncheck', 'finish', 'cancel', 'reopen'));

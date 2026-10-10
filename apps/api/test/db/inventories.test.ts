@@ -43,6 +43,33 @@ describe('inventories', () => {
     });
   });
 
+  describe('archived_at', () => {
+    it('is allowed on an ended run only', async () => {
+      const user = await insertUser(t().app);
+      await expectPgError(insertInventory(t().app, { archivedAt: new Date() }), {
+        code: PG.checkViolation,
+        constraint: 'inventories_archived_when_closed',
+      });
+      for (const status of ['finished', 'cancelled'] as const) {
+        const run = await insertInventory(t().app, {
+          status,
+          endedAt: new Date(),
+          endedBy: user.id,
+          archivedAt: new Date(),
+        });
+        expect(run.archivedAt).not.toBeNull();
+      }
+    });
+
+    it('cannot be set on a run that is still in progress', async () => {
+      const run = await insertInventory(t().app);
+      await expectPgError(
+        t().app.update(inventories).set({ archivedAt: new Date() }).where(eq(inventories.id, run.id)),
+        { code: PG.checkViolation, constraint: 'inventories_archived_when_closed' },
+      );
+    });
+  });
+
   it('bumps the version on update', async () => {
     const run = await insertInventory(t().app);
     const user = await insertUser(t().app);

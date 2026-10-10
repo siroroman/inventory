@@ -15,8 +15,11 @@ export function NoWriteAccess() {
   return <ErrorState title={t('errors.forbidden')} />;
 }
 
-/** New item screen; with `locationId` the item starts in that location. */
-export function ItemCreate({ locationId }: { locationId?: string }) {
+/**
+ * New item screen; with `locationId` the item starts in that location. With `inventoryId` it is
+ * created for that inventory run: it joins the run and the form returns to its checklist.
+ */
+export function ItemCreate({ locationId, inventoryId }: { locationId?: string; inventoryId?: string }) {
   const canWrite = useCanWrite();
   const location = useQuery({ ...locationQueryOptions(locationId ?? ''), enabled: canWrite && locationId !== undefined });
   // The route guard has loaded the session, so the role is known by now.
@@ -26,7 +29,7 @@ export function ItemCreate({ locationId }: { locationId?: string }) {
   const start = location.data && !location.data.archivedAt
     ? { id: location.data.id, label: location.data.path.map((p) => p.name).join(' › ') }
     : undefined;
-  return <ItemForm initialLocation={start} />;
+  return <ItemForm initialLocation={start} inventoryId={inventoryId} />;
 }
 
 export function FormSkeleton() {

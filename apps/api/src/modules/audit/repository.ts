@@ -14,7 +14,10 @@ export type AuditAction =
   | 'check'
   | 'uncheck'
   | 'finish'
-  | 'cancel';
+  | 'cancel'
+  | 'reopen'
+  | 'mark_missing'
+  | 'unmark_missing';
 export type AuditEntityType =
   | 'location'
   | 'location_type'

@@ -194,6 +194,24 @@ describe('inventory scanner', () => {
       await read('INV-00042');
       await waitFor(() => expect(screen.getByText('85 z 128 zkontrolováno')).toBeInTheDocument());
     });
+
+    it('counts finds and items flagged as missing as settled, like the bar of the overview', async () => {
+      openScanner({
+        url: overviewScannerUrl,
+        runAnswer: () =>
+          jsonResponse(
+            inventory({
+              id: runId,
+              location: root,
+              path: [root],
+              counts: { expected: 8, checked: 7, elsewhere: 1, new: 1, missing: 1 },
+            }),
+          ),
+      });
+      await ready();
+      expect(screen.getByText('10 / 10')).toBeInTheDocument();
+      expect(screen.getByText('10 z 10 zkontrolováno')).toBeInTheDocument();
+    });
   });
 
   describe('a scan', () => {

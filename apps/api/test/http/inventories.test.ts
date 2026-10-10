@@ -260,6 +260,223 @@ describe('POST /inventories/{id}/cancel', () => {
   });
 });
 
+describe('POST /inventories/{id}/finish', () => {
+  it('ends the run, counts what was flagged as missing, leaves the rest not checked and audits it', async () => {
+    const { read, write } = await setup();
+    const { run, mixer, ladder } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+    await write.post(`/inventories/${run.id}/items/${ladder.id}/mark-missing`);
+
+    const body = await expectJson(
+      await write.post(`/inventories/${run.id}/finish`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(body).toMatchObject({ status: 'finished', version: 2, counts: { expected: 5, checked: 1, missing: 1 } });
+    expect(body.endedAt).not.toBeNull();
+    expect(body.endedBy).toEqual(body.startedBy);
+    const outcomes = await db().app.select({ outcome: inventoryItems.outcome }).from(inventoryItems);
+    expect(outcomes.filter((r) => r.outcome === 'missing')).toHaveLength(1);
+    expect(outcomes.filter((r) => r.outcome === null)).toHaveLength(4);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check', 'mark_missing', 'finish']);
+    expect(audit[3]!.changes).toEqual({
+      status: { from: 'in_progress', to: 'finished' },
+      missing: { from: null, to: 1 },
+    });
+    // It shows among the ended runs, and nothing can be checked in it any more.
+    const closed = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(closed.items).toMatchObject([{ id: run.id, status: 'finished', counts: { missing: 1 } }]);
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${mixer.id}/uncheck`), 409, 'inventory_closed');
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${ladder.id}/unmark-missing`), 409, 'inventory_closed');
+    // The flagged row still shows as missing in the run's rows.
+    const rows = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    expect(rows.items.filter((r) => r.missing).map((r) => r.id)).toEqual([ladder.id]);
+  });
+
+  it('answers 409 for a closed run and a stale version, 404 for an unknown run', async () => {
+    const { write } = await setup();
+    const { run } = await startedRun(write);
+    await expectProblem(await write.post(`/inventories/${run.id}/finish`, { version: 5 }), 409, 'conflict');
+    await write.post(`/inventories/${run.id}/finish`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/finish`, { version: run.version }), 409, 'inventory_closed');
+    await expectProblem(await write.post(`/inventories/${run.id}/cancel`, { version: 2 }), 409, 'inventory_closed');
+    await expectProblem(await write.post(`/inventories/${MISSING}/finish`, { version: 1 }), 404, 'not_found');
+  });
+
+  it('is for writers and signed-in users, and needs a version', async () => {
+    const { app, read, write } = await setup();
+    const { run } = await startedRun(write);
+    await expectProblem(await read.post(`/inventories/${run.id}/finish`, { version: 1 }), 403, 'forbidden');
+    await expectProblem(await api(app).post(`/inventories/${run.id}/finish`, { version: 1 }), 401, 'unauthenticated');
+    await expectProblem(await write.post(`/inventories/${run.id}/finish`, {}), 400, 'validation_error');
+    expect((await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema)).status).toBe('in_progress');
+  });
+});
+
+describe('POST /inventories/{id}/reopen', () => {
+  it('takes a finished run back, keeps checks and flags and audits it', async () => {
+    const { read, write } = await setup();
+    const { run, mixer, ladder } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+    await write.post(`/inventories/${run.id}/items/${ladder.id}/mark-missing`);
+    const finished = await expectJson(
+      await write.post(`/inventories/${run.id}/finish`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+    expect(finished.counts).toMatchObject({ checked: 1, missing: 1 });
+
+    const body = await expectJson(
+      await write.post(`/inventories/${run.id}/reopen`, { version: finished.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(body).toMatchObject({
+      status: 'in_progress',
+      version: finished.version + 1,
+      endedAt: null,
+      endedBy: null,
+      counts: { expected: 5, checked: 1, missing: 1 },
+    });
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'check', 'mark_missing', 'finish', 'reopen']);
+    expect(audit[4]!.changes).toEqual({ status: { from: 'finished', to: 'in_progress' } });
+    // It is among the runs in progress again, and takes ticks.
+    const open = await expectJson(await read.get('/inventories?state=open'), 200, inventoryListSchema);
+    expect(open.items.map((r) => r.id)).toEqual([run.id]);
+    const closed = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(closed.items).toEqual([]);
+    const rows = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    const another = rows.items.find((r) => !r.checkedAt && !r.missing)!;
+    expect((await write.post(`/inventories/${run.id}/items/${another.id}/check`)).status).toBe(200);
+    // The flag set by hand survived, and a check takes it back.
+    expect(rows.items.find((r) => r.id === ladder.id)).toMatchObject({ missing: true });
+    expect((await write.post(`/inventories/${run.id}/items/${ladder.id}/check`)).status).toBe(200);
+  });
+
+  it('answers 409 inventory_overlap while another run is in progress there', async () => {
+    const { write } = await setup();
+    const { top, patro } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    const finished = await expectJson(
+      await write.post(`/inventories/${run.id}/finish`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+    const other = await expectJson(await write.post('/inventories', { locationId: patro.id }), 201, inventorySchema);
+
+    const problem = await expectProblem(
+      await write.post(`/inventories/${run.id}/reopen`, { version: finished.version }),
+      409,
+      'inventory_overlap',
+    );
+    expect(problem.details).toEqual({ inventoryId: other.id });
+  });
+
+  it('answers 409 for a run in progress, a cancelled one, an archived one and a stale version', async () => {
+    const { write } = await setup();
+    const { top } = await praha();
+    const open = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    await expectProblem(await write.post(`/inventories/${open.id}/reopen`, { version: open.version }), 409, 'inventory_in_progress');
+
+    await write.post(`/inventories/${open.id}/cancel`, { version: open.version });
+    await expectProblem(await write.post(`/inventories/${open.id}/reopen`, { version: 2 }), 409, 'inventory_not_finished');
+
+    const second = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    const finished = await expectJson(
+      await write.post(`/inventories/${second.id}/finish`, { version: second.version }),
+      200,
+      inventorySchema,
+    );
+    await expectProblem(await write.post(`/inventories/${second.id}/reopen`, { version: 99 }), 409, 'conflict');
+    const archived = await expectJson(
+      await write.post(`/inventories/${second.id}/archive`, { version: finished.version }),
+      200,
+      inventorySchema,
+    );
+    await expectProblem(await write.post(`/inventories/${second.id}/reopen`, { version: archived.version }), 409, 'archived');
+    await expectProblem(await write.post(`/inventories/${MISSING}/reopen`, { version: 1 }), 404, 'not_found');
+  });
+
+  it('is for writers and signed-in users, and needs a version', async () => {
+    const { app, read, write } = await setup();
+    const { top } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    await write.post(`/inventories/${run.id}/finish`, { version: run.version });
+    await expectProblem(await read.post(`/inventories/${run.id}/reopen`, { version: 2 }), 403, 'forbidden');
+    await expectProblem(await api(app).post(`/inventories/${run.id}/reopen`, { version: 2 }), 401, 'unauthenticated');
+    await expectProblem(await write.post(`/inventories/${run.id}/reopen`, {}), 400, 'validation_error');
+  });
+});
+
+describe('POST /inventories/{id}/archive and /restore', () => {
+  async function finishedRun(write: Awaited<ReturnType<typeof setup>>['write']) {
+    const { top } = await praha();
+    const run = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    return expectJson(await write.post(`/inventories/${run.id}/finish`, { version: run.version }), 200, inventorySchema);
+  }
+
+  it('archives an ended run out of the list, restores it and audits both', async () => {
+    const { read, write } = await setup();
+    const run = await finishedRun(write);
+
+    const archived = await expectJson(
+      await write.post(`/inventories/${run.id}/archive`, { version: run.version }),
+      200,
+      inventorySchema,
+    );
+
+    expect(archived.archivedAt).not.toBeNull();
+    expect(archived.version).toBe(run.version + 1);
+    expect(archived.status).toBe('finished');
+    const active = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(active).toMatchObject({ items: [], total: 0 });
+    const inArchive = await expectJson(await read.get('/inventories?state=closed&archived=true'), 200, inventoryListSchema);
+    expect(inArchive).toMatchObject({ items: [{ id: run.id }], total: 1 });
+    expect(inArchive.items[0]!.archivedAt).not.toBeNull();
+    // An archived run is still there to read and to restore.
+    expect((await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema)).archivedAt).not.toBeNull();
+
+    const restored = await expectJson(
+      await write.post(`/inventories/${run.id}/restore`, { version: archived.version }),
+      200,
+      inventorySchema,
+    );
+    expect(restored.archivedAt).toBeNull();
+    const again = await expectJson(await read.get('/inventories?state=closed'), 200, inventoryListSchema);
+    expect(again.items.map((r) => r.id)).toEqual([run.id]);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'finish', 'archive', 'restore']);
+  });
+
+  it('refuses a run in progress, a second archive, a restore of an active run and a stale version', async () => {
+    const { write } = await setup();
+    const { top } = await praha();
+    const open = await expectJson(await write.post('/inventories', { locationId: top.id }), 201, inventorySchema);
+    await expectProblem(await write.post(`/inventories/${open.id}/archive`, { version: open.version }), 409, 'inventory_in_progress');
+
+    const run = await finishedRun(write);
+    await expectProblem(await write.post(`/inventories/${run.id}/restore`, { version: run.version }), 409, 'not_archived');
+    await expectProblem(await write.post(`/inventories/${run.id}/archive`, { version: 99 }), 409, 'conflict');
+    await write.post(`/inventories/${run.id}/archive`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/archive`, { version: run.version + 1 }), 409, 'archived');
+    await expectProblem(await write.post(`/inventories/${MISSING}/archive`, { version: 1 }), 404, 'not_found');
+  });
+
+  it('is for writers and signed-in users, and needs a version', async () => {
+    const { app, read, write } = await setup();
+    const run = await finishedRun(write);
+    for (const action of ['archive', 'restore']) {
+      await expectProblem(await read.post(`/inventories/${run.id}/${action}`, { version: 1 }), 403, 'forbidden');
+      await expectProblem(await api(app).post(`/inventories/${run.id}/${action}`, { version: 1 }), 401, 'unauthenticated');
+      await expectProblem(await write.post(`/inventories/${run.id}/${action}`, {}), 400, 'validation_error');
+    }
+    await expectProblem(await read.get('/inventories?archived=false'), 400, 'validation_error');
+  });
+});
+
 /** A run on Centrála Praha with Mixér and Žebřík there and Čepice in Patro. */
 async function startedRun(client: Awaited<ReturnType<typeof setup>>['write']) {
   const { top, patro } = await praha();
@@ -422,6 +639,113 @@ describe('POST /inventories/{id}/items/{itemId}/uncheck', () => {
   });
 });
 
+describe('POST /inventories/{id}/items/{itemId}/mark-missing and /unmark-missing', () => {
+  it('flags an unchecked item, shows it in the rows and the counts, and audits it', async () => {
+    const { read, write } = await setup();
+    const { run, mixer } = await startedRun(write);
+
+    const row = await expectJson(
+      await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`),
+      200,
+      inventoryRowSchema,
+    );
+
+    expect(row).toMatchObject({ id: mixer.id, name: 'Mixér', missing: true, checkedAt: null, checkedBy: null });
+    const detail = await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts).toMatchObject({ expected: 5, checked: 0, missing: 1 });
+    expect(detail.locations.reduce((sum, l) => sum + l.missing, 0)).toBe(1);
+    expect(detail.version).toBe(run.version);
+    const rows = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    expect(rows.items.filter((r) => r.missing).map((r) => r.id)).toEqual([mixer.id]);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'mark_missing']);
+    expect(audit[1]!.changes).toEqual({ itemId: { from: null, to: mixer.id } });
+  });
+
+  it('takes the flag back, whoever set it, and audits it', async () => {
+    const { write, admin } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`);
+
+    const row = await expectJson(
+      await admin.post(`/inventories/${run.id}/items/${mixer.id}/unmark-missing`),
+      200,
+      inventoryRowSchema,
+    );
+
+    expect(row).toMatchObject({ id: mixer.id, missing: false, checkedAt: null });
+    const detail = await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts.missing).toBe(0);
+    const audit = await auditOf(run.id);
+    expect(audit.map((e) => e.action)).toEqual(['start', 'mark_missing', 'unmark_missing']);
+    expect(audit[2]!.changes).toEqual({ itemId: { from: mixer.id, to: null } });
+  });
+
+  it('is taken back by a check, and is no error for a row that is flagged or not flagged already', async () => {
+    const { write } = await setup();
+    const { run, mixer, ladder } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`);
+    await write.post(`/inventories/${run.id}/items/${ladder.id}/unmark-missing`);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'mark_missing']);
+
+    const checked = await expectJson(await write.post(`/inventories/${run.id}/items/${mixer.id}/check`), 200, inventoryRowSchema);
+    expect(checked).toMatchObject({ missing: false });
+    const detail = await expectJson(await write.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts).toMatchObject({ checked: 1, missing: 0 });
+    // A row somebody checked is not flagged afterwards: found beats missing.
+    const again = await expectJson(await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`), 200, inventoryRowSchema);
+    expect(again).toMatchObject({ missing: false });
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'mark_missing', 'check']);
+  });
+
+  it('is cleared by a scan of the label', async () => {
+    const { write } = await setup();
+    const { run, mixer } = await startedRun(write);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`);
+
+    const result = await expectJson(
+      await write.post(`/inventories/${run.id}/scans`, { code: mixer.code }),
+      200,
+      scanResultSchema,
+    );
+
+    expect(result).toMatchObject({ outcome: 'found', row: { id: mixer.id, missing: false } });
+  });
+
+  it('answers 422 for an item that is not on the list, 404 for an unknown run, 409 for an archived item and a closed run', async () => {
+    const { write } = await setup();
+    const { run, mixer, ladder } = await startedRun(write);
+    const outside = await insertItem(db().app, { name: 'Jinde' });
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${outside.id}/mark-missing`), 422, 'item_not_in_inventory');
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${MISSING}/unmark-missing`), 422, 'item_not_in_inventory');
+    await expectProblem(await write.post(`/inventories/${MISSING}/items/${mixer.id}/mark-missing`), 404, 'not_found');
+    // An item found elsewhere is not on the list, so it cannot be missing.
+    await write.post(`/inventories/${run.id}/scans`, { code: outside.code });
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${outside.id}/mark-missing`), 422, 'item_not_in_inventory');
+
+    await db().app.update(items).set({ archivedAt: new Date() }).where(eq(items.id, ladder.id));
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${ladder.id}/mark-missing`), 409, 'archived');
+
+    await write.post(`/inventories/${run.id}/cancel`, { version: run.version });
+    await expectProblem(await write.post(`/inventories/${run.id}/items/${mixer.id}/mark-missing`), 409, 'inventory_closed');
+    const rows = await db().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, run.id));
+    expect(rows.every((row) => row.outcome === null)).toBe(true);
+  });
+
+  it('is for writers and signed-in users, and needs valid ids', async () => {
+    const { app, read, admin, write } = await setup();
+    const { run, mixer, cap } = await startedRun(write);
+    for (const action of ['mark-missing', 'unmark-missing']) {
+      await expectProblem(await read.post(`/inventories/${run.id}/items/${mixer.id}/${action}`), 403, 'forbidden');
+      await expectProblem(await api(app).post(`/inventories/${run.id}/items/${mixer.id}/${action}`), 401, 'unauthenticated');
+      await expectProblem(await write.post(`/inventories/${run.id}/items/nope/${action}`), 400, 'validation_error');
+    }
+    await expectJson(await admin.post(`/inventories/${run.id}/items/${cap.id}/mark-missing`), 200, inventoryRowSchema);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start', 'mark_missing']);
+  });
+});
+
 describe('POST /inventories/{id}/scans', () => {
   const scan = (client: Awaited<ReturnType<typeof setup>>['write'], runId: string, body: unknown) =>
     client.post(`/inventories/${runId}/scans`, body);
@@ -489,6 +813,27 @@ describe('POST /inventories/{id}/scans', () => {
       locationId: { from: null, to: patro.id },
       registeredLocationId: { from: null, to: sklad.id },
     });
+  });
+
+  it('shows a found item as in place once an ordinary edit sets its location to the checklist', async () => {
+    const { read, write } = await setup();
+    const { run, patro } = await startedRun(write);
+    const sklad = await insertLocation(db().app, { name: 'Sklad' });
+    const stranger = await insertItem(db().app, { name: 'Pokladní systém', locationId: sklad.id });
+    await scan(write, run.id, { code: stranger.code, locationId: patro.id });
+    const rowsUrl = `/inventories/${run.id}/items?locationId=${patro.id}`;
+    const find = async () =>
+      (await expectJson(await read.get(rowsUrl), 200, inventoryRowsSchema)).items.find((r) => r.id === stranger.id);
+
+    expect(await find()).toMatchObject({ kind: 'elsewhere', registeredElsewhere: true });
+
+    const edited = await write.patch(`/items/${stranger.id}`, { locationId: patro.id, version: 1 });
+    expect(edited.status).toBe(200);
+
+    // Still the run's find (the counts keep it), but registered where it was found.
+    expect(await find()).toMatchObject({ kind: 'elsewhere', registeredElsewhere: false, locationId: patro.id });
+    const detail = await expectJson(await read.get(`/inventories/${run.id}`), 200, inventorySchema);
+    expect(detail.counts).toMatchObject({ elsewhere: 1 });
   });
 
   it('answers that an item is already checked, with who checked it, and records nothing', async () => {

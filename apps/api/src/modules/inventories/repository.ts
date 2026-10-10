@@ -3,7 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { DbExecutor } from '../../db/client.ts';
 import { beforeTimestamp, type Page, toPage } from '../../db/pagination.ts';
 import { inventories, inventoryItems, items, locations, user } from '../../db/schema/index.ts';
-import { updateVersioned } from '../../db/versioned.ts';
+import { setArchived, updateVersioned } from '../../db/versioned.ts';
 import { matchesSearch, subtreeOf } from '../locations/repository.ts';
 
 export type Inventory = typeof inventories.$inferSelect;
@@ -18,15 +18,23 @@ export type InventoryPatch = Partial<Pick<typeof inventories.$inferInsert, 'stat
   updatedBy: string;
 };
 
-/** `open` lists the runs in progress, `closed` the finished and cancelled ones. `q` searches the root location. */
-export type InventoryFilter = { state: 'open' | 'closed'; q?: string };
+/**
+ * `open` lists the runs in progress, `closed` the finished and cancelled ones. `q` searches the
+ * root location. `archived` lists the archived runs instead of the active ones.
+ */
+export type InventoryFilter = { state: 'open' | 'closed'; q?: string; archived?: boolean };
 
 /**
  * What a run's rows add up to. `expected` and `checked` count the list taken at the start without
  * the items archived since; `elsewhere` and `new` count the items found or added (checked ones only).
  */
 export type InventoryCounts = { expected: number; checked: number; elsewhere: number; new: number; missing: number };
-export type LocationProgress = { locationId: string; total: number; checked: number };
+/**
+ * One location of a run: `total` and `checked` count the list taken at the start (the items archived
+ * since are left out), `extra` the items found or added there (checked ones only), `missing` the
+ * list items flagged as missing.
+ */
+export type LocationProgress = { locationId: string; total: number; checked: number; extra: number; missing: number };
 export type LocationChecker = { locationId: string } & Person;
 
 export type StartPreview = { itemCount: number; locationCount: number };
@@ -45,9 +53,13 @@ export type RunItem = {
   locationId: string;
   /** Where a found-elsewhere item was registered (null: nowhere). */
   registeredLocationId: string | null;
+  /** Where the item is registered now (null: nowhere); it changes with an ordinary edit of the item. */
+  itemLocationId: string | null;
   checkedAt: Date | null;
   checkedBy: Person | null;
   method: string | null;
+  /** A person flagged the unchecked item of the list as missing (`outcome = 'missing'`). */
+  missing: boolean;
   moved: boolean;
 };
 
@@ -70,16 +82,22 @@ const runItemColumns = {
   kind: inventoryItems.kind,
   locationId: inventoryItems.locationId,
   registeredLocationId: inventoryItems.registeredLocationId,
+  itemLocationId: items.locationId,
   checkedAt: inventoryItems.checkedAt,
   checkedBy: { id: checker.id, name: checker.name },
   method: inventoryItems.method,
+  outcome: inventoryItems.outcome,
   movedAt: inventoryItems.movedAt,
 };
 
-type RunItemRecord = Omit<RunItem, 'itemArchived' | 'moved'> & { itemArchivedAt: Date | null; movedAt: Date | null };
+type RunItemRecord = Omit<RunItem, 'itemArchived' | 'missing' | 'moved'> & {
+  itemArchivedAt: Date | null;
+  outcome: string | null;
+  movedAt: Date | null;
+};
 
-function toRunItem({ itemArchivedAt, movedAt, ...row }: RunItemRecord): RunItem {
-  return { ...row, itemArchived: itemArchivedAt !== null, moved: movedAt !== null };
+function toRunItem({ itemArchivedAt, outcome, movedAt, ...row }: RunItemRecord): RunItem {
+  return { ...row, itemArchived: itemArchivedAt !== null, missing: outcome === 'missing', moved: movedAt !== null };
 }
 
 /** A run in progress on the location, on any location above it, or on any location below it (archived ones too). */
@@ -101,6 +119,7 @@ function overlapWith(locationId: string): SQL {
 function listWhere(db: DbExecutor, filter: InventoryFilter): SQL[] {
   const conditions: SQL[] = [
     filter.state === 'open' ? eq(inventories.status, 'in_progress') : ne(inventories.status, 'in_progress'),
+    filter.archived ? isNotNull(inventories.archivedAt) : isNull(inventories.archivedAt),
   ];
   const search = filter.q ? matchesSearch(filter.q) : undefined;
   if (search) {
@@ -233,7 +252,10 @@ export function createInventoryRepository(db: DbExecutor) {
       return row && toRunItem(row);
     },
 
-    /** Ticks the row if nobody has yet: false when it was already checked (the first check wins). */
+    /**
+     * Ticks the row if nobody has yet: false when it was already checked (the first check wins). A
+     * flag as missing is taken back with it: the item was found.
+     */
     async markChecked(
       inventoryId: string,
       itemId: string,
@@ -241,7 +263,7 @@ export function createInventoryRepository(db: DbExecutor) {
     ): Promise<boolean> {
       const updated = await db
         .update(inventoryItems)
-        .set({ checkedAt: check.checkedAt, checkedBy: check.checkedBy, method: check.method })
+        .set({ checkedAt: check.checkedAt, checkedBy: check.checkedBy, method: check.method, outcome: null })
         .where(
           and(
             eq(inventoryItems.inventoryId, inventoryId),
@@ -263,6 +285,43 @@ export function createInventoryRepository(db: DbExecutor) {
             eq(inventoryItems.inventoryId, inventoryId),
             eq(inventoryItems.itemId, itemId),
             isNotNull(inventoryItems.checkedAt),
+          ),
+        )
+        .returning({ id: inventoryItems.id });
+      return updated.length > 0;
+    },
+
+    /**
+     * Flags an unchecked item of the list as missing. False when nothing changed: the row is
+     * already flagged, already checked, or is not on the list (the caller reads the row back).
+     */
+    async markMissing(inventoryId: string, itemId: string): Promise<boolean> {
+      const updated = await db
+        .update(inventoryItems)
+        .set({ outcome: 'missing' })
+        .where(
+          and(
+            eq(inventoryItems.inventoryId, inventoryId),
+            eq(inventoryItems.itemId, itemId),
+            eq(inventoryItems.kind, 'expected'),
+            isNull(inventoryItems.checkedAt),
+            isNull(inventoryItems.outcome),
+          ),
+        )
+        .returning({ id: inventoryItems.id });
+      return updated.length > 0;
+    },
+
+    /** Takes the flag back: false when the row was not flagged. */
+    async unmarkMissing(inventoryId: string, itemId: string): Promise<boolean> {
+      const updated = await db
+        .update(inventoryItems)
+        .set({ outcome: null })
+        .where(
+          and(
+            eq(inventoryItems.inventoryId, inventoryId),
+            eq(inventoryItems.itemId, itemId),
+            eq(inventoryItems.outcome, 'missing'),
           ),
         )
         .returning({ id: inventoryItems.id });
@@ -308,8 +367,54 @@ export function createInventoryRepository(db: DbExecutor) {
       return rows.length > 0;
     },
 
+    /**
+     * Settles the unchecked rows of the list at the finish: the items archived since get `skipped`
+     * (they are not offered as missing, SPEC §9.3 rule 11). What people flagged as missing stays
+     * `missing`, and the rest stays without an outcome: not checked. Found or added rows are not on
+     * the list and have no outcome. Returns how many items of the list are missing.
+     */
+    async settleUnchecked(inventoryId: string): Promise<number> {
+      await db.execute(sql`
+        UPDATE inventory_items r SET outcome = 'skipped'
+          FROM items i
+         WHERE i.id = r.item_id AND r.inventory_id = ${inventoryId}
+           AND r.kind = 'expected' AND r.checked_at IS NULL AND i.archived_at IS NOT NULL`);
+      const [row] = await db
+        .select({ n: count() })
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.inventoryId, inventoryId), eq(inventoryItems.outcome, 'missing')));
+      return row!.n;
+    },
+
+    /**
+     * Takes back what a finish set, so that the rows wait for a check again: the `skipped` rows of
+     * items archived since. The flags people set by hand stay. Returns how many were cleared.
+     */
+    async clearSkipped(inventoryId: string): Promise<number> {
+      const cleared = await db
+        .update(inventoryItems)
+        .set({ outcome: null })
+        .where(and(eq(inventoryItems.inventoryId, inventoryId), eq(inventoryItems.outcome, 'skipped')))
+        .returning({ id: inventoryItems.id });
+      return cleared.length;
+    },
+
+    /** Adds an item created during the run to it as a checked `new` row, at the item's location. */
+    async recordNew(
+      inventoryId: string,
+      itemId: string,
+      added: { locationId: string; checkedAt: Date; checkedBy: string; method: 'scan' | 'manual' },
+    ): Promise<void> {
+      await db.insert(inventoryItems).values({ inventoryId, itemId, kind: 'new', ...added });
+    },
+
     update(id: string, version: number, patch: InventoryPatch): Promise<Inventory | undefined> {
       return updateVersioned(db, inventories, id, version, patch);
+    },
+
+    /** Archives or restores an ended run; undefined when the version is stale. */
+    setArchived(id: string, version: number, archived: boolean, by: string): Promise<Inventory | undefined> {
+      return setArchived(db, inventories, id, version, archived, by);
     },
 
     async counts(ids: string[]): Promise<Map<string, InventoryCounts>> {
@@ -321,7 +426,7 @@ export function createInventoryRepository(db: DbExecutor) {
           count(*) FILTER (WHERE r.kind = 'expected' AND i.archived_at IS NULL AND r.checked_at IS NOT NULL)::int AS checked,
           count(*) FILTER (WHERE r.kind = 'elsewhere' AND r.checked_at IS NOT NULL)::int AS elsewhere,
           count(*) FILTER (WHERE r.kind = 'new' AND r.checked_at IS NOT NULL)::int AS "new",
-          count(*) FILTER (WHERE r.outcome = 'missing')::int AS missing
+          count(*) FILTER (WHERE r.outcome = 'missing' AND i.archived_at IS NULL)::int AS missing
           FROM inventory_items r JOIN items i ON i.id = r.item_id
          WHERE r.inventory_id = ANY(${sql.param(ids)}::uuid[])
          GROUP BY r.inventory_id`);
@@ -355,15 +460,18 @@ export function createInventoryRepository(db: DbExecutor) {
     },
 
     /**
-     * The rows of each location of the run that a person sees: the list taken at the start without
-     * the items archived since, plus the items found or added (checked ones). Locations without
-     * any such row are left out.
+     * The numbers of each location of the run. `total` and `checked` count the list taken at the
+     * start without the items archived since, so the locations add up to the run's `expected` and
+     * `checked`; the items found or added are `extra`. Locations without any row a person sees are
+     * left out.
      */
     async locationProgress(inventoryId: string): Promise<LocationProgress[]> {
       const result = await db.execute<LocationProgress>(sql`
         SELECT r.location_id AS "locationId",
-          count(*)::int AS total,
-          count(*) FILTER (WHERE r.checked_at IS NOT NULL)::int AS checked
+          count(*) FILTER (WHERE r.kind = 'expected')::int AS total,
+          count(*) FILTER (WHERE r.kind = 'expected' AND r.checked_at IS NOT NULL)::int AS checked,
+          count(*) FILTER (WHERE r.kind <> 'expected')::int AS extra,
+          count(*) FILTER (WHERE r.outcome = 'missing')::int AS missing
           FROM inventory_items r JOIN items i ON i.id = r.item_id
          WHERE r.inventory_id = ${inventoryId}
            AND ((r.kind = 'expected' AND i.archived_at IS NULL) OR (r.kind <> 'expected' AND r.checked_at IS NOT NULL))

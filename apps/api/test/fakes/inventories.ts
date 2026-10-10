@@ -71,6 +71,7 @@ export function createFakeInventoryStore() {
   const matching = (filter: InventoryFilter) =>
     state.inventories.filter((run) => {
       if ((run.status === 'in_progress') !== (filter.state === 'open')) return false;
+      if ((run.archivedAt !== null) !== !!filter.archived) return false;
       return !filter.q || matchesSearch(locationById(run.locationId)!, filter.q);
     });
   /** Newest first, ties by id descending, like `ORDER BY moment DESC, id DESC`. */
@@ -88,9 +89,11 @@ export function createFakeInventoryStore() {
       kind: row.kind,
       locationId: row.locationId,
       registeredLocationId: row.registeredLocationId,
+      itemLocationId: item.locationId,
       checkedAt: row.checkedAt,
       checkedBy: person(row.checkedBy),
       method: row.method,
+      missing: row.outcome === 'missing',
       moved: row.movedAt !== null,
     };
   };
@@ -146,6 +149,7 @@ export function createFakeInventoryStore() {
         status: 'in_progress',
         endedAt: null,
         endedBy: null,
+        archivedAt: null,
         note: null,
         committee: null,
         createdAt: values.createdAt,
@@ -197,13 +201,26 @@ export function createFakeInventoryStore() {
     async markChecked(inventoryId, itemId, check) {
       const row = findRow(inventoryId, itemId);
       if (!row || row.checkedAt) return false;
-      Object.assign(row, check);
+      // A flag as missing goes with the check, as in the repository.
+      Object.assign(row, check, { outcome: null });
       return true;
     },
     async markUnchecked(inventoryId, itemId) {
       const row = findRow(inventoryId, itemId);
       if (!row?.checkedAt) return false;
       Object.assign(row, { checkedAt: null, checkedBy: null, method: null });
+      return true;
+    },
+    async markMissing(inventoryId, itemId) {
+      const row = findRow(inventoryId, itemId);
+      if (row?.kind !== 'expected' || row.checkedAt || row.outcome) return false;
+      row.outcome = 'missing';
+      return true;
+    },
+    async unmarkMissing(inventoryId, itemId) {
+      const row = findRow(inventoryId, itemId);
+      if (row?.outcome !== 'missing') return false;
+      row.outcome = null;
       return true;
     },
     async findItemByCode(code) {
@@ -230,9 +247,42 @@ export function createFakeInventoryStore() {
       Object.assign(row, found);
       return true;
     },
+    async clearSkipped(inventoryId) {
+      let cleared = 0;
+      for (const row of rowsOf(inventoryId)) {
+        if (row.outcome !== 'skipped') continue;
+        row.outcome = null;
+        cleared += 1;
+      }
+      return cleared;
+    },
+    async recordNew(inventoryId, itemId, added) {
+      state.rows.push({
+        id: randomUUID(),
+        inventoryId,
+        itemId,
+        kind: 'new',
+        registeredLocationId: null,
+        wasMissing: false,
+        movedAt: null,
+        movedBy: null,
+        outcome: null,
+        ...added,
+      });
+    },
+    async settleUnchecked(inventoryId) {
+      for (const row of rowsOf(inventoryId)) {
+        if (row.kind === 'expected' && !row.checkedAt && itemById(row.itemId).archivedAt) row.outcome = 'skipped';
+      }
+      return rowsOf(inventoryId).filter((r) => r.outcome === 'missing').length;
+    },
     async update(id, version, patch) {
       const run = state.inventories.find((r) => r.id === id);
       return run && bump(run, version, patch);
+    },
+    async setArchived(id, version, archived, by) {
+      const run = state.inventories.find((r) => r.id === id);
+      return run && bump(run, version, { archivedAt: archived ? new Date() : null, updatedBy: by });
     },
     async counts(ids) {
       const counts = new Map<string, InventoryCounts>();
@@ -245,7 +295,7 @@ export function createFakeInventoryStore() {
           checked: expected.filter((r) => r.checkedAt).length,
           elsewhere: rows.filter((r) => r.kind === 'elsewhere' && r.checkedAt).length,
           new: rows.filter((r) => r.kind === 'new' && r.checkedAt).length,
-          missing: rows.filter((r) => r.outcome === 'missing').length,
+          missing: rows.filter((r) => r.outcome === 'missing' && !itemById(r.itemId).archivedAt).length,
         });
       }
       return counts;
@@ -267,11 +317,16 @@ export function createFakeInventoryStore() {
       return people;
     },
     async locationProgress(inventoryId) {
-      const byLocation = new Map<string, { total: number; checked: number }>();
+      const byLocation = new Map<string, { total: number; checked: number; extra: number; missing: number }>();
       for (const row of rowsOf(inventoryId).filter(visible)) {
-        const entry = byLocation.get(row.locationId) ?? { total: 0, checked: 0 };
-        entry.total += 1;
-        if (row.checkedAt) entry.checked += 1;
+        const entry = byLocation.get(row.locationId) ?? { total: 0, checked: 0, extra: 0, missing: 0 };
+        if (row.kind === 'expected') {
+          entry.total += 1;
+          if (row.checkedAt) entry.checked += 1;
+        } else {
+          entry.extra += 1;
+        }
+        if (row.outcome === 'missing') entry.missing += 1;
         byLocation.set(row.locationId, entry);
       }
       return [...byLocation].map(([locationId, numbers]) => ({ locationId, ...numbers }));

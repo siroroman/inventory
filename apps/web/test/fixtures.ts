@@ -127,6 +127,7 @@ export function inventoryEntry(over: Record<string, unknown> = {}) {
     startedBy: starter,
     endedAt: null,
     endedBy: null,
+    archivedAt: null as string | null,
     counts: { ...noCounts, expected: 128 },
     participants: [starter],
     ...over,
@@ -136,7 +137,7 @@ export function inventoryEntry(over: Record<string, unknown> = {}) {
 /** A location of a run, with its path from the top (itself last). */
 export function inventoryLocation(over: Record<string, unknown> = {}) {
   const self = ref('LOC-004', 'Sklad');
-  return { ...self, path: [ref('LOC-001', 'Centrála Praha'), self], total: 10, checked: 0, participants: [] as unknown[], ...over };
+  return { ...self, path: [ref('LOC-001', 'Centrála Praha'), self], total: 10, checked: 0, extra: 0, missing: 0, participants: [] as unknown[], ...over };
 }
 
 /** A run as `GET /inventories/{id}` answers it. */
@@ -163,7 +164,10 @@ export function inventoryRow(over: Record<string, unknown> = {}) {
     checkedAt: null as string | null,
     checkedBy: null as unknown,
     method: null as string | null,
+    missing: false,
     registeredPath: [] as unknown[],
+    // A found item is registered elsewhere until its location is changed (override to say otherwise).
+    registeredElsewhere: over.kind === 'elsewhere',
     moved: false,
     ...over,
   };

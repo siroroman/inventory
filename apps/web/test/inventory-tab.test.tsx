@@ -76,14 +76,38 @@ describe('home: inventory tab', () => {
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '84');
     expect(card).toHaveTextContent(/Zahájil RS · 3\. 10\. 2026 v \d{1,2}:\d{2}/);
     expect(within(card).getByText('Roman Siro, Jan Novák')).toBeInTheDocument();
-    expect(within(card).getByRole('link', { name: 'Pokračovat' })).toHaveAttribute('href', `/inventories/${run.id}`);
+    // The whole card is the link; there is no button on it.
+    const link = within(card).getByRole('link');
+    expect(link).toHaveAttribute('href', `/inventories/${run.id}`);
+    expect(link).toHaveTextContent('84 / 128 zkontrolováno');
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Pokračovat' })).not.toBeInTheDocument();
   });
 
-  it('lets a reader only view a run, and not start one', async () => {
-    api({ open: () => page([running()]) }, 'read');
+  it('counts what was found, added or flagged missing as settled on the card', async () => {
+    const run = running({ counts: { expected: 8, checked: 7, elsewhere: 1, new: 1, missing: 1 } });
+    api({ open: () => page([run], { total: 1 }) });
+    renderApp('/?tab=inventory');
+
+    const card = (await screen.findAllByRole('listitem'))[0]!;
+    expect(card).toHaveTextContent('10 / 10 zkontrolováno · 100 %');
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10');
+  });
+
+  it('opens the run when the card is clicked anywhere on it', async () => {
+    const run = running();
+    api({ open: () => page([run], { total: 1 }) });
+    const { router } = renderApp('/?tab=inventory');
+    await userEvent.click(await screen.findByText(/84 \/ 128 zkontrolováno/));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/inventories/${run.id}`));
+  });
+
+  it('lets a reader open a run the same way, and not start one', async () => {
+    const run = running();
+    api({ open: () => page([run]) }, 'read');
     renderApp('/?tab=inventory');
     const card = (await screen.findAllByRole('listitem'))[0]!;
-    expect(within(card).getByRole('link', { name: 'Zobrazit' })).toBeInTheDocument();
+    expect(within(card).getByRole('link')).toHaveAttribute('href', `/inventories/${run.id}`);
     expect(screen.queryByRole('link', { name: /Zahájit inventuru/ })).not.toBeInTheDocument();
   });
 
@@ -107,7 +131,7 @@ describe('home: inventory tab', () => {
     expect(cancelled).toHaveTextContent('4 z 10 zkontrolováno');
     expect(within(cancelled!).getByRole('link')).toHaveAttribute('href', expect.stringMatching(/^\/inventories\//));
     expect(finished).toHaveTextContent('Dokončená');
-    expect(finished).toHaveTextContent('120 nalezeno · 3 jinde · 5 nezvěstných');
+    expect(finished).toHaveTextContent('120 nalezeno · 3 jinde · 5 chybí');
   });
 
   it('shows a table of the ended runs on a wide screen', async () => {
@@ -122,18 +146,37 @@ describe('home: inventory tab', () => {
     expect(within(rows[1]!).getAllByRole('cell').map((c) => c.textContent)).toEqual([
       'Centrála Praha',
       '4. 10. 2026',
-      '120 nalezeno · 3 jinde · 5 nezvěstných',
+      '120 nalezeno · 3 jinde · 5 chybí · 3 nezkontrolováno',
       'Dokončená',
     ]);
-    expect(within(rows[2]!).getByText('5 nalezeno · 1 nezvěstná')).toBeInTheDocument();
+    expect(within(rows[2]!).getByText('5 nalezeno · 1 chybí')).toBeInTheDocument();
     expect(within(rows[1]!).getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', `/inventories/${done.id}`);
+  });
+
+  it('makes the whole row of an ended run a link in the table, not only its name', async () => {
+    stubWideScreen(true);
+    const done = ended();
+    api({ closed: () => page([done], { total: 1 }) });
+    renderApp('/?tab=inventory');
+
+    const table = await screen.findByRole('table');
+    const row = within(table).getAllByRole('row')[1]!;
+    // One real link, stretched over the row (a pseudo-element, so a click on any cell follows it).
+    const link = within(row).getByRole('link', { name: 'Centrála Praha' });
+    expect(within(row).getAllByRole('link')).toHaveLength(1);
+    expect(link).toHaveAttribute('href', `/inventories/${done.id}`);
+    expect(link).toHaveAttribute('data-row-link');
+    expect(link).toHaveClass('after:absolute', 'after:inset-0');
+    expect(row).toHaveClass('relative');
   });
 
   it('keeps the runs in progress as cards on a wide screen', async () => {
     stubWideScreen(true);
-    api({ open: () => page([running()]) });
+    const run = running();
+    api({ open: () => page([run]) });
     renderApp('/?tab=inventory');
-    expect(await screen.findByRole('link', { name: 'Pokračovat' })).toBeInTheDocument();
+    const card = (await screen.findAllByRole('listitem'))[0]!;
+    expect(within(card).getByRole('link')).toHaveAttribute('href', `/inventories/${run.id}`);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
@@ -247,7 +290,53 @@ describe('home: inventory tab', () => {
     const retry = await screen.findByRole('button', { name: 'Zkusit znovu' });
     fail = false;
     await userEvent.click(retry);
-    expect(await screen.findByRole('link', { name: 'Pokračovat' })).toBeInTheDocument();
+    expect(await screen.findByText('84 / 128 zkontrolováno · 66 %')).toBeInTheDocument();
+  });
+
+  describe('archived runs', () => {
+    it('swaps both lists for the archived ones with the checkbox, and keeps it in the URL', async () => {
+      const gone = ended({ archivedAt: '2026-10-06T08:00:00.000Z' });
+      const calls = api({
+        closed: (request) =>
+          new URL(request.url).searchParams.get('archived') === 'true' ? page([gone], { total: 1 }) : page([ended()], { total: 1 }),
+      });
+      const { router } = renderApp('/?tab=inventory');
+      expect(await screen.findByRole('heading', { name: 'Dokončené (1)', level: 2 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Probíhající (0)' })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Zobrazit archivované' }));
+
+      await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'inventory', archived: true }));
+      expect(await screen.findByRole('heading', { name: 'Archivované (1)', level: 2 })).toBeInTheDocument();
+      // Only ended runs are archived, so the runs in progress are neither shown nor asked for.
+      expect(screen.queryByRole('heading', { name: /Probíhající/ })).not.toBeInTheDocument();
+      const row = (await screen.findAllByRole('listitem'))[0]!;
+      expect(row).toHaveTextContent('Archivováno');
+      expect(within(row).getByRole('link')).toHaveAttribute('href', `/inventories/${gone.id}`);
+      const archivedCalls = listCalls(calls).filter((params) => params.get('archived') === 'true');
+      expect(archivedCalls.map((params) => params.get('state'))).toEqual(['closed']);
+    });
+
+    it('is on from the URL, and says when nothing is archived', async () => {
+      api();
+      renderApp('/?tab=inventory&archived=true');
+      expect(await screen.findByText('Žádné archivované inventury')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Zobrazit archivované' })).toBeChecked();
+      expect(screen.queryByText('Zatím žádná inventura')).not.toBeInTheDocument();
+    });
+
+    it('lists the archived runs in the table of a wide screen, headed as archived', async () => {
+      stubWideScreen(true);
+      const gone = ended({ archivedAt: '2026-10-06T08:00:00.000Z' });
+      api({ closed: () => page([gone], { total: 1 }) });
+      renderApp('/?tab=inventory&archived=true');
+      const table = await screen.findByRole('table');
+      expect(screen.getByRole('heading', { name: 'Archivované (1)', level: 2 })).toBeInTheDocument();
+      expect(within(within(table).getAllByRole('row')[1]!).getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute(
+        'href',
+        `/inventories/${gone.id}`,
+      );
+    });
   });
 
   it('switches to the tab from another one and drops the search', async () => {

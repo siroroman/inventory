@@ -62,7 +62,7 @@ function Home() {
     items: <ItemsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
     maintenance: <ServiceRecordsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
     suppliers: <ServiceProvidersPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
-    inventory: <InventoryPanel q={q} onSearch={search} />,
+    inventory: <InventoryPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
   };
 
   return (

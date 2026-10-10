@@ -5,10 +5,11 @@ import { createdColumns, id } from './common.ts';
 import { items } from './items.ts';
 import { locations } from './locations.ts';
 
-// One inventory run: a physical check of a location and its whole subtree. Runs are never archived
-// or deleted (they end as `finished` or `cancelled`), so there is no archived_at. Started =
-// created_at / created_by. updated_at and version are maintained by the touch_row trigger; checks
-// happen on `inventory_items` and do not bump the run's version.
+// One inventory run: a physical check of a location and its whole subtree. Runs are never deleted;
+// they end as `finished` or `cancelled`, and an ended run can be archived to leave the list
+// (archived_at, restorable). Started = created_at / created_by. updated_at and version are
+// maintained by the touch_row trigger; checks happen on `inventory_items` and do not bump the
+// run's version.
 export const inventories = pgTable(
   'inventories',
   {
@@ -20,6 +21,7 @@ export const inventories = pgTable(
     status: text().notNull().default('in_progress'),
     endedAt: timestamp({ withTimezone: true }),
     endedBy: uuid().references(() => user.id, { onDelete: 'restrict' }),
+    archivedAt: timestamp({ withTimezone: true }),
     note: text(),
     committee: text(),
     ...createdColumns(),
@@ -40,6 +42,8 @@ export const inventories = pgTable(
       'inventories_ended_when_closed',
       sql`(${t.status} = 'in_progress') = (${t.endedAt} is null) and (${t.status} = 'in_progress') = (${t.endedBy} is null)`,
     ),
+    // Only an ended run can be archived.
+    check('inventories_archived_when_closed', sql`${t.archivedAt} is null or ${t.status} <> 'in_progress'`),
   ],
 );
 

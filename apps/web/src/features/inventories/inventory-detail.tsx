@@ -8,6 +8,7 @@ import { AvatarStack } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
 import { ErrorState } from '@/components/error-state';
 import { Section } from '@/components/section';
+import { ArchivedBadge } from '@/components/archived-badge';
 import { Badge } from '@/components/ui/badge';
 import { Progress, progressPercent } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,7 +18,8 @@ import { isMissingRecord } from '@/lib/api';
 import { formatTime, formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
-import { CancelInventory } from './cancel-inventory';
+import { InventoryActions } from './inventory-actions';
+import { InventorySummary, progressOf, runFigures } from './inventory-summary';
 import { shortName, shortNames } from './people';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
@@ -25,10 +27,13 @@ import { statusBadge } from './status';
 type Group = 'inProgress' | 'notStarted' | 'done';
 const groups: Group[] = ['inProgress', 'notStarted', 'done'];
 
-/** Some checked: in progress. None: nobody started. All: done. */
+/**
+ * Some checked: in progress. None: nobody started. Nothing left to check, each item of the list
+ * checked or flagged as missing (found items count as work): done.
+ */
 function groupOf(location: InventoryLocationDto): Group {
-  if (location.checked === 0) return 'notStarted';
-  return location.checked >= location.total ? 'done' : 'inProgress';
+  if (location.checked === 0 && location.extra === 0 && location.missing === 0) return 'notStarted';
+  return location.checked + location.missing >= location.total ? 'done' : 'inProgress';
 }
 
 /**
@@ -85,15 +90,23 @@ function RunLines({ inventory }: { inventory: InventoryDto }) {
 
 function Progression({ inventory }: { inventory: InventoryDto }) {
   const { t } = useTranslation();
-  const { expected, checked } = inventory.counts;
-  if (expected === 0) return <p className="text-[15px] text-muted-foreground">{t('inventory.noItems')}</p>;
+  const figures = runFigures(inventory.counts);
+  const { done, total } = progressOf(figures);
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-[15px] font-semibold">
-        {t('inventory.progress', { checked, total: expected, percent: progressPercent(checked, expected) })}
-      </p>
-      <Progress value={checked} max={expected} label={t('inventory.progressLabel')} />
-    </div>
+    <>
+      {total === 0 ? (
+        <p className="text-[15px] text-muted-foreground">{t('inventory.noItems')}</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-[15px] font-semibold">
+            {t('inventory.progress', { done, total, percent: progressPercent(done, total) })}
+          </p>
+          <Progress value={done} max={total} label={t('inventory.progressLabel')} />
+        </div>
+      )}
+      {/* An empty list with nothing found has nothing to add up. */}
+      {total > 0 && <InventorySummary figures={figures} />}
+    </>
   );
 }
 
@@ -111,8 +124,14 @@ function LocationRow({ inventory, location, group }: { inventory: InventoryDto; 
           <p className="text-[15px] font-semibold break-words">{location.name}</p>
           {via && <p className="text-sm break-words text-muted-foreground">{via}</p>}
           <p className="text-sm text-muted-foreground">
-            {t('inventory.locations.items', { checked: location.checked, total: location.total })}
-            {group === 'notStarted' && ` · ${t('inventory.locations.nobodyStarted')}`}
+            {[
+              location.total > 0 && t('inventory.locations.items', { checked: location.checked, total: location.total }),
+              location.extra > 0 && t('inventory.locations.extra', { count: location.extra }),
+              location.missing > 0 && t('inventory.locations.missing', { count: location.missing }),
+              group === 'notStarted' && t('inventory.locations.nobodyStarted'),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         </div>
         {group === 'done' && <Badge variant="success">{t('inventory.locations.doneBadge')}</Badge>}
@@ -144,7 +163,8 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
             {t(`inventory.status.${inventory.status}`)}
           </Badge>
         )}
-        {canWrite && inventory.status === 'in_progress' && <CancelInventory inventory={inventory} />}
+        {inventory.archivedAt && <ArchivedBadge className="mt-2" />}
+        {canWrite && <InventoryActions inventory={inventory} />}
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">

@@ -17,6 +17,7 @@ function runFields(row: InventoryEntry) {
     startedBy: row.startedBy,
     endedAt: row.endedAt?.toISOString() ?? null,
     endedBy: row.closedBy,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
     counts: row.counts,
     participants: row.participants,
   };
@@ -53,7 +54,9 @@ export function toInventoryRowDto(row: InventoryRunItem): InventoryRowDto {
     checkedAt: row.checkedAt?.toISOString() ?? null,
     checkedBy: row.checkedBy,
     method: row.method as InventoryRowDto['method'],
+    missing: row.missing,
     registeredPath: row.registeredPath,
+    registeredElsewhere: row.registeredElsewhere,
     moved: row.moved,
   };
 }

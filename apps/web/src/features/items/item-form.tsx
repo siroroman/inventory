@@ -32,6 +32,11 @@ type Props = {
   item?: ItemDetailDto;
   /** A new item starts in this location (from "Add item" on a location's page). */
   initialLocation?: { id: string; label: string };
+  /**
+   * A new item is created for this inventory run (from its checklist): the API adds it to the run,
+   * and saving or cancelling returns to the checklist of `initialLocation`, or to the run.
+   */
+  inventoryId?: string;
   /** Called by "load current data" after a conflict; should refetch the item. */
   onReload?: () => void;
 };
@@ -51,7 +56,7 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
 }
 
 /** Add or edit an item. Photos are not part of it yet. */
-export function ItemForm({ item, initialLocation, onReload }: Props) {
+export function ItemForm({ item, initialLocation, inventoryId, onReload }: Props) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -66,13 +71,29 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
   } = useForm<ItemFormValues>({ resolver: zodResolver(itemFormSchema), defaultValues: defaults });
   const externalIds = useFieldArray({ control, name: 'externalIds' });
 
+  // Where a new item created for an inventory run goes back to: the checklist it came from.
+  const backToRun = inventoryId
+    ? initialLocation
+      ? ({
+          to: '/inventories/$id/locations/$locationId',
+          params: { id: inventoryId, locationId: initialLocation.id },
+        } as const)
+      : ({ to: '/inventories/$id', params: { id: inventoryId } } as const)
+    : null;
+
   // Leaving with unsaved changes asks first; a saved form is not "unsaved" any more.
   const unsaved = () => isDirty && !saved.current;
 
   const save = useMutation({
     mutationFn: async (values: ItemFormValues) => {
       // Empty = the database assigns the next INV-nnnnn.
-      if (!item) return createItem({ ...formValuesToBody(values), ...(values.code.trim() && { code: values.code.trim() }) });
+      if (!item) {
+        return createItem({
+          ...formValuesToBody(values),
+          ...(values.code.trim() && { code: values.code.trim() }),
+          ...(inventoryId && { inventoryId }),
+        });
+      }
       const changes = changedFields(defaults, values);
       // A change that trimming undoes (a trailing space) leaves nothing to send.
       if (Object.keys(changes).length === 0) return item;
@@ -85,6 +106,16 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
       await queryClient.invalidateQueries({ queryKey: ['items'] });
       // Item counts of the locations changed too.
       await queryClient.invalidateQueries({ queryKey: ['locations'] });
+      if (backToRun && !item) {
+        // The run's rows and numbers changed if the item joined it.
+        await queryClient.invalidateQueries({ queryKey: ['inventories'] });
+        const added = 'addedToInventory' in saved_ && saved_.addedToInventory;
+        if (added) toast.success(t('itemForm.addedToInventory'));
+        else toast.warning(t('itemForm.notAddedToInventory'));
+        // The form is replaced in the history, so Back does not return to it.
+        await navigate({ ...backToRun, replace: true });
+        return;
+      }
       toast.success(t('common.saved'));
       await navigate({ to: '/items/$id', params: { id: saved_.id } });
     },
@@ -106,7 +137,9 @@ export function ItemForm({ item, initialLocation, onReload }: Props) {
   const codeTaken = codeRefused && !autoCodeClash;
   const cancelTo = item
     ? ({ to: '/items/$id', params: { id: item.id } } as const)
-    : initialLocation
+    : backToRun
+      ? backToRun
+      : initialLocation
       ? ({ to: '/locations/$id', params: { id: initialLocation.id } } as const)
       : ({ to: '/', search: { tab: 'items' } } as const);
 

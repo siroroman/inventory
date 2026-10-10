@@ -30,7 +30,9 @@ const list = defineRoute({
   path: '/inventories',
   minRole: 'read',
   tags: ['inventories'],
-  summary: 'Inventory runs: `state=open` the ones in progress, `state=closed` the finished and cancelled ones',
+  summary:
+    'Inventory runs: `state=open` the ones in progress, `state=closed` the finished and cancelled ones; ' +
+    '`archived=true` lists the archived ones instead',
   request: { query: inventoryListQuery },
   responses: { 200: { description: 'One page of runs', content: jsonContent(inventoryListSchema) } },
 });
@@ -115,23 +117,95 @@ const uncheck = defineRoute({
   responses: { 200: { description: 'The row, unchecked', content: jsonContent(inventoryRowSchema) } },
 });
 
+const markMissing = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/items/{itemId}/mark-missing',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Flag an unchecked item of the list of a run in progress as missing; an item that is already checked is left ' +
+    'as it is, and an item found elsewhere or added cannot be flagged',
+  request: { params: inventoryRowParams },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'The row, flagged as missing', content: jsonContent(inventoryRowSchema) } },
+});
+
+const unmarkMissing = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/items/{itemId}/unmark-missing',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Take the missing flag of an item of a run in progress back; the item is not checked',
+  request: { params: inventoryRowParams },
+  errors: [404, 409, 422],
+  responses: { 200: { description: 'The row, not flagged', content: jsonContent(inventoryRowSchema) } },
+});
+
 const cancel = defineRoute({
   method: 'post',
   path: '/inventories/{id}/cancel',
   minRole: 'write',
   tags: ['inventories'],
-  summary: 'Cancel a run in progress; nothing is marked missing and what was checked stays on record',
+  summary: 'Cancel a run in progress; nothing more is marked missing and what was checked or flagged stays on record',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
   responses: { 200: { description: 'The cancelled run', content: jsonContent(inventorySchema) } },
+});
+
+const finish = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/finish',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Finish a run in progress: the items flagged as missing are the ones missing, the other unchecked ones ' +
+    'stay not checked, and nothing can be checked afterwards',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The finished run', content: jsonContent(inventorySchema) } },
+});
+
+const reopen = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/reopen',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary:
+    'Take a finished run back into progress; checks and missing flags stay. ' +
+    'Refused while another run is in progress on the location',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The reopened run', content: jsonContent(inventorySchema) } },
+});
+
+const archive = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/archive',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Archive a finished or cancelled run: it leaves the lists and can be restored',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The archived run', content: jsonContent(inventorySchema) } },
+});
+
+const restore = defineRoute({
+  method: 'post',
+  path: '/inventories/{id}/restore',
+  minRole: 'write',
+  tags: ['inventories'],
+  summary: 'Restore an archived run',
+  request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
+  errors: [404, 409],
+  responses: { 200: { description: 'The restored run', content: jsonContent(inventorySchema) } },
 });
 
 /** Inventory runs. Mounted under /api/v1. */
 export function createInventoryRoutes(inventories: InventoryService) {
   return createRouter()
     .openapi(list, async (c) => {
-      const { state, q, limit, cursor } = c.req.valid('query');
-      const page = await inventories.list(c.get('actor'), { state, q }, { limit, cursor });
+      const { state, q, archived, limit, cursor } = c.req.valid('query');
+      const page = await inventories.list(c.get('actor'), { state, q, archived: archived === 'true' }, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toInventoryListEntryDto) }, 200);
     })
     .openapi(preview, async (c) => {
@@ -163,8 +237,32 @@ export function createInventoryRoutes(inventories: InventoryService) {
       const { id, itemId } = c.req.valid('param');
       return c.json(toInventoryRowDto(await inventories.uncheck(c.get('actor'), id, itemId)), 200);
     })
+    .openapi(markMissing, async (c) => {
+      const { id, itemId } = c.req.valid('param');
+      return c.json(toInventoryRowDto(await inventories.markMissing(c.get('actor'), id, itemId)), 200);
+    })
+    .openapi(unmarkMissing, async (c) => {
+      const { id, itemId } = c.req.valid('param');
+      return c.json(toInventoryRowDto(await inventories.unmarkMissing(c.get('actor'), id, itemId)), 200);
+    })
     .openapi(cancel, async (c) => {
       const row = await inventories.cancel(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(finish, async (c) => {
+      const row = await inventories.finish(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(reopen, async (c) => {
+      const row = await inventories.reopen(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(archive, async (c) => {
+      const row = await inventories.archive(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
+      return c.json(toInventoryDto(row), 200);
+    })
+    .openapi(restore, async (c) => {
+      const row = await inventories.restore(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
       return c.json(toInventoryDto(row), 200);
     });
 }

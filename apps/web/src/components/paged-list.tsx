@@ -50,6 +50,13 @@ export const nestedNameColumnWidth = 'w-80';
  */
 export const codeColumnWidth = 'w-44';
 
+/**
+ * Makes a link of a table cell cover its whole row: put these classes and `data-row-link` on the
+ * `<a>` of the row's primary cell. The row lights up on hover, and a click anywhere on it follows
+ * the link, which stays the one real link (keyboard, screen reader, open in a new tab).
+ */
+export const rowLinkClass = "after:absolute after:inset-0 after:content-['']";
+
 // Tailwind's `md` breakpoint.
 const wideScreen = '(min-width: 768px)';
 
@@ -124,7 +131,7 @@ export function PagedList<T extends { id: string }>({
           </thead>
           <tbody className="divide-y divide-line">
             {items.map((item) => (
-              <tr key={item.id} className="divide-x divide-line">
+              <tr key={item.id} className="relative divide-x divide-line has-[[data-row-link]]:hover:bg-accent">
                 {columns.map((column) => (
                   <td
                     key={column.header}

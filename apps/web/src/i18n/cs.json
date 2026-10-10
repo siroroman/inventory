@@ -149,17 +149,13 @@
       "noClosedTitle": "Zatím žádná dokončená inventura",
       "noClosedHint": "Dokončené a zrušené inventury se zobrazí tady.",
       "start": "Zahájit inventuru",
-      "continue": "Pokračovat",
-      "view": "Zobrazit",
       "startedOn": "Zahájil {{who}} · {{date}} v {{time}}",
       "startedBy": "zahájil {{who}}",
       "result": {
         "found": "{{count}} nalezeno",
         "elsewhere": "{{count}} jinde",
-        "missing_one": "{{count}} nezvěstná",
-        "missing_few": "{{count}} nezvěstné",
-        "missing_many": "{{count}} nezvěstné",
-        "missing_other": "{{count}} nezvěstných",
+        "missing": "{{count}} chybí",
+        "unchecked": "{{count}} nezkontrolováno",
         "cancelled": "{{checked}} z {{expected}} zkontrolováno"
       },
       "columns": {
@@ -169,7 +165,9 @@
         "status": "Stav"
       },
       "open": "Probíhající",
-      "closed": "Dokončené"
+      "closed": "Dokončené",
+      "archived": "Archivované",
+      "archivedEmptyTitle": "Žádné archivované inventury"
     }
   },
   "locationDetail": {
@@ -283,6 +281,8 @@
     "duplicate_external_id": "Toto externí ID už je u jiné položky použité.",
     "inventory_overlap": "Pro tuto lokalitu už probíhá inventura.",
     "inventory_closed": "Inventura už je ukončená.",
+    "inventory_in_progress": "Inventura ještě probíhá. Tohle jde až u ukončené inventury.",
+    "inventory_not_finished": "Znovu otevřít jde jen dokončená inventura.",
     "item_not_in_inventory": "Tato položka v inventuře není.",
     "location_outside_inventory": "Tato lokalita do inventury nepatří.",
     "email_taken": "Uživatel s tímto e-mailem už existuje.",
@@ -327,6 +327,8 @@
   "itemForm": {
     "newTitle": "Nová položka",
     "editTitle": "Upravit položku",
+    "addedToInventory": "Položka je uložená a přidaná do inventury.",
+    "notAddedToInventory": "Položka je uložená, ale do inventury se nepřidala: inventura už skončila nebo je lokalita mimo ni.",
     "sections": {
       "registration": "Registrace, záruka a servis"
     },
@@ -526,7 +528,7 @@
     "cancelledBy": "Zrušil {{who}} · {{date}} v {{time}}",
     "cancelledOn": "Zrušeno {{date}} v {{time}}",
     "progressLabel": "Průběh inventury",
-    "progress": "{{checked}} / {{total}} zkontrolováno · {{percent}} %",
+    "progress": "{{done}} / {{total}} zkontrolováno · {{percent}} %",
     "noItems": "V lokalitě nejsou žádné položky.",
     "activeNow_one": "{{who}} právě pracuje",
     "activeNow_few": "{{who}} právě pracují",
@@ -537,18 +539,45 @@
       "notStarted": "Nekontrolované ({{count}})",
       "done": "Hotovo ({{count}})",
       "items": "{{checked}} / {{total}} položek",
+      "extra_one": "{{count}} nová",
+      "extra_few": "{{count}} nové",
+      "extra_many": "{{count}} nové",
+      "extra_other": "{{count}} nových",
+      "missing": "{{count}} chybí",
       "nobodyStarted": "Nikdo nezačal",
       "doneBadge": "Hotovo"
     },
+    "back": "Zpět",
+    "summary": {
+      "checked": "Zkontrolováno",
+      "unchecked": "Nezkontrolováno",
+      "extra": "Nové",
+      "missing": "Chybí"
+    },
     "actions": {
+      "menu": "Akce inventury",
+      "finish": "Dokončit inventuru",
       "cancel": "Zrušit inventuru",
+      "reopen": "Znovu otevřít inventuru",
+      "archive": "Archivovat",
+      "restore": "Obnovit",
       "scan": "Skenovat"
+    },
+    "toast": {
+      "finish": "Inventura dokončena",
+      "cancel": "Inventura zrušena",
+      "reopen": "Inventura znovu otevřena",
+      "archive": "Inventura archivována",
+      "restore": "Inventura obnovena"
     },
     "checklist": {
       "searchLabel": "Hledat položky v lokalitě",
       "searchPlaceholder": "Hledat podle názvu nebo ID…",
       "unchecked": "Nezkontrolované",
       "checked": "Zkontrolované",
+      "missing": "Chybí",
+      "added": "Nové",
+      "addItem": "Přidat položku",
       "allChecked": "Všechny položky v této lokalitě jsou zkontrolované.",
       "emptyTitle": "Žádné položky",
       "emptyHint": "V této lokalitě teď nejsou žádné položky ke kontrole.",
@@ -568,6 +597,10 @@
       "moved": "přesunuto",
       "addedDuringInventory": "přidáno při inventuře",
       "openItem": "Otevřít detail položky {{name}}",
+      "flag": "Označit jako chybějící: {{name}}",
+      "unflag": "Zrušit označení chybějící položky: {{name}}",
+      "flaggedToast": "{{name}}: označeno jako chybějící",
+      "flagNotSaved": "Označení se neuložilo",
       "undo": "Vrátit",
       "uncheckedToast": "{{name}}: kontrola zrušena",
       "notSaved": "Zaškrtnutí se neuložilo",
@@ -575,18 +608,38 @@
       "notFoundHint": "Tato lokalita nemá v inventuře žádné položky ke kontrole.",
       "toOverview": "Zpět na přehled inventury"
     },
+    "finish": {
+      "title": "Dokončit inventuru?",
+      "unchecked_one": "Jedna položka zůstane nezkontrolovaná.",
+      "unchecked_few": "{{count}} položky zůstanou nezkontrolované.",
+      "unchecked_many": "{{count}} položky zůstanou nezkontrolované.",
+      "unchecked_other": "{{count}} položek zůstane nezkontrolovaných.",
+      "missing_one": "Jedna položka je označená jako chybějící.",
+      "missing_few": "{{count}} položky jsou označené jako chybějící.",
+      "missing_many": "{{count}} položky jsou označené jako chybějící.",
+      "missing_other": "{{count}} položek je označeno jako chybějící.",
+      "hintNone": "Všechny položky ze seznamu jsou zkontrolované.",
+      "flagHint": "Chybějící položky označíte v seznamu lokality.",
+      "ends": "Inventura se ukončí pro všechny."
+    },
     "cancel": {
       "title": "Zrušit inventuru?",
-      "hint": "Nic se neoznačí jako nezvěstné a inventura zůstane v seznamu jako Zrušená.",
-      "back": "Zpět",
-      "done": "Inventura zrušena"
+      "hint": "Nic dalšího se neoznačí jako chybějící a inventura zůstane v seznamu jako Zrušená."
+    },
+    "reopen": {
+      "title": "Znovu otevřít inventuru?",
+      "hint": "Inventura se vrátí mezi probíhající. Zkontrolované položky i položky označené jako chybějící zůstanou a dokončit ji půjde znovu."
+    },
+    "archive": {
+      "title": "Archivovat inventuru?",
+      "hint": "Inventura zmizí ze seznamu dokončených. Archivovanou inventuru můžete kdykoli obnovit."
     },
     "scanner": {
       "title": "Skener",
       "torch": "Baterka",
       "closeLabel": "Zavřít skener",
       "hint": "Namiřte na QR štítek položky",
-      "counterLabel": "{{checked}} z {{total}} zkontrolováno",
+      "counterLabel": "{{done}} z {{total}} zkontrolováno",
       "starting": "Spouštím kameru…",
       "endedTitle": "Inventura už je ukončená",
       "endedHint": "Ukončená inventura se už nedá skenovat.",
