@@ -25,9 +25,9 @@ import { statusBadge } from './status';
 type Group = 'inProgress' | 'notStarted' | 'done';
 const groups: Group[] = ['inProgress', 'notStarted', 'done'];
 
-/** Some checked: in progress. None: nobody started. All: done. */
+/** Some checked: in progress. None: nobody started. All of the list (found items count as work): done. */
 function groupOf(location: InventoryLocationDto): Group {
-  if (location.checked === 0) return 'notStarted';
+  if (location.checked === 0 && location.extra === 0) return 'notStarted';
   return location.checked >= location.total ? 'done' : 'inProgress';
 }
 
@@ -111,8 +111,13 @@ function LocationRow({ inventory, location, group }: { inventory: InventoryDto; 
           <p className="text-[15px] font-semibold break-words">{location.name}</p>
           {via && <p className="text-sm break-words text-muted-foreground">{via}</p>}
           <p className="text-sm text-muted-foreground">
-            {t('inventory.locations.items', { checked: location.checked, total: location.total })}
-            {group === 'notStarted' && ` · ${t('inventory.locations.nobodyStarted')}`}
+            {[
+              location.total > 0 && t('inventory.locations.items', { checked: location.checked, total: location.total }),
+              location.extra > 0 && t('inventory.locations.extra', { count: location.extra }),
+              group === 'notStarted' && t('inventory.locations.nobodyStarted'),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         </div>
         {group === 'done' && <Badge variant="success">{t('inventory.locations.doneBadge')}</Badge>}

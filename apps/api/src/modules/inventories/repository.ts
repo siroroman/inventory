@@ -26,7 +26,12 @@ export type InventoryFilter = { state: 'open' | 'closed'; q?: string };
  * the items archived since; `elsewhere` and `new` count the items found or added (checked ones only).
  */
 export type InventoryCounts = { expected: number; checked: number; elsewhere: number; new: number; missing: number };
-export type LocationProgress = { locationId: string; total: number; checked: number };
+/**
+ * One location of a run: `total` and `checked` count the list taken at the start (the items archived
+ * since are left out), `extra` the items found or added there (checked ones only), `missing` the
+ * list items marked missing at the finish.
+ */
+export type LocationProgress = { locationId: string; total: number; checked: number; extra: number; missing: number };
 export type LocationChecker = { locationId: string } & Person;
 
 export type StartPreview = { itemCount: number; locationCount: number };
@@ -321,7 +326,7 @@ export function createInventoryRepository(db: DbExecutor) {
           count(*) FILTER (WHERE r.kind = 'expected' AND i.archived_at IS NULL AND r.checked_at IS NOT NULL)::int AS checked,
           count(*) FILTER (WHERE r.kind = 'elsewhere' AND r.checked_at IS NOT NULL)::int AS elsewhere,
           count(*) FILTER (WHERE r.kind = 'new' AND r.checked_at IS NOT NULL)::int AS "new",
-          count(*) FILTER (WHERE r.outcome = 'missing')::int AS missing
+          count(*) FILTER (WHERE r.outcome = 'missing' AND i.archived_at IS NULL)::int AS missing
           FROM inventory_items r JOIN items i ON i.id = r.item_id
          WHERE r.inventory_id = ANY(${sql.param(ids)}::uuid[])
          GROUP BY r.inventory_id`);
@@ -355,15 +360,18 @@ export function createInventoryRepository(db: DbExecutor) {
     },
 
     /**
-     * The rows of each location of the run that a person sees: the list taken at the start without
-     * the items archived since, plus the items found or added (checked ones). Locations without
-     * any such row are left out.
+     * The numbers of each location of the run. `total` and `checked` count the list taken at the
+     * start without the items archived since, so the locations add up to the run's `expected` and
+     * `checked`; the items found or added are `extra`. Locations without any row a person sees are
+     * left out.
      */
     async locationProgress(inventoryId: string): Promise<LocationProgress[]> {
       const result = await db.execute<LocationProgress>(sql`
         SELECT r.location_id AS "locationId",
-          count(*)::int AS total,
-          count(*) FILTER (WHERE r.checked_at IS NOT NULL)::int AS checked
+          count(*) FILTER (WHERE r.kind = 'expected')::int AS total,
+          count(*) FILTER (WHERE r.kind = 'expected' AND r.checked_at IS NOT NULL)::int AS checked,
+          count(*) FILTER (WHERE r.kind <> 'expected')::int AS extra,
+          count(*) FILTER (WHERE r.outcome = 'missing')::int AS missing
           FROM inventory_items r JOIN items i ON i.id = r.item_id
          WHERE r.inventory_id = ${inventoryId}
            AND ((r.kind = 'expected' AND i.archived_at IS NULL) OR (r.kind <> 'expected' AND r.checked_at IS NOT NULL))

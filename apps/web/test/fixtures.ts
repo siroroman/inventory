@@ -136,7 +136,7 @@ export function inventoryEntry(over: Record<string, unknown> = {}) {
 /** A location of a run, with its path from the top (itself last). */
 export function inventoryLocation(over: Record<string, unknown> = {}) {
   const self = ref('LOC-004', 'Sklad');
-  return { ...self, path: [ref('LOC-001', 'Centrála Praha'), self], total: 10, checked: 0, participants: [] as unknown[], ...over };
+  return { ...self, path: [ref('LOC-001', 'Centrála Praha'), self], total: 10, checked: 0, extra: 0, missing: 0, participants: [] as unknown[], ...over };
 }
 
 /** A run as `GET /inventories/{id}` answers it. */

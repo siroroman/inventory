@@ -245,7 +245,7 @@ export function createFakeInventoryStore() {
           checked: expected.filter((r) => r.checkedAt).length,
           elsewhere: rows.filter((r) => r.kind === 'elsewhere' && r.checkedAt).length,
           new: rows.filter((r) => r.kind === 'new' && r.checkedAt).length,
-          missing: rows.filter((r) => r.outcome === 'missing').length,
+          missing: rows.filter((r) => r.outcome === 'missing' && !itemById(r.itemId).archivedAt).length,
         });
       }
       return counts;
@@ -267,11 +267,16 @@ export function createFakeInventoryStore() {
       return people;
     },
     async locationProgress(inventoryId) {
-      const byLocation = new Map<string, { total: number; checked: number }>();
+      const byLocation = new Map<string, { total: number; checked: number; extra: number; missing: number }>();
       for (const row of rowsOf(inventoryId).filter(visible)) {
-        const entry = byLocation.get(row.locationId) ?? { total: 0, checked: 0 };
-        entry.total += 1;
-        if (row.checkedAt) entry.checked += 1;
+        const entry = byLocation.get(row.locationId) ?? { total: 0, checked: 0, extra: 0, missing: 0 };
+        if (row.kind === 'expected') {
+          entry.total += 1;
+          if (row.checkedAt) entry.checked += 1;
+        } else {
+          entry.extra += 1;
+        }
+        if (row.outcome === 'missing') entry.missing += 1;
         byLocation.set(row.locationId, entry);
       }
       return [...byLocation].map(([locationId, numbers]) => ({ locationId, ...numbers }));

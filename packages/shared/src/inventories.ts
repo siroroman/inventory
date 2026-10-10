@@ -52,13 +52,21 @@ export const inventoryListSchema = pageOf(inventoryListEntrySchema);
 /** `open`: runs in progress, newest start first. `closed`: finished and cancelled ones, newest end first. */
 export const inventoryListQuery = searchPageQuery.extend({ state: z.enum(['open', 'closed']).default('open') });
 
-/** A location of the run that has rows in it: its path from the top (itself last) and its numbers. */
+/**
+ * A location of the run that has rows in it: its path from the top (itself last) and its numbers.
+ * `total` and `checked` count only the list taken at the start (the items archived since are left
+ * out), so the locations add up to the run's `counts.expected` and `counts.checked`; items found or
+ * added there are `extra`.
+ */
 export const inventoryLocationSchema = z.object({
   ...codeRef.shape,
   path: z.array(codeRef),
-  /** The rows a person sees there: the list taken at the start plus items found or added. */
   total: count,
   checked: count,
+  /** Items found or added in this location (checked ones; they are not on the list). */
+  extra: count,
+  /** List items marked missing at the finish. */
+  missing: count,
   participants: z.array(personRef),
 });
 export type InventoryLocationDto = z.infer<typeof inventoryLocationSchema>;

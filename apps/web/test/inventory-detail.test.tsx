@@ -92,6 +92,35 @@ describe('inventory run overview', () => {
     expect(within(dilna).queryByText('Hotovo')).not.toBeInTheDocument();
   });
 
+  it('shows the numbers of the list the same in the header and in the location', async () => {
+    signedIn(() =>
+      jsonResponse(
+        inventory({
+          id,
+          counts: { expected: 91, checked: 3, elsewhere: 1, new: 0, missing: 0 },
+          locations: [inventoryLocation({ name: 'Arkády Pankrác', total: 91, checked: 3, extra: 1 })],
+        }),
+      ),
+    );
+    renderApp(`/inventories/${id}`);
+
+    expect(await screen.findByText('3 / 91 zkontrolováno · 3 %')).toBeInTheDocument();
+    // The found item is a figure of its own, not part of the list's numbers.
+    expect(screen.getByText('Arkády Pankrác').closest('li')).toHaveTextContent('3 / 91 položek · 1 nová');
+  });
+
+  it('puts a location that holds only found items among the ones in progress, with no 0 / 0', async () => {
+    signedIn(() =>
+      jsonResponse(inventory({ id, locations: [inventoryLocation({ name: 'Zasedačka', total: 0, checked: 0, extra: 2 })] })),
+    );
+    renderApp(`/inventories/${id}`);
+
+    const row = (await screen.findByText('Zasedačka')).closest('li')!;
+    expect(row).toHaveTextContent('2 nové');
+    expect(row).not.toHaveTextContent('0 / 0');
+    expect(row).not.toHaveTextContent('Nikdo nezačal');
+  });
+
   it('links each location to its checklist', async () => {
     const sklad = inventoryLocation({ name: 'Sklad', total: 3, checked: 1 });
     stubApi({

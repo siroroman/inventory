@@ -537,6 +537,10 @@
       "notStarted": "Nekontrolované ({{count}})",
       "done": "Hotovo ({{count}})",
       "items": "{{checked}} / {{total}} položek",
+      "extra_one": "{{count}} nová",
+      "extra_few": "{{count}} nové",
+      "extra_many": "{{count}} nové",
+      "extra_other": "{{count}} nových",
       "nobodyStarted": "Nikdo nezačal",
       "doneBadge": "Hotovo"
     },

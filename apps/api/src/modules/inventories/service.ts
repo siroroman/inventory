@@ -44,8 +44,13 @@ export type InventoryEntry = InventoryRow & { path: PathSegment[]; counts: Inven
 /** A location of the run with the path to it (itself last) and the numbers shown on the overview. */
 export type InventoryLocationEntry = PathSegment & {
   path: PathSegment[];
+  /** The list taken at the start (without the items archived since) and how much of it is checked. */
   total: number;
   checked: number;
+  /** Items found or added there, checked. */
+  extra: number;
+  /** List items marked missing at the finish. */
+  missing: number;
   participants: Person[];
 };
 
@@ -312,14 +317,14 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     const paths = await repos.locations.findPaths([row.locationId, ...progress.map((p) => p.locationId)]);
     const entry = toEntry(row, paths, counts, participants);
     const locations = progress
-      .flatMap(({ locationId, total, checked }): InventoryLocationEntry[] => {
+      .flatMap(({ locationId, total, checked, extra, missing }): InventoryLocationEntry[] => {
         const path = paths.get(locationId);
         const self = path?.at(-1);
         if (!path || !self) return [];
         const participants = checkers
           .filter((checker) => checker.locationId === locationId)
           .map(({ id: personId, name }) => ({ id: personId, name }));
-        return [{ ...self, path, total, checked, participants }];
+        return [{ ...self, path, total, checked, extra, missing, participants }];
       })
       .sort(byPath);
     return { ...entry, activeNow, locations };

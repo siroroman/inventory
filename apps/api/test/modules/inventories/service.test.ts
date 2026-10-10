@@ -632,7 +632,7 @@ describe('inventory service', () => {
         expect(result).toMatchObject({ outcome: 'found_elsewhere', item: { path: [] }, row: { registeredPath: [] } });
         expect(store.state.rows[0]).toMatchObject({ locationId: patro.id, registeredLocationId: null });
         const detail = await service.get(actor('read'), run.id);
-        expect(detail.locations.map((l) => [l.name, l.total, l.checked])).toEqual([['Patro', 1, 1]]);
+        expect(detail.locations).toMatchObject([{ name: 'Patro', total: 0, checked: 0, extra: 1 }]);
       });
 
       it('takes an item moved into the run by an ordinary edit after the start', async () => {
@@ -845,6 +845,27 @@ describe('inventory service', () => {
       expect(detail.locations.find((l) => l.name === 'Sklad')!.participants).toEqual([users.other]);
       expect(detail.locations.find((l) => l.name === 'Čistírna')!.participants).toEqual([users.read]);
       expect(detail.locations.find((l) => l.name === 'Hala')!.participants).toEqual([]);
+    });
+
+    it('keeps the items found or added apart, so the locations add up to the run', async () => {
+      const { store, service, actor, praha } = await setup();
+      const patro = await store.itemStore.addLocation('Patro', praha.id);
+      const listed = await store.addItem(praha.id, 'Kávovar');
+      await store.addItem(patro.id, 'Lednice');
+      const stranger = await store.addItem(null, 'Pokladní systém');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      await service.check(actor('write'), run.id, listed.id);
+      await service.scan(actor('write'), run.id, { code: stranger.code });
+
+      const detail = await service.get(actor('read'), run.id);
+
+      expect(detail.counts).toMatchObject({ expected: 2, checked: 1, elsewhere: 1 });
+      expect(detail.locations).toMatchObject([
+        { name: 'Centrála Praha', total: 1, checked: 1, extra: 1 },
+        { name: 'Patro', total: 1, checked: 0, extra: 0 },
+      ]);
+      expect(detail.locations.reduce((sum, l) => sum + l.total, 0)).toBe(detail.counts.expected);
+      expect(detail.locations.reduce((sum, l) => sum + l.checked, 0)).toBe(detail.counts.checked);
     });
 
     it('leaves an item archived since the start out of the numbers', async () => {

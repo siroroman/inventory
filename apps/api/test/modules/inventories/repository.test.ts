@@ -112,6 +112,8 @@ describe('inventory repository', () => {
       await row(patro.id, { kind: 'elsewhere' }); // unticked: hidden
       await row(praha.id, { kind: 'new', ...check(b.id, 5) });
       await row(patro.id, { outcome: 'missing' });
+      const gone = await row(patro.id, { outcome: 'missing' });
+      await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, gone.itemId));
 
       const counts = (await repo().counts([inventory.id])).get(inventory.id);
       expect(counts).toEqual({ expected: 4, checked: 2, elsewhere: 1, new: 1, missing: 1 });
@@ -119,19 +121,30 @@ describe('inventory repository', () => {
       expect((await repo().counts([])).size).toBe(0);
     });
 
-    it('sums each location by the rows a person sees there', async () => {
+    it('sums each location by the list, with the items found or added there apart', async () => {
       const { inventory, praha, patro, zasedacka, a, row, check } = await run();
       await row(praha.id, check(a.id, 1));
       await row(patro.id);
       await row(patro.id, check(a.id, 2));
+      await row(patro.id, { outcome: 'missing' });
       const archived = await row(patro.id);
       await t().owner.update(items).set({ archivedAt: new Date() }).where(eq(items.id, archived.itemId));
+      await row(patro.id, { kind: 'elsewhere', ...check(a.id, 3) });
+      await row(praha.id, { kind: 'new', ...check(a.id, 4) });
       await row(zasedacka.id, { kind: 'elsewhere' }); // unticked: no row, so no location
 
-      const progress = await repo().locationProgress(inventory.id);
-      expect(progress.sort((x, y) => y.total - x.total)).toEqual([
-        { locationId: patro.id, total: 2, checked: 1 },
-        { locationId: praha.id, total: 1, checked: 1 },
+      const progress = new Map((await repo().locationProgress(inventory.id)).map((p) => [p.locationId, p]));
+      expect(progress.size).toBe(2);
+      expect(progress.get(patro.id)).toEqual({ locationId: patro.id, total: 3, checked: 1, extra: 1, missing: 1 });
+      expect(progress.get(praha.id)).toEqual({ locationId: praha.id, total: 1, checked: 1, extra: 1, missing: 0 });
+    });
+
+    it('keeps a location that holds only found items, with nothing on its list', async () => {
+      const { inventory, zasedacka, a, row, check } = await run();
+      await row(zasedacka.id, { kind: 'elsewhere', ...check(a.id, 1) });
+
+      expect(await repo().locationProgress(inventory.id)).toEqual([
+        { locationId: zasedacka.id, total: 0, checked: 0, extra: 1, missing: 0 },
       ]);
     });
 
