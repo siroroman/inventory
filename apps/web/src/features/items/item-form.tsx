@@ -71,15 +71,14 @@ export function ItemForm({ item, initialLocation, inventoryId, onReload }: Props
   } = useForm<ItemFormValues>({ resolver: zodResolver(itemFormSchema), defaultValues: defaults });
   const externalIds = useFieldArray({ control, name: 'externalIds' });
 
-  // Where a new item created for an inventory run goes back to: the checklist it came from.
-  const backToRun = inventoryId
-    ? initialLocation
-      ? ({
-          to: '/inventories/$id/locations/$locationId',
-          params: { id: inventoryId, locationId: initialLocation.id },
-        } as const)
-      : ({ to: '/inventories/$id', params: { id: inventoryId } } as const)
-    : null;
+  // Where a new item created for an inventory run goes back to: the checklist of a location, or the run.
+  const runScreen = (locationId: string | undefined) =>
+    inventoryId
+      ? locationId
+        ? ({ to: '/inventories/$id/locations/$locationId', params: { id: inventoryId, locationId } } as const)
+        : ({ to: '/inventories/$id', params: { id: inventoryId } } as const)
+      : null;
+  const backToRun = runScreen(initialLocation?.id);
 
   // Leaving with unsaved changes asks first; a saved form is not "unsaved" any more.
   const unsaved = () => isDirty && !saved.current;
@@ -112,8 +111,10 @@ export function ItemForm({ item, initialLocation, inventoryId, onReload }: Props
         const added = 'addedToInventory' in saved_ && saved_.addedToInventory;
         if (added) toast.success(t('itemForm.addedToInventory'));
         else toast.warning(t('itemForm.notAddedToInventory'));
+        // The form's location may differ from the checklist it was opened from: go where the item landed.
+        const landed = added && saved_.location ? runScreen(saved_.location.id) : backToRun;
         // The form is replaced in the history, so Back does not return to it.
-        await navigate({ ...backToRun, replace: true });
+        await navigate({ ...(landed ?? backToRun), replace: true });
         return;
       }
       toast.success(t('common.saved'));

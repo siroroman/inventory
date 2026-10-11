@@ -539,7 +539,10 @@ describe('new item for an inventory run', () => {
   }
 
   it('sends the run with the item and goes back to the checklist, replacing the form', async () => {
-    const { calls, user, router } = openForm({ ...detail({ id: crypto.randomUUID(), name: 'Nová police' }), addedToInventory: true });
+    const { calls, user, router } = openForm({
+      ...detail({ id: crypto.randomUUID(), name: 'Nová police', location: kitchen }),
+      addedToInventory: true,
+    });
 
     expect(await screen.findByLabelText('Lokalita')).toHaveTextContent('Centrála Praha › Teplá kuchyně');
     await user.type(screen.getByLabelText('Název'), 'Nová police');
@@ -556,6 +559,20 @@ describe('new item for an inventory run', () => {
     expect(router.history.location.pathname).toBe(checklist);
     router.history.back();
     await waitFor(() => expect(router.state.location.pathname).not.toBe('/items/new'));
+  });
+
+  it('goes to the checklist of the location the item landed in when the form changed it', async () => {
+    const shelf = { id: crypto.randomUUID(), code: 'LOC-020', name: 'Police' };
+    const { user, router } = openForm({
+      ...detail({ id: crypto.randomUUID(), name: 'Nová police', location: shelf }),
+      addedToInventory: true,
+    });
+
+    await screen.findByLabelText('Lokalita');
+    await user.type(screen.getByLabelText('Název'), 'Nová police');
+    await user.click(screen.getByRole('button', { name: 'Uložit' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/inventories/${runId}/locations/${shelf.id}`));
   });
 
   it('says so when the item was created but the run did not take it', async () => {
