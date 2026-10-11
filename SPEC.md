@@ -633,7 +633,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 - A summary card: the location, "118 štítků", "3 × 8 · A4", "5 listů", and the start position when it is not 1.
 - The primary button "Stáhnout PDF". The file is `stitky-<location name>-<yyyy-mm-dd>.pdf` (*Decided* 2026-10-11: the name, with spaces as hyphens and characters a file name cannot hold dropped; the ID only when nothing is left of the name).
 - Beside it, side by side at every width, "Vytisknout" (*Decided* 2026-10-11): the same PDF (made once, reused by both buttons) loaded into a hidden `blob:` frame whose print dialog is opened; on iOS, which cannot print a frame, it opens in a new tab. This needs `blob:` in the CSP `frame-src`.
-- States: generating ("Připravuje se PDF…", the button disabled with a spinner), done ("PDF je připravené." with "Stáhnout znovu"), error ("PDF se nepodařilo vytvořit." with "Zkusit znovu").
+- States: generating ("Připravuje se PDF…", the button disabled with a spinner), done (no message: the file has been saved or the print dialog opened, and "Vytvořit nové štítky" appears; the buttons stay and reuse the PDF), error ("PDF se nepodařilo vytvořit." with "Zkusit znovu").
 - The tip "Tiskněte v měřítku 100 % (bez přizpůsobení stránce)."
 - "Vytvořit nové štítky" starts over and clears the selection. "Zpět" returns to step 3 without losing anything.
 

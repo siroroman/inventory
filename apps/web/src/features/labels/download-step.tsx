@@ -99,14 +99,6 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
         </div>
         <div role="status" className="text-sm">
           {working && <p>{t('labels.download.working')}</p>}
-          {state.status === 'done' && (
-            <p className="flex flex-wrap items-center gap-x-2">
-              {t('labels.download.done')}
-              <Button variant="link" onClick={() => savePdf(state.bytes, name)}>
-                {t('labels.download.again')}
-              </Button>
-            </p>
-          )}
         </div>
         {state.status === 'error' && (
           <p role="alert" className="flex flex-wrap items-center gap-x-2 text-sm text-destructive">

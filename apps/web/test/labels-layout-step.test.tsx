@@ -198,7 +198,7 @@ describe('labels wizard: step 4, the download', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
 
-    expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
     expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
     const options = build.buildLabelsPdf.mock.calls[0]![0];
     expect(options.items).toEqual([
@@ -211,7 +211,7 @@ describe('labels wizard: step 4, the download', () => {
     expect(downloads[0]!.name).toMatch(/^stitky-Přízemí-\d{4}-\d{2}-\d{2}\.pdf$/);
     expect(screen.getByText('Tiskněte v měřítku 100 % (bez přizpůsobení stránce).')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout znovu' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
     expect(downloads).toHaveLength(2);
     expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
   });
@@ -227,7 +227,7 @@ describe('labels wizard: step 4, the download', () => {
     expect(await screen.findByText('Připravuje se PDF…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Stáhnout PDF' })).toBeDisabled();
     finish(new Uint8Array([1]));
-    expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
   });
 
   it('shows an error with a retry', async () => {
@@ -239,7 +239,7 @@ describe('labels wizard: step 4, the download', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Stáhnout PDF' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('PDF se nepodařilo vytvořit.');
     await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }));
-    expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
     expect(downloads).toHaveLength(1);
   });
 
@@ -251,7 +251,7 @@ describe('labels wizard: step 4, the download', () => {
     vi.spyOn(HTMLIFrameElement.prototype, 'contentWindow', 'get').mockReturnValue({ focus: vi.fn(), print } as never);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Vytisknout' }));
-    expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
     const frame = document.body.querySelector('iframe');
     expect(frame).toHaveAttribute('src', 'blob:labels');
     expect(print).not.toHaveBeenCalled();

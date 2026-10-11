@@ -814,8 +814,6 @@
       "button": "Stáhnout PDF",
       "print": "Vytisknout",
       "working": "Připravuje se PDF…",
-      "done": "PDF je připravené.",
-      "again": "Stáhnout znovu",
       "failed": "PDF se nepodařilo vytvořit.",
       "retry": "Zkusit znovu",
       "tip": "Tiskněte v měřítku 100 % (bez přizpůsobení stránce).",
