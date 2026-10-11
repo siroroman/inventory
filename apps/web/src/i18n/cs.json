@@ -732,6 +732,7 @@
       "nothingFound": "Nic nenalezeno",
       "nothingFoundHint": "Zkuste upravit hledaný text.",
       "noLocations": "Zatím tu nejsou žádné lokality.",
+      "truncated": "Zobrazeno prvních {{shown}} z {{total}} lokalit. Ostatní najdete vyhledáním.",
       "changeTitle": "Změnit lokalitu?",
       "changeHint": "Změnou lokality se výběr položek zahodí.",
       "changeCancel": "Zrušit",

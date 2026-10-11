@@ -39,7 +39,7 @@ export function LayoutStep({ items, layout, onChange }: Props) {
   const shownPage = Math.min(page, Math.max(0, sheets - 1));
 
   // The preview sets its text in the PDF's font once it has been fetched, then draws again.
-  const [, setFontsReady] = useState(false);
+  const [fontsReady, setFontsReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void loadPreviewFonts().then(() => !cancelled && setFontsReady(true));
@@ -109,7 +109,13 @@ export function LayoutStep({ items, layout, onChange }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <SheetPreview items={items} grid={grid} startPosition={layout.startPosition} page={shownPage} />
+          <SheetPreview
+            items={items}
+            grid={grid}
+            startPosition={layout.startPosition}
+            page={shownPage}
+            fontsReady={fontsReady}
+          />
           <div className="flex items-center justify-between gap-2">
             <Button
               variant="outline"

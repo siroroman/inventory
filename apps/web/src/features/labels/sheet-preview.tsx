@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MM_PER_PT } from './fit-text';
 import { PREVIEW_FONT } from './fonts';
 import { planLabel } from './label-plan';
 import {
@@ -14,7 +15,7 @@ import {
   slotsPerPage,
 } from './layout';
 import { previewMeasure } from './preview-measure';
-import { qrModules } from './qr';
+import { qrModules, qrPath } from './qr';
 import type { LabelRow } from './selection';
 
 type Props = {
@@ -23,44 +24,37 @@ type Props = {
   startPosition: number;
   /** From 0. */
   page: number;
+  /** Turns true once the label fonts are loaded, so the text is measured again with them. */
+  fontsReady: boolean;
 };
-
-const MM_PER_PT = 25.4 / 72;
-
-/** The dark modules of one QR code as a single path in module units. */
-function modulesPath(modules: boolean[][]): string {
-  const parts: string[] = [];
-  for (const [r, row] of modules.entries()) {
-    for (let c = 0; c < row.length; ) {
-      if (!row[c]) {
-        c++;
-        continue;
-      }
-      const start = c;
-      while (c < row.length && row[c]) c++;
-      parts.push(`M${start} ${r}h${c - start}v1h${start - c}z`);
-    }
-  }
-  return parts.join('');
-}
 
 /**
  * One whole A4 sheet as it will print: the margin, the places already used (hatched) and the
  * labels with their real QR codes and text, from the same plan the PDF is drawn from.
  */
-export function SheetPreview({ items, grid, startPosition, page }: Props) {
+export function SheetPreview({ items, grid, startPosition, page, fontsReady }: Props) {
   const { t } = useTranslation();
+  const { columns, rows } = grid;
   const size = labelSize(grid);
   const perPage = slotsPerPage(grid);
 
+  // Keyed on plain values: `grid` and `size` are new objects on every render.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `fontsReady` only invalidates the text measure
   const labels = useMemo(() => {
+    const cells = { columns, rows };
+    const labelBox = labelSize(cells);
     const onPage: { row: LabelRow; at: { row: number; column: number } }[] = [];
     items.forEach((row, index) => {
-      const place = placement(grid, startPosition, index);
+      const place = placement(cells, startPosition, index);
       if (place.page === page) onPage.push({ row, at: { row: place.row, column: place.column } });
     });
-    return onPage.map(({ row, at }) => ({ row, at, plan: planLabel(previewMeasure, row, size), modules: qrModules(row.code) }));
-  }, [items, grid, startPosition, page, size]);
+    return onPage.map(({ row, at }) => ({
+      row,
+      at,
+      plan: planLabel(previewMeasure, row, labelBox),
+      modules: qrModules(row.code),
+    }));
+  }, [items, columns, rows, startPosition, page, fontsReady]);
 
   // The places before the start position, on the first sheet only.
   const used = page === 0 ? startPosition - 1 : 0;
@@ -78,7 +72,7 @@ export function SheetPreview({ items, grid, startPosition, page }: Props) {
     >
       <defs>
         <pattern id="labels-used" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1="0" y1="0" x2="0" y2="3" stroke="#9aa0a6" strokeWidth="0.6" />
+          <line x1="0" y1="0" x2="0" y2="3" stroke="currentColor" strokeOpacity="0.4" strokeWidth="0.6" />
         </pattern>
       </defs>
       <rect
@@ -87,7 +81,8 @@ export function SheetPreview({ items, grid, startPosition, page }: Props) {
         width={PAGE_WIDTH_MM - 2 * PAGE_MARGIN_MM}
         height={PAGE_HEIGHT_MM - 2 * PAGE_MARGIN_MM}
         fill="none"
-        stroke="#c4c9d0"
+        stroke="currentColor"
+        strokeOpacity="0.25"
         strokeWidth="0.2"
         strokeDasharray="1 1"
       />
@@ -102,7 +97,8 @@ export function SheetPreview({ items, grid, startPosition, page }: Props) {
             width={size.width}
             height={size.height}
             fill="url(#labels-used)"
-            stroke="#c4c9d0"
+            stroke="currentColor"
+            strokeOpacity="0.25"
             strokeWidth="0.15"
           />
         );
@@ -112,10 +108,10 @@ export function SheetPreview({ items, grid, startPosition, page }: Props) {
         const module = plan.qr.width / (modules.length + 2 * QUIET_MODULES);
         return (
           <g key={row.id} data-label={row.code} transform={`translate(${origin.x} ${origin.y})`}>
-            <rect width={size.width} height={size.height} fill="none" stroke="#c4c9d0" strokeWidth="0.15" />
+            <rect width={size.width} height={size.height} fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="0.15" />
             {plan.qr.width > 0 && (
               <path
-                d={modulesPath(modules)}
+                d={qrPath(modules, 1)}
                 fill="currentColor"
                 transform={`translate(${plan.qr.x + QUIET_MODULES * module} ${plan.qr.y + QUIET_MODULES * module}) scale(${module})`}
               />

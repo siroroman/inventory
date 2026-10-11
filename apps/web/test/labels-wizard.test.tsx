@@ -84,6 +84,16 @@ describe('labels wizard: step 1, the location', () => {
     expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Lokalita');
   });
 
+  it('says so when the list of locations is cut off, since there is no way to page it', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      'GET /api/v1/locations': () => page([praha, brno], { nextCursor: 'more', total: 35 }),
+    });
+    renderApp('/?tab=labels');
+
+    expect(await screen.findByText('Zobrazeno prvních 2 z 35 lokalit. Ostatní najdete vyhledáním.')).toBeInTheDocument();
+  });
+
   it('searches at every level with the sub-locations below each match', async () => {
     const calls = api();
     renderApp('/?tab=labels');

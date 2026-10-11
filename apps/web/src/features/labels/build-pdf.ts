@@ -17,7 +17,7 @@ import {
   placement,
   QUIET_MODULES,
 } from './layout.ts';
-import { qrModules } from './qr.ts';
+import { qrModules, qrPath } from './qr.ts';
 
 const PT_PER_MM = 72 / 25.4;
 const BLACK = rgb(0, 0, 0);
@@ -39,24 +39,6 @@ export type LabelsPdfOptions = {
 const pt = (mm: number) => mm * PT_PER_MM;
 /** Millimetres from the top of the page as a PDF y (from the bottom, in points). */
 const pdfY = (mmFromTop: number) => pt(PAGE_HEIGHT_MM - mmFromTop);
-
-/** The dark modules of the QR code as one filled path (no hairlines between modules), in points. */
-function qrPath(modules: boolean[][], modulePt: number): string {
-  const f = (n: number) => Number(n.toFixed(3));
-  const parts: string[] = [];
-  modules.forEach((row, r) => {
-    for (let c = 0; c < row.length; ) {
-      if (!row[c]) {
-        c++;
-        continue;
-      }
-      const start = c;
-      while (c < row.length && row[c]) c++;
-      parts.push(`M${f(start * modulePt)} ${f(r * modulePt)}h${f((c - start) * modulePt)}v${f(modulePt)}h${f(-(c - start) * modulePt)}z`);
-    }
-  });
-  return parts.join('');
-}
 
 function drawLabel(
   page: PDFPage,

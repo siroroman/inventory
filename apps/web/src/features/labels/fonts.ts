@@ -36,5 +36,7 @@ export function loadPreviewFonts(): Promise<void> {
   ]).then((faces) => {
     for (const face of faces) document.fonts.add(face);
   });
-  return previewFonts.catch(() => undefined);
+  return previewFonts.catch(() => {
+    previewFonts = undefined;
+  });
 }

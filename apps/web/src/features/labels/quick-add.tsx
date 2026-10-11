@@ -66,8 +66,12 @@ export function QuickAdd({ inList, onAdd }: Props) {
     if (typed === '') return;
     setFailure(undefined);
     try {
-      // The pause before the search may not be over yet: ask for exactly what is typed.
-      const found = typed === q && query.data ? query.data : await queryClient.fetchQuery(quickAddQueryOptions(typed));
+      // The pause before the search may not be over yet, or its answer not in (the old results stay
+      // up meanwhile): ask for exactly what is typed.
+      const found =
+        typed === q && query.data && !query.isPlaceholderData
+          ? query.data
+          : await queryClient.fetchQuery(quickAddQueryOptions(typed));
       const exact = found.items.find((row) => row.code.toLowerCase() === typed.toLowerCase());
       const highlighted = typed === q && active >= 0 ? rows[active] : undefined;
       const target = exact ?? highlighted;

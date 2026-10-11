@@ -137,6 +137,11 @@ export function LocationStep({ location, needsConfirm, onChoose }: Props) {
               })}
             </ul>
           )}
+          {query.data && query.data.nextCursor !== null && (
+            <p className="text-sm text-muted-foreground">
+              {t('labels.location.truncated', { shown: query.data.items.length, total: query.data.total })}
+            </p>
+          )}
         </>
       )}
 
