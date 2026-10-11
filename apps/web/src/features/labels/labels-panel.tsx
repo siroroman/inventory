@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 import { locationLabelsQueryOptions } from './api';
+import { DownloadStep } from './download-step';
 import { ItemsStep } from './items-step';
+import { defaultLayout, type LayoutChoice, loadLayout, saveLayout } from './layout-choice';
+import { LayoutStep } from './layout-step';
 import { LocationStep } from './location-step';
 import {
   type ChosenLocation,
@@ -30,7 +34,7 @@ type Props = {
 /**
  * The Štítky section: a wizard in four steps that ends in a PDF of QR labels (SPEC §9.4.12). The
  * step and the location are in the URL; what was chosen is kept in the tab's `sessionStorage`, so
- * a reload or a trip to another section loses nothing. Steps 3 and 4 are still to come.
+ * a reload or a trip to another section loses nothing.
  */
 export function LabelsPanel({ step, locationId, onNavigate }: Props) {
   const { t } = useTranslation();
@@ -41,6 +45,8 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
     return locationId && stored.location?.id !== locationId ? emptySelection : stored;
   });
   useEffect(() => saveSelection(selection), [selection]);
+  const [layout, setLayout] = useState<LayoutChoice>(loadLayout);
+  useEffect(() => saveLayout(layout), [layout]);
 
   const location = selection.location;
   const requested = Math.min(Math.max(1, Math.trunc(step) || 1), STEP_COUNT);
@@ -57,11 +63,23 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
 
   const listed = useQuery({ ...locationLabelsQueryOptions(location?.id ?? ''), enabled: location !== null && current >= 2 });
   const rows = chosenRows(listed.data?.items ?? [], selection);
+  const loaded = listed.data !== undefined;
   const canContinue =
-    current === 1 ? location !== null : current === 2 ? listed.data !== undefined && withinLimit(rows.length) : false;
+    current === 1 ? location !== null : current === 2 ? loaded && withinLimit(rows.length) : current === 3 && loaded;
+  // Steps 3 and 4 are for a list that can be printed; if it cannot (everything unchecked on another
+  // device, items archived since), the wizard goes back to where it is fixed.
+  useEffect(() => {
+    if (current >= 3 && loaded && !withinLimit(rows.length)) navigated.current({ step: 2 }, true);
+  }, [current, loaded, rows.length]);
 
   const go = (next: number) => onNavigate({ step: next === 1 ? undefined : next });
   const choose = (next: ChosenLocation) => setSelection({ location: next, excluded: [], added: [] });
+  // "Vytvořit nové štítky": nothing chosen, the sheet is used up so it starts at its first place again.
+  const restart = () => {
+    setSelection(emptySelection);
+    setLayout({ ...layout, startPosition: defaultLayout.startPosition });
+    onNavigate({ step: undefined, locationId: undefined });
+  };
 
   return (
     <div className={desktop ? 'flex flex-col gap-5 px-8 pt-7 pb-8' : 'flex flex-col gap-5 px-4 pt-6 pb-6'}>
@@ -75,11 +93,18 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
         {current === 2 && location && (
           <ItemsStep location={location} listed={listed} selection={selection} chosen={rows.length} onChange={setSelection} />
         )}
-        {current === 3 && (
-          <p className="text-muted-foreground">{t('labels.layout.placeholder')}</p>
+        {current >= 3 && location && !loaded && !listed.isError && (
+          <div role="status" aria-label={t('states.loading')} className="flex flex-col gap-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         )}
-        {current === 4 && (
-          <p className="text-muted-foreground">{t('labels.download.placeholder')}</p>
+        {current >= 3 && location && listed.isError && (
+          <ItemsStep location={location} listed={listed} selection={selection} chosen={rows.length} onChange={setSelection} />
+        )}
+        {current === 3 && loaded && <LayoutStep items={rows} layout={layout} onChange={setLayout} />}
+        {current === 4 && location && loaded && (
+          <DownloadStep location={location} items={rows} layout={layout} onRestart={restart} />
         )}
       </div>
 

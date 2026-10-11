@@ -1,11 +1,11 @@
 import fontkit from '@pdf-lib/fontkit';
 import { PDFDocument, type PDFFont, type PDFPage, rgb } from 'pdf-lib';
-import { type Measure, fitLabelText, LINE_HEIGHT, textHeightMm } from './fit-text.ts';
+import type { Measure } from './fit-text.ts';
+import { planLabel } from './label-plan.ts';
 import {
   cellOrigin,
   type Grid,
   isValidStartPosition,
-  labelLayout,
   labelSize,
   MAX_COLUMNS,
   MAX_ROWS,
@@ -21,8 +21,6 @@ import { qrModules } from './qr.ts';
 
 const PT_PER_MM = 72 / 25.4;
 const BLACK = rgb(0, 0, 0);
-/** Where the baseline of a line sits below the top of its line box, in em (Roboto's ascent). */
-const BASELINE = 0.94;
 
 /** What a label needs of an item: the QR code holds `code` (the item's ID) and the text shows both. */
 export type LabelItem = { code: string; name: string };
@@ -69,30 +67,26 @@ function drawLabel(
   at: { row: number; column: number },
 ) {
   const origin = cellOrigin(grid, at.row, at.column);
-  const layout = labelLayout(labelSize(grid));
+  const plan = planLabel(measure, item, labelSize(grid));
 
-  if (layout.qr.width > 0) {
+  if (plan.qr.width > 0) {
     const modules = qrModules(item.code);
-    const modulePt = pt(layout.qr.width) / (modules.length + 2 * QUIET_MODULES);
+    const modulePt = pt(plan.qr.width) / (modules.length + 2 * QUIET_MODULES);
     page.drawSvgPath(qrPath(modules, modulePt), {
-      x: pt(origin.x + layout.qr.x) + QUIET_MODULES * modulePt,
-      y: pdfY(origin.y + layout.qr.y) - QUIET_MODULES * modulePt,
+      x: pt(origin.x + plan.qr.x) + QUIET_MODULES * modulePt,
+      y: pdfY(origin.y + plan.qr.y) - QUIET_MODULES * modulePt,
       color: BLACK,
       borderWidth: 0,
     });
   }
-
-  const text = fitLabelText(measure, { id: item.code, name: item.name }, layout.text);
-  // Centred in its box, but never above it.
-  let top = origin.y + layout.text.y + Math.max(0, (layout.text.height - textHeightMm(text)) / 2);
-  const x = pt(origin.x + layout.text.x);
-  const lines = [
-    ...text.idLines.map((line) => ({ line, size: text.idSize, font: fonts.bold })),
-    ...text.nameLines.map((line) => ({ line, size: text.nameSize, font: fonts.regular })),
-  ];
-  for (const { line, size, font } of lines) {
-    page.drawText(line, { x, y: pdfY(top) - BASELINE * size, size, font, color: BLACK });
-    top += (size * LINE_HEIGHT) / PT_PER_MM;
+  for (const line of plan.lines) {
+    page.drawText(line.text, {
+      x: pt(origin.x + line.x),
+      y: pdfY(origin.y + line.baseline),
+      size: line.size,
+      font: line.bold ? fonts.bold : fonts.regular,
+      color: BLACK,
+    });
   }
 }
 
