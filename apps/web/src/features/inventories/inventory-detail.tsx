@@ -5,7 +5,6 @@ import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
-import { BackButton } from '@/components/back-button';
 import { ErrorState } from '@/components/error-state';
 import { Section } from '@/components/section';
 import { ArchivedBadge } from '@/components/archived-badge';
@@ -19,6 +18,7 @@ import { formatTime, formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
 import { InventoryActions } from './inventory-actions';
+import { InventoryBreadcrumb } from './inventory-breadcrumb';
 import { InventorySummary, progressOf, runFigures } from './inventory-summary';
 import { shortName, shortNames } from './people';
 import { ScanEntry } from './scan-entry';
@@ -139,25 +139,23 @@ function LocationRow({ inventory, location, group }: { inventory: InventoryDto; 
 function InventoryBody({ inventory }: { inventory: InventoryDto }) {
   const { t } = useTranslation();
   const canWrite = useCanWrite();
-  const above = inventory.path.slice(0, -1);
   const byGroup: Record<Group, InventoryLocationDto[]> = { inProgress: [], notStarted: [], done: [] };
   for (const location of inventory.locations) byGroup[groupOf(location)].push(location);
 
   return (
     <>
-      <BackButton fallback={(content) => <Link to="/" search={{ tab: 'inventory' }}>{content}</Link>} />
-
-      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold break-words">{inventory.location.name}</h1>
-          {above.length > 0 && <p className="text-sm break-words text-muted-foreground">{pathLabel(above)}</p>}
+      {/* The buttons sit at the right end of the title's row; on a phone they wrap under the title. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <InventoryBreadcrumb inventory={inventory} path={inventory.path} />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-2xl font-semibold break-words">{inventory.location.name}</h1>
+            {inventory.status !== 'in_progress' && (
+              <Badge variant={statusBadge[inventory.status]}>{t(`inventory.status.${inventory.status}`)}</Badge>
+            )}
+            {inventory.archivedAt && <ArchivedBadge />}
+          </div>
         </div>
-        {inventory.status !== 'in_progress' && (
-          <Badge variant={statusBadge[inventory.status]} className="mt-2">
-            {t(`inventory.status.${inventory.status}`)}
-          </Badge>
-        )}
-        {inventory.archivedAt && <ArchivedBadge className="mt-2" />}
         {canWrite && <InventoryActions inventory={inventory} />}
       </div>
 

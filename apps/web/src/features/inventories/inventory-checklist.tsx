@@ -5,7 +5,6 @@ import { ChevronDown, Circle, CircleCheck, CirclePlus, Plus, SearchX } from 'luc
 import { type ReactNode, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AvatarStack } from '@/components/avatar';
-import { BackButton } from '@/components/back-button';
 import { ErrorState } from '@/components/error-state';
 import { EmptyState } from '@/components/paged-list';
 import { SearchBox } from '@/components/search-box';
@@ -14,13 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Progress, progressPercent } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCanWrite } from '@/features/auth/use-can-write';
-import { pathLabel } from '@/features/locations/path';
 import { cn } from '@/lib/utils';
 import { isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { inventoryItemsQueryOptions, inventoryQueryOptions } from './api';
 import { ChecklistRow } from './checklist-row';
 import { groupRows } from './checklist';
+import { InventoryBreadcrumb } from './inventory-breadcrumb';
 import { InventorySummary, locationFigures, progressOf } from './inventory-summary';
 import { ScanEntry } from './scan-entry';
 import { statusBadge } from './status';
@@ -130,10 +129,6 @@ function ChecklistBody({
   const toggle = (key: SectionKey) => setOpenSections((current) => ({ ...current, [key]: !current[key] }));
   const groups = useMemo(() => groupRows(rows.data?.items ?? [], q), [rows.data, q]);
 
-  // From the run's root down to the location's parent (the location itself is the heading).
-  const rootIndex = location.path.findIndex((segment) => segment.id === inventory.location.id);
-  const above = location.path.slice(Math.max(rootIndex, 0), -1);
-
   const renderRow = (row: (typeof groups.unchecked)[number]) => (
     <ChecklistRow
       key={row.id}
@@ -227,33 +222,21 @@ function ChecklistBody({
 
   return (
     <>
-      <BackButton
-        fallback={(content) => (
-          <Link to="/inventories/$id" params={{ id: inventory.id }}>
-            {content}
-          </Link>
-        )}
-      />
-
-      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold break-words">{location.name}</h1>
-          {above.length > 0 && <p className="text-sm break-words text-muted-foreground">{pathLabel(above)}</p>}
+      <div>
+        <InventoryBreadcrumb inventory={inventory} path={location.path} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h1 className="min-w-0 flex-1 text-2xl font-semibold break-words">{location.name}</h1>
+          {!inProgress && <Badge variant={statusBadge[inventory.status]}>{t(`inventory.status.${inventory.status}`)}</Badge>}
+          {canEdit && (
+            // The item form starts in this location and, once saved, adds the item to the run and returns here.
+            <Button asChild>
+              <Link to="/items/new" search={{ locationId: location.id, inventoryId: inventory.id }}>
+                <Plus aria-hidden />
+                {t('inventory.checklist.addItem')}
+              </Link>
+            </Button>
+          )}
         </div>
-        {!inProgress && (
-          <Badge variant={statusBadge[inventory.status]} className="mt-2">
-            {t(`inventory.status.${inventory.status}`)}
-          </Badge>
-        )}
-        {canEdit && (
-          // The item form starts in this location and, once saved, adds the item to the run and returns here.
-          <Button asChild>
-            <Link to="/items/new" search={{ locationId: location.id, inventoryId: inventory.id }}>
-              <Plus aria-hidden />
-              {t('inventory.checklist.addItem')}
-            </Link>
-          </Button>
-        )}
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">

@@ -517,6 +517,7 @@
   "inventory": {
     "notFoundTitle": "Inventura nenalezena",
     "notFoundHint": "Inventura neexistuje nebo byla odstraněna.",
+    "breadcrumb": "Umístění",
     "status": {
       "in_progress": "Probíhá",
       "finished": "Dokončená",
@@ -556,7 +557,6 @@
       "missing": "Chybí"
     },
     "actions": {
-      "menu": "Akce inventury",
       "finish": "Dokončit inventuru",
       "cancel": "Zrušit inventuru",
       "reopen": "Znovu otevřít inventuru",
