@@ -99,6 +99,18 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
         <h2 className={desktop ? 'text-[28px] font-semibold' : 'text-2xl font-semibold'}>{t('labels.title')}</h2>
         <StepIndicator step={current} reached={linkable} canContinue={canContinue && current < STEP_COUNT} onSelect={go} />
 
+        {/* Right under the numbers, so the next step is where the eye already is. */}
+        <div className="flex items-center justify-between gap-3">
+          <Button variant="outline" disabled={current === 1} onClick={() => go(current - 1)}>
+            {t('labels.back')}
+          </Button>
+          {current < STEP_COUNT && (
+            <Button disabled={!canContinue} onClick={() => go(current + 1)}>
+              {t('labels.next')}
+            </Button>
+          )}
+        </div>
+
         <div>
           {current === 1 && (
             <LocationStep location={location} needsConfirm={hasChoices(selection)} onChoose={choose} />
@@ -118,17 +130,6 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
           {current === 3 && loaded && <LayoutStep items={rows} layout={layout} onChange={setLayout} />}
           {current === 4 && location && loaded && (
             <DownloadStep location={location} items={rows} layout={layout} onRestart={restart} />
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t pt-4">
-          <Button variant="outline" disabled={current === 1} onClick={() => go(current - 1)}>
-            {t('labels.back')}
-          </Button>
-          {current < STEP_COUNT && (
-            <Button disabled={!canContinue} onClick={() => go(current + 1)}>
-              {t('labels.next')}
-            </Button>
           )}
         </div>
       </div>
