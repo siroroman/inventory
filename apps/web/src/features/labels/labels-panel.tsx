@@ -93,41 +93,44 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
   };
 
   return (
-    <div className={desktop ? 'flex flex-col gap-5 px-8 pt-7 pb-8' : 'flex flex-col gap-5 px-4 pt-6 pb-6'}>
-      <h2 className={desktop ? 'text-[28px] font-semibold' : 'text-2xl font-semibold'}>{t('labels.title')}</h2>
-      <StepIndicator step={current} reached={linkable} onSelect={go} />
+    <div className={desktop ? 'px-8 pt-7 pb-8' : 'px-4 pt-6 pb-6'}>
+      {/* One column, centred in the page: the wizard has no list to fill the width. */}
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+        <h2 className={desktop ? 'text-[28px] font-semibold' : 'text-2xl font-semibold'}>{t('labels.title')}</h2>
+        <StepIndicator step={current} reached={linkable} onSelect={go} />
 
-      <div className="max-w-3xl">
-        {current === 1 && (
-          <LocationStep location={location} needsConfirm={hasChoices(selection)} onChoose={choose} />
-        )}
-        {current === 2 && location && (
-          <ItemsStep location={location} listed={listed} selection={selection} chosen={rows.length} onChange={setSelection} />
-        )}
-        {current >= 3 && location && !loaded && !listed.isError && (
-          <div role="status" aria-label={t('states.loading')} className="flex flex-col gap-2">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-40 w-full" />
-          </div>
-        )}
-        {current >= 3 && location && listed.isError && (
-          <ItemsStep location={location} listed={listed} selection={selection} chosen={rows.length} onChange={setSelection} />
-        )}
-        {current === 3 && loaded && <LayoutStep items={rows} layout={layout} onChange={setLayout} />}
-        {current === 4 && location && loaded && (
-          <DownloadStep location={location} items={rows} layout={layout} onRestart={restart} />
-        )}
-      </div>
+        <div>
+          {current === 1 && (
+            <LocationStep location={location} needsConfirm={hasChoices(selection)} onChoose={choose} />
+          )}
+          {current === 2 && location && (
+            <ItemsStep location={location} listed={listed} selection={selection} chosen={rows.length} onChange={setSelection} />
+          )}
+          {current >= 3 && location && !loaded && !listed.isError && (
+            <div role="status" aria-label={t('states.loading')} className="flex flex-col gap-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-40 w-full" />
+            </div>
+          )}
+          {current >= 3 && location && listed.isError && (
+            <ItemsStep location={location} listed={listed} selection={selection} chosen={rows.length} onChange={setSelection} />
+          )}
+          {current === 3 && loaded && <LayoutStep items={rows} layout={layout} onChange={setLayout} />}
+          {current === 4 && location && loaded && (
+            <DownloadStep location={location} items={rows} layout={layout} onRestart={restart} />
+          )}
+        </div>
 
-      <div className="flex max-w-3xl items-center justify-between gap-3 border-t pt-4">
-        <Button variant="outline" disabled={current === 1} onClick={() => go(current - 1)}>
-          {t('labels.back')}
-        </Button>
-        {current < STEP_COUNT && (
-          <Button disabled={!canContinue} onClick={() => go(current + 1)}>
-            {t('labels.next')}
+        <div className="flex items-center justify-between gap-3 border-t pt-4">
+          <Button variant="outline" disabled={current === 1} onClick={() => go(current - 1)}>
+            {t('labels.back')}
           </Button>
-        )}
+          {current < STEP_COUNT && (
+            <Button disabled={!canContinue} onClick={() => go(current + 1)}>
+              {t('labels.next')}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
