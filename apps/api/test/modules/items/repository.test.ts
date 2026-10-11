@@ -114,21 +114,23 @@ describe('item repository', () => {
     expect(await repo().count({})).toBe(4);
   });
 
-  it('lists items for labels by the names of their path in Czech order, then by name, without a location last', async () => {
-    const { praha, prizemi, kuchyne, brno, add } = await setup();
-    const cesky = await insertLocation(t().app, { name: 'Čerpací stanice' });
-    await add('Ž stůl', brno.id);
-    await add('Čistič', kuchyne.id);
-    await add('Aaa', kuchyne.id);
-    await add('Váha', praha.id);
-    await add('Pec', prizemi.id);
-    await add('Čerpadlo', cesky.id);
-    await repo().insert({ name: 'Bez místa', locationId: null, createdBy: (await insertUser(t().app)).id });
+  it('lists items for labels by ID, with the numbers in it compared by value', async () => {
+    const { kuchyne, brno, add } = await setup();
+    const codes = ['INV-73-2023016', 'INV-9-100', 'INV-9-20', 'INV-00042', 'INV-10-5', 'INV-00007'];
+    for (const [i, code] of codes.entries()) await add(`Položka ${i}`, i % 2 ? kuchyne.id : brno.id, { code });
+    await repo().insert({ name: 'Bez místa', locationId: null, code: 'INV-00001', createdBy: (await insertUser(t().app)).id });
 
     const rows = await repo().listForLabels({}, 1000);
-    // Centrála Praha < … › Přízemí výroba < … › Kuchyně (a prefix sorts first), then Čerpací (after C, before P), Prodejna Brno.
-    expect(rows.map((r) => r.name)).toEqual(['Váha', 'Pec', 'Aaa', 'Čistič', 'Čerpadlo', 'Ž stůl', 'Bez místa']);
-    expect(rows[0]).toEqual({ id: expect.any(String), code: expect.stringMatching(/^INV-/), name: 'Váha', locationId: praha.id });
+    expect(rows.map((r) => r.code)).toEqual([
+      'INV-00001',
+      'INV-00007',
+      'INV-9-20',
+      'INV-9-100',
+      'INV-10-5',
+      'INV-00042',
+      'INV-73-2023016',
+    ]);
+    expect(rows[0]).toEqual({ id: expect.any(String), code: 'INV-00001', name: 'Bez místa', locationId: null });
   });
 
   it('limits the label list, narrows it by subtree and search, and leaves archived items out', async () => {

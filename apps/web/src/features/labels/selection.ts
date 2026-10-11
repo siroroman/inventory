@@ -15,17 +15,20 @@ export type Selection = { location: ChosenLocation | null; excluded: string[]; a
 
 export const emptySelection: Selection = { location: null, excluded: [], added: [] };
 
-/** The items that will get a label, in list order: the location's, then the ones added by hand. */
+// Numbers inside an ID compare by value, like the list from the API: INV-9-100 before INV-73-2023016.
+const byCode = new Intl.Collator('cs', { numeric: true });
+
+/** The items that will get a label, ordered by ID: the location's and the ones added by hand together. */
 export function chosenRows(listed: LabelRow[], selection: Selection): LabelRow[] {
   const excluded = new Set(selection.excluded);
   const seen = new Set<string>();
-  return [...listed.filter((row) => !excluded.has(row.id)), ...selection.added.filter((row) => row.checked)].filter(
-    (row) => {
+  return [...listed.filter((row) => !excluded.has(row.id)), ...selection.added.filter((row) => row.checked)]
+    .filter((row) => {
       if (seen.has(row.id)) return false;
       seen.add(row.id);
       return true;
-    },
-  );
+    })
+    .sort((a, b) => byCode.compare(a.code, b.code) || (a.id < b.id ? -1 : 1));
 }
 
 export const withinLimit = (count: number) => count >= 1 && count <= MAX_LABELS;

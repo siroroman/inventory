@@ -329,7 +329,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
 | `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |
 | `GET /items?missing=true` | only the items marked Nezvěstná; combinable with `q` and `archived`; item responses carry `missingSince` | Read |
-| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by path then name; for the label wizard (§9.4.12) | Read |
+| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by ID (the numbers in it compared by value: INV-9-100 before INV-73-2023016); for the label wizard (§9.4.12) | Read |
 | `GET /items/by-code/{code}` | the item with this ID (case ignored, archived too) or 404; for the quick scan | Read |
 | `POST /items/{id}/mark-found` | clear Nezvěstná, with `version` | Write |
 | `POST /items` with `inventoryId` | also adds the new item to that run as Nové (§9.3 rule 9) | Write |
@@ -644,7 +644,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 **API** (new; no write endpoint, no table, no migration)
 
-- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path }], total }` of **active** items, ordered by path, then name in Czech collation.
+- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path }], total }` of **active** items, ordered by `code` with the numbers in it compared by value (INV-9-100 before INV-73-2023016). The wizard sorts the chosen rows the same way, so items added by hand fall in place, and the labels are printed in that order.
 - `locationId` takes the whole subtree (the recursive query of `GET /locations/{id}/items`). `q` uses the item search; the quick add calls it without `locationId` and with `limit=20`. `limit` defaults to 1 000 and is at most 1 000; `total` counts everything that matches. The response is not paged.
 - `path` is the item's location path from the top ("" = no location). A malformed `locationId` is 400 (`validation_error`); an unknown one is `not_found`, as for `GET /locations/{id}/items`.
 - The Zod schema is in `@inventory/shared`; the route goes through `defineRoute({ minRole: 'read' })`.

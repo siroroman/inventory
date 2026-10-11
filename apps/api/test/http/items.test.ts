@@ -185,7 +185,7 @@ describe('GET /items', () => {
 });
 
 describe('GET /items/labels', () => {
-  it('lists the items below a location with their path, ordered by path then name', async () => {
+  it('lists the items below a location with their path, ordered by ID', async () => {
     const { read } = await setup();
     const praha = await insertLocation(db().app, { name: 'Praha' });
     const kuchyne = await insertLocation(db().app, { name: 'Kuchyně', parentId: praha.id });
@@ -198,9 +198,9 @@ describe('GET /items/labels', () => {
     const body = await expectJson(await read.get(`/items/labels?locationId=${praha.id}`), 200, itemLabelsSchema);
     expect(body.total).toBe(3);
     expect(body.items).toEqual([
-      { id: stul.id, code: stul.code, name: 'Stůl', path: 'Praha' },
-      { id: expect.any(String), code: expect.any(String), name: 'Čistička', path: 'Praha › Kuchyně' },
       { id: vaha.id, code: vaha.code, name: 'Váha', path: 'Praha › Kuchyně' },
+      { id: expect.any(String), code: expect.any(String), name: 'Čistička', path: 'Praha › Kuchyně' },
+      { id: stul.id, code: stul.code, name: 'Stůl', path: 'Praha' },
     ]);
   });
 

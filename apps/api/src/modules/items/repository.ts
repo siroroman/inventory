@@ -4,7 +4,7 @@ import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
 import { containsText } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
-import { locationsMatching, pathNamesOf, subtreeOf } from '../locations/repository.ts';
+import { locationsMatching, subtreeOf } from '../locations/repository.ts';
 
 export type Item = typeof items.$inferSelect;
 export type ExternalId = typeof itemExternalIds.$inferSelect;
@@ -110,15 +110,15 @@ export function createItemRepository(db: DbExecutor) {
     },
 
     /**
-     * At most `limit` active items for the label wizard, ordered by the names of their location path
-     * (Czech collation, items without a location last), then by name. `count` gives the total.
+     * At most `limit` active items for the label wizard, ordered by ID with the numbers in it
+     * compared by value (INV-9-100 before INV-73-2023016). `count` gives the total.
      */
     async listForLabels(filter: Pick<ItemFilter, 'q' | 'locationId'>, limit: number): Promise<ItemLabelRow[]> {
       return db
         .select({ id: items.id, code: items.code, name: items.name, locationId: items.locationId })
         .from(items)
         .where(and(...listWhere(db, filter)))
-        .orderBy(asc(pathNamesOf(items.locationId)), asc(items.name), asc(items.id))
+        .orderBy(sql`${items.code} COLLATE cs_cz_numeric`, asc(items.id))
         .limit(limit);
     },
 

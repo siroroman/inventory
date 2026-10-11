@@ -361,7 +361,7 @@ describe('item service', () => {
   });
 
   describe('listLabels', () => {
-    it('lists the items of a location subtree by path then name, with the path of each', async () => {
+    it('lists the items of a location subtree by ID, with the path of each', async () => {
       const { service, praha, kuchyne, sklad, create } = await setup();
       await create('Váha');
       await create('Čistička');
@@ -369,24 +369,24 @@ describe('item service', () => {
       await create('Regál', { locationId: sklad.id });
 
       const result = await service.listLabels(reader, { locationId: praha.id }, 1000);
-      // Centrála Praha first, then Centrála Praha › Kuchyně; Sklad Brno is outside.
-      expect(result.items.map((i) => i.name)).toEqual(['Stůl', 'Čistička', 'Váha']);
+      // In the order they were numbered; Sklad Brno is outside.
+      expect(result.items.map((i) => i.name)).toEqual(['Váha', 'Čistička', 'Stůl']);
       expect(result.total).toBe(3);
-      expect(result.items[0]?.path.map((s) => s.name)).toEqual(['Centrála Praha']);
-      expect(result.items[1]?.path.map((s) => s.id)).toEqual([praha.id, kuchyne.id]);
+      expect(result.items[0]?.path.map((s) => s.id)).toEqual([praha.id, kuchyne.id]);
+      expect(result.items[2]?.path.map((s) => s.name)).toEqual(['Centrála Praha']);
       expect(result.items[0]).toMatchObject({ code: expect.stringMatching(/^INV-/) });
       expect(result.items[0]).not.toHaveProperty('locationId');
     });
 
-    it('lists every active item without a location filter, those without a location last with an empty path', async () => {
+    it('lists every active item without a location filter, those without a location with an empty path', async () => {
       const { service, sklad, create } = await setup();
       await create('Regál', { locationId: sklad.id });
       await create('Bez místa', { locationId: null });
       await create('Konvektomat');
 
       const result = await service.listLabels(reader, {}, 1000);
-      expect(result.items.map((i) => i.name)).toEqual(['Konvektomat', 'Regál', 'Bez místa']);
-      expect(result.items.at(-1)?.path).toEqual([]);
+      expect(result.items.map((i) => i.name)).toEqual(['Regál', 'Bez místa', 'Konvektomat']);
+      expect(result.items[1]?.path).toEqual([]);
     });
 
     it('narrows by the search, caps the answer at the limit and still counts everything that matched', async () => {
