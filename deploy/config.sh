@@ -29,8 +29,8 @@ SECRET_DATABASE_URL=database-url
 SECRET_MIGRATION_URL=migration-database-url
 SECRET_AUTH=better-auth-secret
 
-# Local port of the Cloud SQL Auth Proxy (5432 is the local dev database).
-PROXY_PORT=5433
+# Local port of the Cloud SQL Auth Proxy (5432 is the local dev database); PROXY_PORT=... overrides it.
+PROXY_PORT="${PROXY_PORT:-5433}"
 
 # GitHub Actions deploys (setup-github.sh, .github/workflows/deploy.yml).
 GITHUB_REPO=siroroman/inventory

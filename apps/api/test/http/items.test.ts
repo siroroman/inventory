@@ -55,7 +55,7 @@ describe('GET /items', () => {
       location: { id: kuchyne.id, name: 'Kuchyně' },
       path: [{ name: 'Praha' }, { name: 'Kuchyně' }],
     });
-    expect(body.items[1]?.code).toMatch(/^INV-\d{5}$/);
+    expect(body.items[1]?.code).toMatch(/^INV-\d{4}$/);
   });
 
   it('searches name, code, serial number, model and manufacturer, ignoring case and diacritics', async () => {
@@ -349,7 +349,7 @@ describe('POST /items', () => {
       externalIds: [],
       version: 1,
     });
-    expect(body.code).toMatch(/^INV-\d{5}$/);
+    expect(body.code).toMatch(/^INV-\d{4}$/);
   });
 
   describe('for an inventory run', () => {
@@ -439,7 +439,7 @@ describe('POST /items', () => {
     const body = await expectJson(await write.post('/items', { name: 'Váha', locationId: loc.id, code: ' vaha-1.a ' }), 201, itemSchema);
     expect(body.code).toBe('VAHA-1.A');
     const next = await expectJson(await write.post('/items', { name: 'Další', locationId: loc.id }), 201, itemSchema);
-    expect(next.code).toMatch(/^INV-\d{5}$/);
+    expect(next.code).toMatch(/^INV-\d{4}$/);
   });
 
   it('answers 409 when the chosen ID is taken, whatever its case', async () => {

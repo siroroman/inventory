@@ -2,7 +2,7 @@
 // CSV, the items of each centre from the items CSV. The files hold real company data and are never
 // committed; `deploy/import.sh` runs this against Cloud SQL.
 
-import { createItemBody } from '@inventory/shared';
+import { createItemBody, humanCode } from '@inventory/shared';
 import { hashPassword } from 'better-auth/crypto';
 import { createItemRepository, type ExternalIdInput } from '../../modules/items/repository.ts';
 import {
@@ -11,6 +11,7 @@ import {
 } from '../../modules/locations/repository.ts';
 import { createManufacturerRepository } from '../../modules/manufacturers/repository.ts';
 import type { Db } from '../client.ts';
+import { ACCOUNTING_SOURCE, accountingId } from '../accounting.ts';
 import { insertSeedUsers, isEmpty } from '../seed/seed.ts';
 import { csvRecords } from './csv.ts';
 
@@ -66,11 +67,7 @@ const ITEM_COLUMNS = [
 export const REVISION_SOURCE = 'Revize ILKO';
 /** A centre's ID: the centre number behind a prefix, LOC-73. */
 export const locationCode = (centre: string) => `LOC-${centre}`;
-/**
- * An item's ID from its accounting inventory number: INV-73-2023016. Accounting restarts its numbers
- * in every centre, so the centre belongs in the ID; the number alone would repeat.
- */
-export const itemCode = (centre: string, inventoryNumber: string) => `INV-${centre}-${inventoryNumber}`;
+export { ACCOUNTING_SOURCE, accountingId };
 
 const orNull = (text: string) => text.trim() || null;
 
@@ -154,9 +151,12 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
       }
 
       const inventoryNumber = row.inv_number.trim();
+      if (inventoryNumber) {
+        const id = accountingId(row.location_id.trim(), inventoryNumber);
+        if (!humanCode.safeParse(id).success) throw problem(`inventory number ${id}: only A-Z, 0-9, . _ - are allowed`);
+        ids.unshift({ source: ACCOUNTING_SOURCE, value: id });
+      }
       const parsed = createItemBody.safeParse({
-        // Without an inventory number the database assigns the next INV-nnnnn.
-        ...(inventoryNumber && { code: itemCode(row.location_id.trim(), inventoryNumber) }),
         name: row.name,
         model: orNull(row.model),
         serialNumber: orNull(row.serial_number),

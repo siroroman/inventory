@@ -70,7 +70,7 @@ describe('item service', () => {
         ],
       });
 
-      expect(item).toMatchObject({ code: 'INV-00001', locationId: kuchyne.id, createdBy: writer.id, version: 1 });
+      expect(item).toMatchObject({ code: 'INV-0001', locationId: kuchyne.id, createdBy: writer.id, version: 1 });
       expect(store.state.externalIds.map((e) => [e.source, e.value])).toEqual([
         ['Elektrikář', 'EL-4821'],
         ['Servis', 'A-1'],
@@ -82,7 +82,7 @@ describe('item service', () => {
           entityId: item.id,
           action: 'create',
           changes: {
-            code: { from: null, to: 'INV-00001' },
+            code: { from: null, to: 'INV-0001' },
             name: { from: null, to: 'Konvektomat' },
             locationId: { from: null, to: kuchyne.id },
             manufacturerId: { from: null, to: rational.id },

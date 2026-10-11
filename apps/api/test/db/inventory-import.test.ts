@@ -1,6 +1,6 @@
-import { asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { ImportRefusedError, importInventory } from '../../src/db/import/inventory.ts';
+import { ACCOUNTING_SOURCE, ImportRefusedError, importInventory } from '../../src/db/import/inventory.ts';
 import { itemExternalIds, items, locations, locationTypes, manufacturers, user } from '../../src/db/schema/index.ts';
 import { createItemRepository } from '../../src/modules/items/repository.ts';
 import { useTestDb } from '../helpers/db.ts';
@@ -54,7 +54,7 @@ describe('inventory import', () => {
       locations: 3,
       manufacturers: 1,
       items: 3,
-      externalIds: 2,
+      externalIds: 4,
       skippedRevisionIds: 1,
     });
   });
@@ -86,18 +86,26 @@ describe('inventory import', () => {
     expect(await t().app.select({ name: manufacturers.name }).from(manufacturers)).toEqual([{ name: 'Liebherr' }]);
   });
 
-  it('takes the ID of an item from its inventory number and centre, and generates one without', async () => {
+  it('numbers every item INV-0001... and keeps the accounting number as the external ID Účetnictví', async () => {
     await importInventory(t().app, options);
-    const codes = Object.fromEntries((await t().app.select({ name: items.name, code: items.code }).from(items)).map((r) => [r.name, r.code]));
+    const rows = await t()
+      .app.select({ name: items.name, code: items.code, accounting: itemExternalIds.value })
+      .from(items)
+      .leftJoin(
+        itemExternalIds,
+        and(eq(itemExternalIds.itemId, items.id), eq(itemExternalIds.source, ACCOUNTING_SOURCE)),
+      );
+    const byName = Object.fromEntries(rows.map((r) => [r.name, r]));
+    for (const row of rows) expect(row.code).toMatch(/^INV-\d{4}$/);
     // The same number in two centres gives two different IDs.
-    expect(codes['Lednice, 2 ks']).toBe('INV-50-2024003');
-    expect(codes.Tiskárna).toBe('INV-620-2024003');
-    expect(codes.Lednice).toMatch(/^INV-\d{5}$/);
-    const found = await createItemRepository(t().app).list({ q: 'inv-50-2024003' }, { limit: 50 });
+    expect(byName['Lednice, 2 ks']?.accounting).toBe('50-2024003');
+    expect(byName.Tiskárna?.accounting).toBe('620-2024003');
+    expect(byName.Lednice?.accounting).toBeNull();
+    const found = await createItemRepository(t().app).list({ q: '50-2024003' }, { limit: 50 });
     expect(found.items.map((i) => i.name)).toEqual(['Lednice, 2 ks']);
   });
 
-  it('keeps a repeated revision ID on the first item only', async () => {
+  it('keeps a repeated revision ID on the first item only, next to the accounting numbers', async () => {
     await importInventory(t().app, options);
     const ids = await t()
       .app.select({ item: items.name, source: itemExternalIds.source, value: itemExternalIds.value })
@@ -107,6 +115,8 @@ describe('inventory import', () => {
     expect(ids).toEqual([
       { item: 'Lednice, 2 ks', source: 'Revize ILKO', value: 'S 172' },
       { item: 'Lednice, 2 ks', source: 'Revize ILKO', value: 'S 176' },
+      { item: 'Lednice, 2 ks', source: 'Účetnictví', value: '50-2024003' },
+      { item: 'Tiskárna', source: 'Účetnictví', value: '620-2024003' },
     ]);
     const found = await createItemRepository(t().app).list({ q: 's 172' }, { limit: 50 });
     expect(found.items.map((i) => i.name)).toEqual(['Lednice, 2 ks']);
@@ -142,7 +152,7 @@ describe('inventory import', () => {
     await expect(importInventory(t().app, { ...options, itemsCsv: bad[0]! })).rejects.toThrow('record 1 (Nikde): unknown location 99');
     await expect(importInventory(t().app, { ...options, itemsCsv: bad[1]! })).rejects.toThrow('manufactureYear');
     await expect(importInventory(t().app, { ...options, itemsCsv: bad[2]! })).rejects.toThrow('purchasePrice');
-    await expect(importInventory(t().app, { ...options, itemsCsv: bad[3]! })).rejects.toThrow('record 1 (Lomítko): code');
+    await expect(importInventory(t().app, { ...options, itemsCsv: bad[3]! })).rejects.toThrow('record 1 (Lomítko): inventory number 50-12/3');
     await expect(
       importInventory(t().app, { ...options, locationsCsv: csv(LOCATION_HEADER, [{ id: '1', name: 'X', type: 'MOON' }]) }),
     ).rejects.toThrow('unknown location type "MOON"');

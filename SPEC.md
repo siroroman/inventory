@@ -107,7 +107,7 @@ From the user menu (avatar with initials, top right) you can also reach: Users (
 
 | Group | Field | Behavior |
 | --- | --- | --- |
-| Basic info | ID | e.g. INV-00042; later the content of the QR label |
+| Basic info | ID | e.g. INV-0042; later the content of the QR label |
 | Basic info | External IDs | 0..N entries shaped "Supplier: ID", e.g. "Electrician: EL-4821" |
 | Basic info | Name | required |
 | Basic info | Location | full path, every level is a link |
@@ -165,7 +165,7 @@ Item (link), Date, Title, Service performed by, Responsible person, Description 
 
 ## 4. Data model
 
-Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, never changes), and locations, items and providers also have a human `code` per the UI design: LOC-004, INV-00042, SUP-001. The code is unique and will later be the content of a QR label.
+Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, never changes), and locations, items and providers also have a human `code` per the UI design: LOC-004, INV-0042, SUP-001. The code is unique and will later be the content of a QR label.
 
 | Table | Key columns | Relationships & rules |
 | --- | --- | --- |
@@ -329,7 +329,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
 | `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |
 | `GET /items?missing=true` | only the items marked Nezvěstná; combinable with `q` and `archived`; item responses carry `missingSince` | Read |
-| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by ID (the numbers in it compared by value: INV-9-100 before INV-73-2023016); for the label wizard (§9.4.12) | Read |
+| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by ID (the numbers in it compared by value: INV-9 before INV-10); for the label wizard (§9.4.12) | Read |
 | `GET /items/by-code/{code}` | the item with this ID (case ignored, archived too) or 404; for the quick scan | Read |
 | `POST /items/{id}/mark-found` | clear Nezvěstná, with `version` | Write |
 | `POST /items` with `inventoryId` | also adds the new item to that run as Nové (§9.3 rule 9) | Write |
@@ -605,7 +605,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
   - The field sits above the list with its results directly below it (live search, 300 ms debounce, diacritics ignored). The result list is a listbox: ↑ ↓ and Enter work.
   - Items already in the list show "V seznamu" and cannot be added twice.
   - **One tap (or Enter on the highlighted row) adds the item and selects it.** The row shows "Přidáno ✓" for a moment, the field keeps focus and its text stays selected, so the next query replaces it without an extra tap, and the results stay open. It is built for adding 10–20 items in a row on a phone with the keyboard open: the results and the sticky bar stay usable.
-  - Typing an ID that matches exactly and pressing Enter adds that item at once, with a one-line confirmation "Přidáno: Notebook Dell (INV-00042)" read out through a live region.
+  - Typing an ID that matches exactly and pressing Enter adds that item at once, with a one-line confirmation "Přidáno: Notebook Dell (INV-0042)" read out through a live region.
   - Added items sit at the top of the list in the group "Přidané ručně (3)" with a badge "Přidáno", checked; they can be unchecked or removed (×).
 - *Proposed*: at most 1 000 labels per PDF. Above that the summary reads "Vybráno 1 000 z 1 240 – nejvýše 1 000 štítků" and "Pokračovat" is disabled; it is enabled only with 1 to 1 000 chosen.
 - States: loading skeleton, an empty location (it explains the quick add), "Nic nenalezeno" for the quick add, error with retry, 0 chosen ("Pokračovat" disabled).
@@ -623,8 +623,8 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 **Label** (black on white only)
 
-- *Decided*: the QR code holds only the item's ID (`INV-73-2023016`), not a URL, with error correction level Q. It sits on the left; its side is the label's height minus a 3 mm inner margin on each side, and the quiet zone is at least 4 modules.
-- To its right the ID in bold on one line, at 11 pt shrinking to 8 pt (`INV-73-2023016` fits at full size); under it the item's name in up to 2 lines with an ellipsis. No text below 8 pt.
+- *Decided*: the QR code holds only the item's ID (`INV-0042`), not a URL, with error correction level Q. It sits on the left; its side is the label's height minus a 3 mm inner margin on each side, and the quiet zone is at least 4 modules.
+- To its right the ID in bold on one line, at 11 pt shrinking to 8 pt (`INV-0042` fits at full size); under it the item's name in up to 2 lines with an ellipsis. No text below 8 pt.
 - When the label is portrait-ish (width < 1.3 × height) the QR is on top and the text below it.
 - Nothing else on the label: no logo, no other fields, no copies per item.
 
@@ -645,7 +645,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 **API** (new; no write endpoint, no table, no migration)
 
-- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path }], total }` of **active** items, ordered by `code` with the numbers in it compared by value (INV-9-100 before INV-73-2023016). The wizard sorts the chosen rows the same way, so items added by hand fall in place, and the labels are printed in that order.
+- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path }], total }` of **active** items, ordered by `code` with the numbers in it compared by value (INV-9 before INV-10). The wizard sorts the chosen rows the same way, so items added by hand fall in place, and the labels are printed in that order.
 - `locationId` takes the whole subtree (the recursive query of `GET /locations/{id}/items`). `q` uses the item search; the quick add calls it without `locationId` and with `limit=20`. `limit` defaults to 1 000 and is at most 1 000; `total` counts everything that matches. The response is not paged.
 - `path` is the item's location path from the top ("" = no location). A malformed `locationId` is 400 (`validation_error`); an unknown one is `not_found`, as for `GET /locations/{id}/items`.
 - The Zod schema is in `@inventory/shared`; the route goes through `defineRoute({ minRole: 'read' })`.
@@ -744,7 +744,7 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 - **Progress** (*Decided* 2026-10-10, replacing "expected rows only"): the bar, its "Zkontrolováno 66 % položek (84/128)", the checklist's box and the scanner's counter are `checked + new + missing` over `checked + unchecked + new + missing`, where `unchecked` is the `expected` rows of items not archived that are neither checked nor flagged. It never passes 100 % and reads 100 % exactly when nothing is left unchecked. The API's `counts` are unchanged (`expected`, `checked`, `elsewhere`, `new`, `missing`); the SPA adds them up (`progressOf` in `inventory-summary.tsx`). A location row's "24 / 32 položek" stays the list only.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
 - **Step 8, labels** (2026-10-11): sub-steps 1–5 are built (the endpoint, the Štítky tab with the hamburger menu, the PDF builder, the four wizard steps); the test print of sub-step 6 is not. Where it differs from or adds to §9.4.12 and §9.7:
-  - **Label text on narrow labels:** the ID shrinks from 11 pt to 8 pt on one line; if it still does not fit it breaks after its hyphens ("INV-73-" / "2023016"), never cut or abbreviated. A word of the name wider than the line is cut with an ellipsis, not split. The name takes the lines that are left (none when there is no room). The name is 9 pt, or 8 pt when the ID had to shrink under 10 pt.
+  - **Label text on narrow labels:** the ID shrinks from 11 pt to 8 pt on one line; if it still does not fit it breaks after its hyphens ("HALA-A-" / "2023016"), as a long code chosen by a user would, never cut or abbreviated. A word of the name wider than the line is cut with an ellipsis, not split. The name takes the lines that are left (none when there is no room). The name is 9 pt, or 8 pt when the ID had to shrink under 10 pt.
   - **One plan, two renderings:** the PDF and the preview of step 3 draw the same plan of each label (`planLabel`). The preview is an SVG of the whole page set in the same Roboto files (loaded as a `FontFace`), so its line breaks match the PDF's; the PDF measures with the embedded font itself.
   - **Fonts and size:** Roboto Regular and Bold (SIL OFL, about 160 KB each, subset into the PDF, which is about 25 KB for a sheet). The chunk with `pdf-lib` and the QR library is about 1.1 MB (500 KB gzip) and loads only when "Stáhnout PDF" is pressed; the CSP is unchanged (the fonts come from the app's own origin and the PDF is a `blob:` download).
   - **More than 1 000 items:** step 2 loads the first 1 000 (`GET /items/labels` caps at 1 000), says so, and counts "z N" with the real total; the rest are reached by choosing a sub-location or by the quick add.
@@ -815,7 +815,7 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 1. **Login:** Does the company use Google Workspace, and does every user have a company Google account? If so, Google sign-in restricted to the domain is enough, and passwords plus password-reset emails become unnecessary.
 2. **Username:** Is it fine for the login name to be the email address?
 3. **Permissions:** May the Write role manage manufacturers, providers, and service order, and archive records — or only Admin?
-4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-00001, SUP-001)? Can an ID change later?
+4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-0001, SUP-001)? Can an ID change later? *Decided (2026-10)*: items are numbered INV-0001, INV-0002... with no centre or accounting number in the code; the accounting number is the external ID `Účetnictví` (`<centre>-<number>`).
 5. **Starting data:** Is there an existing spreadsheet to import? Roughly how many locations, sub-locations, and items?
 6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? ~~What should happen when archiving a location that still has sub-locations or items?~~ *Decided:* allowed, with a warning (see §4).
 7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.

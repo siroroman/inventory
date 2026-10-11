@@ -34,7 +34,7 @@ describe('item service with the database', () => {
     const history = await repos.audit.list({ entityType: 'item', entityId: item.id }, { limit: 10 });
     expect(history.items.map((e) => e.action)).toEqual(['restore', 'archive', 'update', 'create']);
     expect(await service.get(actor, item.id)).toMatchObject({
-      code: 'INV-00001',
+      code: 'INV-0001',
       version: 4,
       manufacturer: { name: 'Rational' },
       externalIds: [expect.objectContaining({ source: 'Servis', value: 'S-1' })],

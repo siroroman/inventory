@@ -183,6 +183,13 @@
       "when": 1791737788929,
       "tag": "0025_natural_sort_collation",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791747853041,
+      "tag": "0026_item_code_width",
+      "breakpoints": true
     }
   ]
 }

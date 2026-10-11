@@ -78,11 +78,30 @@ deploy/import.sh <locations.csv> <items.csv>   # asks for the users' password
 ```
 
 Each centre becomes a top-level location whose ID is its centre number behind a prefix (`LOC-50`,
-`LOC-620`). An item with an accounting inventory number gets the ID `INV-<centre>-<number>`
-(`INV-73-2023016`; the numbers repeat across centres); the others get the next `INV-nnnnn`. The
-electrician's IDs become the external ID `Revize ILKO`; the other columns of the files go into the
-item's note. Any bad row
-stops the import and nothing is written.
+`LOC-620`). Items are numbered by the database, `INV-0001`, `INV-0002`...; the accounting inventory
+number becomes the external ID `Účetnictví` (`<centre>-<number>`, e.g. `73-2023016`, the numbers
+repeat across centres) and the electrician's IDs the external ID `Revize ILKO`; the other columns of
+the files go into the item's note. Any bad row stops the import and nothing is written.
+
+## Updating from the accounting workbook
+
+The accounting workbook (DLHM and small assets, one sheet per cost centre) is exported to a CSV
+(`sheet,table,centre,inv_number,registered_on,name,price,price_increased`) and read together with a
+decisions file (`asOf`, `newLocations`, `merge`, `skip`; see `apps/api/src/db/update/plan.ts`).
+Both hold company data and stay out of git. The first run also renumbered every item, which is why
+it refuses a database where an item already has the external ID `Původní kód`.
+
+```
+gcloud sql backups create --instance=inventory-db        # the safety net
+deploy/update.sh <accounting.csv> <decisions.json> <out-dir>                     # dry run
+deploy/update.sh <accounting.csv> <decisions.json> <out-dir> --apply <fingerprint>
+```
+
+The dry run writes nothing (read-only transaction) and puts `mapping.csv` (old → new code),
+`changes.csv`, `new-items.csv`, `review.csv` (new rows that look like an existing item) and
+`left-alone.csv` into the directory, and prints the fingerprint of the plan. `--apply` needs that
+fingerprint, so only the reviewed plan is written; it takes the migration owner's connection (it sets
+the code sequence), locks the items table and runs in one transaction with audit entries.
 
 ### Starting over
 

@@ -51,7 +51,7 @@ export type ItemListEntry = ItemListRow & { path: PathSegment[] };
 export type ItemLabel = Omit<ItemLabelRow, 'locationId'> & { path: PathSegment[] };
 
 export type CreateItemInput = {
-  /** Chosen by the user; the database assigns the next INV-nnnnn when missing. */
+  /** Chosen by the user; the database assigns the next INV-nnnn when missing. */
   code?: string;
   /** The inventory run the item is created for; see `createItemBody`. */
   inventoryId?: string;
