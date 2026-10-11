@@ -11,6 +11,7 @@ import {
 } from '../../modules/locations/repository.ts';
 import { createManufacturerRepository } from '../../modules/manufacturers/repository.ts';
 import type { Db } from '../client.ts';
+import { ACCOUNTING_SOURCE, accountingId } from '../accounting.ts';
 import { insertSeedUsers, isEmpty } from '../seed/seed.ts';
 import { csvRecords } from './csv.ts';
 
@@ -66,14 +67,7 @@ const ITEM_COLUMNS = [
 export const REVISION_SOURCE = 'Revize ILKO';
 /** A centre's ID: the centre number behind a prefix, LOC-73. */
 export const locationCode = (centre: string) => `LOC-${centre}`;
-/** The source of the accounting inventory number kept as an external ID of the item. */
-export const ACCOUNTING_SOURCE = 'Účetnictví';
-/**
- * The external ID of an accounting inventory number: centre and number, 73-2023016. Accounting
- * restarts its numbers in every centre, so the centre belongs in it; the number alone would repeat.
- * Items are numbered INV-0001, INV-0002... by the database and the code carries neither.
- */
-export const accountingId = (centre: string, inventoryNumber: string) => `${centre}-${inventoryNumber}`;
+export { ACCOUNTING_SOURCE, accountingId };
 
 const orNull = (text: string) => text.trim() || null;
 
