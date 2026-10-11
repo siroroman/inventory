@@ -106,8 +106,10 @@ export function ItemForm({ item, initialLocation, inventoryId, onReload }: Props
       // Item counts of the locations changed too.
       await queryClient.invalidateQueries({ queryKey: ['locations'] });
       if (backToRun && !item) {
-        // The run's rows and numbers changed if the item joined it.
-        await queryClient.invalidateQueries({ queryKey: ['inventories'] });
+        // The run's rows and numbers changed if the item joined it. The checklist is not mounted
+        // while the form is open, so refetch the inactive queries too: the checklist of a location
+        // with no rows before would otherwise open on the cached run and show "not in the run".
+        await queryClient.invalidateQueries({ queryKey: ['inventories'], refetchType: 'all' });
         const added = 'addedToInventory' in saved_ && saved_.addedToInventory;
         if (added) toast.success(t('itemForm.addedToInventory'));
         else toast.warning(t('itemForm.notAddedToInventory'));
