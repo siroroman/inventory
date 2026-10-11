@@ -2,7 +2,7 @@
 // CSV, the items of each centre from the items CSV. The files hold real company data and are never
 // committed; `deploy/import.sh` runs this against Cloud SQL.
 
-import { createItemBody } from '@inventory/shared';
+import { createItemBody, humanCode } from '@inventory/shared';
 import { hashPassword } from 'better-auth/crypto';
 import { createItemRepository, type ExternalIdInput } from '../../modules/items/repository.ts';
 import {
@@ -66,11 +66,14 @@ const ITEM_COLUMNS = [
 export const REVISION_SOURCE = 'Revize ILKO';
 /** A centre's ID: the centre number behind a prefix, LOC-73. */
 export const locationCode = (centre: string) => `LOC-${centre}`;
+/** The source of the accounting inventory number kept as an external ID of the item. */
+export const ACCOUNTING_SOURCE = 'Účetnictví';
 /**
- * An item's ID from its accounting inventory number: INV-73-2023016. Accounting restarts its numbers
- * in every centre, so the centre belongs in the ID; the number alone would repeat.
+ * The external ID of an accounting inventory number: centre and number, 73-2023016. Accounting
+ * restarts its numbers in every centre, so the centre belongs in it; the number alone would repeat.
+ * Items are numbered INV-0001, INV-0002... by the database and the code carries neither.
  */
-export const itemCode = (centre: string, inventoryNumber: string) => `INV-${centre}-${inventoryNumber}`;
+export const accountingId = (centre: string, inventoryNumber: string) => `${centre}-${inventoryNumber}`;
 
 const orNull = (text: string) => text.trim() || null;
 
@@ -154,9 +157,12 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
       }
 
       const inventoryNumber = row.inv_number.trim();
+      if (inventoryNumber) {
+        const id = accountingId(row.location_id.trim(), inventoryNumber);
+        if (!humanCode.safeParse(id).success) throw problem(`inventory number ${id}: only A-Z, 0-9, . _ - are allowed`);
+        ids.unshift({ source: ACCOUNTING_SOURCE, value: id });
+      }
       const parsed = createItemBody.safeParse({
-        // Without an inventory number the database assigns the next INV-nnnn.
-        ...(inventoryNumber && { code: itemCode(row.location_id.trim(), inventoryNumber) }),
         name: row.name,
         model: orNull(row.model),
         serialNumber: orNull(row.serial_number),
