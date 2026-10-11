@@ -133,7 +133,7 @@ describe('home: Štítky section', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'labels' }));
     expect(within(nav).getByRole('link', { name: 'Štítky' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByRole('heading', { name: 'Tisk štítků', level: 2 })).toBeInTheDocument();
-    expect(screen.getByText('Průvodce tiskem QR štítků se připravuje.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Vyberte lokalitu' })).toBeInTheDocument();
   });
 
   it('opens from the URL, for every role', async () => {

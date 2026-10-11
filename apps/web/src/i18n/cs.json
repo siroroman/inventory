@@ -140,9 +140,7 @@
       "add": "Přidat dodavatele"
     },
     "labels": {
-      "tab": "Štítky",
-      "title": "Tisk štítků",
-      "placeholder": "Průvodce tiskem QR štítků se připravuje."
+      "tab": "Štítky"
     },
     "inventory": {
       "tab": "Inventura",
@@ -706,5 +704,78 @@
     "submit": "Zahájit inventuru",
     "submitting": "Zahajuji…",
     "started": "Inventura zahájena"
+  },
+  "labels": {
+    "title": "Tisk štítků",
+    "stepsLabel": "Kroky",
+    "stepOf": "Krok {{step}} ze {{total}}",
+    "steps": {
+      "location": "Lokalita",
+      "items": "Položky",
+      "layout": "Rozložení",
+      "download": "Stažení"
+    },
+    "back": "Zpět",
+    "next": "Pokračovat",
+    "location": {
+      "heading": "Vyberte lokalitu",
+      "searchLabel": "Hledat lokalitu podle názvu nebo ID…",
+      "searchPlaceholder": "Hledat lokalitu podle názvu nebo ID…",
+      "results": "Lokality",
+      "itemCount_one": "{{count}} položka včetně podlokalit",
+      "itemCount_few": "{{count}} položky včetně podlokalit",
+      "itemCount_many": "{{count}} položky včetně podlokalit",
+      "itemCount_other": "{{count}} položek včetně podlokalit",
+      "chosen": "Vybraná lokalita",
+      "change": "Změnit",
+      "emptyHint": "V této lokalitě zatím nejsou žádné položky. Můžete je přidat vyhledáním v dalším kroku.",
+      "nothingFound": "Nic nenalezeno",
+      "nothingFoundHint": "Zkuste upravit hledaný text.",
+      "noLocations": "Zatím tu nejsou žádné lokality.",
+      "changeTitle": "Změnit lokalitu?",
+      "changeHint": "Změnou lokality se výběr položek zahodí.",
+      "changeCancel": "Zrušit",
+      "changeConfirm": "Změnit lokalitu"
+    },
+    "items": {
+      "heading": "Vyberte položky",
+      "summary": "Vybráno {{selected}} z {{total}}",
+      "summaryLimit": "Vybráno {{selected}} z {{total}} – nejvýše {{max}} štítků",
+      "truncated": "Zobrazeno prvních {{shown}} z {{total}} položek. Vyberte menší lokalitu nebo další položky přidejte vyhledáním.",
+      "selectAll": "Vybrat vše",
+      "selectNone": "Zrušit výběr",
+      "listLabel": "Položky k označení",
+      "columns": {
+        "name": "Název",
+        "code": "ID",
+        "location": "Umístění"
+      },
+      "inLocation": "přímo v lokalitě",
+      "empty": "V této lokalitě nejsou žádné položky. Přidejte je vyhledáním níže.",
+      "loadError": "Položky se nepodařilo načíst.",
+      "addedGroup": "Přidané ručně ({{count}})",
+      "addedBadge": "Přidáno",
+      "remove": "Odebrat {{name}}",
+      "check": "Označit {{name}}"
+    },
+    "quickAdd": {
+      "heading": "Přidat další položky",
+      "label": "Přidat další položky",
+      "placeholder": "Hledat podle názvu nebo ID…",
+      "results": "Nalezené položky",
+      "inList": "V seznamu",
+      "added": "Přidáno ✓",
+      "addedNotice": "Přidáno: {{name}} ({{code}})",
+      "nothingFound": "Nic nenalezeno",
+      "error": "Hledání se nepodařilo."
+    },
+    "layout": {
+      "heading": "Rozložení",
+      "placeholder": "Rozložení štítků se připravuje."
+    },
+    "download": {
+      "heading": "Stažení",
+      "placeholder": "Stažení PDF se připravuje."
+    }
   }
 }

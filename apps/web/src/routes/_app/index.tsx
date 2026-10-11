@@ -23,17 +23,27 @@ const searchSchema = z.object({
     .optional()
     .catch(undefined),
   archived: z.literal(true).optional().catch(undefined),
+  // The label wizard (`tab=labels`): its step (2 to 4; 1 is left out) and the chosen location.
+  step: z.coerce.number().int().min(2).max(4).optional().catch(undefined),
+  locationId: z.uuid().optional().catch(undefined),
 });
 
 export const Route = createFileRoute('/_app/')({ validateSearch: searchSchema, component: Home });
 
 function Home() {
   const { t } = useTranslation();
-  const { tab = 'locations', q = '', archived = false } = Route.useSearch();
+  const { tab = 'locations', q = '', archived = false, step = 1, locationId } = Route.useSearch();
   const navigate = Route.useNavigate();
   // `replace`: every pause in typing would otherwise add a history entry to walk back through.
   const search = useCallback(
     (text: string) => void navigate({ search: (prev) => ({ ...prev, q: text || undefined }), replace: true }),
+    [navigate],
+  );
+
+  // The wizard keeps its own step and location next to `tab=labels`; a correction replaces the entry.
+  const wizard = useCallback(
+    (to: { step?: number; locationId?: string }, replace = false) =>
+      void navigate({ search: (prev) => ({ ...prev, ...to }), replace }),
     [navigate],
   );
 
@@ -49,7 +59,7 @@ function Home() {
     maintenance: <ServiceRecordsPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
     suppliers: <ServiceProvidersPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
     inventory: <InventoryPanel q={q} onSearch={search} archived={archived} onArchived={showArchived} />,
-    labels: <LabelsPanel />,
+    labels: <LabelsPanel step={step} locationId={locationId} onNavigate={wizard} />,
   };
 
   return (
