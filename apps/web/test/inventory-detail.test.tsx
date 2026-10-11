@@ -83,7 +83,7 @@ describe('inventory run overview', () => {
     });
     renderApp(`/inventories/${id}`);
     await userEvent.click(await screen.findByRole('link', { name: 'Inventura' }));
-    expect(await screen.findByRole('tab', { name: 'Inventura', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Inventura', level: 2 })).toBeInTheDocument();
   });
 
   it('groups the locations by progress and keeps their order inside a group', async () => {

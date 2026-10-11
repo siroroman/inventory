@@ -10,6 +10,8 @@ export type Item = typeof items.$inferSelect;
 export type ExternalId = typeof itemExternalIds.$inferSelect;
 type ManufacturerRef = { id: string; name: string };
 export type ItemWithManufacturer = Item & { manufacturer: ManufacturerRef | null };
+/** What a label shows of an item, and where it is so the service can name the path. */
+export type ItemLabelRow = Pick<Item, 'id' | 'code' | 'name' | 'locationId'>;
 export type ItemListRow = ItemWithManufacturer & {
   /** Missing while the item has no location. */
   location: { id: string; code: string; name: string } | null;
@@ -105,6 +107,19 @@ export function createItemRepository(db: DbExecutor) {
         .orderBy(asc(items.name), asc(items.id))
         .limit(page.limit + 1);
       return toPage(rows, page.limit, (r) => ({ name: r.name, id: r.id }));
+    },
+
+    /**
+     * At most `limit` active items for the label wizard, ordered by ID with the numbers in it
+     * compared by value (INV-9-100 before INV-73-2023016). `count` gives the total.
+     */
+    async listForLabels(filter: Pick<ItemFilter, 'q' | 'locationId'>, limit: number): Promise<ItemLabelRow[]> {
+      return db
+        .select({ id: items.id, code: items.code, name: items.name, locationId: items.locationId })
+        .from(items)
+        .where(and(...listWhere(db, filter)))
+        .orderBy(sql`${items.code} COLLATE cs_cz_numeric`, asc(items.id))
+        .limit(limit);
     },
 
     async count(filter: ItemFilter): Promise<number> {

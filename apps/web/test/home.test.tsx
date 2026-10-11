@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { item, location, page, ref } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
+import { jsonResponse, me, openSection, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
 /** Signed in, with the given answers for the two lists. */
 function api(lists: { locations?: (request: Request) => Response; items?: (request: Request) => Response }) {
@@ -46,7 +46,7 @@ describe('home: locations tab', () => {
   it('marks the Locations tab as selected and asks for the first page without a search', async () => {
     const calls = api({});
     renderApp('/');
-    expect(await screen.findByRole('tab', { name: 'Lokality', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Lokality', level: 2 })).toBeInTheDocument();
     await screen.findByText('Zatím tu nic není');
     expect(listCalls(calls, '/api/v1/locations')).toEqual([new URLSearchParams({ limit: '20' })]);
   });
@@ -160,7 +160,7 @@ describe('home: items tab', () => {
     api({ items: () => page([item()]) });
     renderApp('/?tab=items');
 
-    expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Položky', level: 2 })).toBeInTheDocument();
     const row = await screen.findByRole('listitem');
     expect(row).toHaveTextContent('Konvektomat');
     expect(row).toHaveTextContent('INV-00042');
@@ -242,17 +242,17 @@ describe('home: search and tabs', () => {
   it('switches tab through the URL and starts the other tab with an empty search', async () => {
     api({ items: () => page([item()]) });
     const { router } = renderApp('/?q=praha');
-    await userEvent.click(await screen.findByRole('tab', { name: 'Položky' }));
+    await openSection('Položky');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'items' }));
     expect(await screen.findByRole('searchbox', { name: 'Hledat položky' })).toHaveValue('');
-    await userEvent.click(screen.getByRole('tab', { name: 'Lokality' }));
+    await openSection('Lokality');
     await waitFor(() => expect(router.state.location.search).toEqual({}));
   });
 
   it('ignores an unknown tab in the URL', async () => {
     api({});
     renderApp('/?tab=users');
-    expect(await screen.findByRole('tab', { name: 'Lokality', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Lokality', level: 2 })).toBeInTheDocument();
   });
 });
 
@@ -371,7 +371,7 @@ describe('home: archived records', () => {
     api({});
     const { router } = renderApp('/?archived=true');
     await screen.findByText('Žádné archivované lokality');
-    await userEvent.click(screen.getByRole('tab', { name: 'Položky' }));
+    await openSection('Položky');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'items' }));
     expect(screen.getByRole('checkbox', { name: 'Zobrazit archivované' })).not.toBeChecked();
 

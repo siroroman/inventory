@@ -1,13 +1,15 @@
 import { Link, Outlet, useMatch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppLogo } from '@/components/app-logo';
+import { HomeMenu } from '@/components/home-menu';
 import { HomeSidebar } from '@/components/home-sidebar';
 import { UserMenu } from '@/features/auth/user-menu';
 import { desktopScreen, useMediaQuery } from '@/lib/use-media-query';
 
 /**
  * Frame around every screen: skip link, the page content, and the navigation: a top bar (56 px, as
- * designed) everywhere, except on Home at desktop width, where the side menu replaces it.
+ * designed) everywhere, except on Home at desktop width, where the side menu replaces it. On Home
+ * below that width the top bar carries the hamburger menu with the sections.
  */
 export function AppShell() {
   const { t } = useTranslation();
@@ -28,6 +30,7 @@ export function AppShell() {
         <HomeSidebar tab={home.search.tab ?? 'locations'} />
       ) : scanner ? null : (
         <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-card px-3">
+          {home && <HomeMenu tab={home.search.tab ?? 'locations'} />}
           <Link
             to="/"
             className="-my-2 flex min-h-11 flex-1 items-center gap-2.5 truncate rounded-sm text-[17px] font-semibold focus-visible:ring-2 focus-visible:ring-ring"

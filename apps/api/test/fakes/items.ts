@@ -75,6 +75,15 @@ export function createFakeItemStore() {
       );
       return { ...result, items: rows };
     },
+    async listForLabels(filter, limit) {
+      const rows = matching({ ...filter, archived: false });
+      // By ID with the numbers in it compared by value, like `ORDER BY code COLLATE cs_cz_numeric`.
+      const collator = new Intl.Collator('cs', { numeric: true });
+      return rows
+        .sort((a, b) => collator.compare(a.code, b.code) || (a.id < b.id ? -1 : 1))
+        .slice(0, limit)
+        .map(({ id, code, name, locationId }) => ({ id, code, name, locationId }));
+    },
     async count(filter) {
       return matching(filter).length;
     },

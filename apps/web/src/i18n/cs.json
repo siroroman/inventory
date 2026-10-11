@@ -3,7 +3,8 @@
     "name": "Správa majetku"
   },
   "nav": {
-    "main": "Hlavní navigace"
+    "main": "Hlavní navigace",
+    "menu": "Menu"
   },
   "common": {
     "back": "Zpět",
@@ -137,6 +138,9 @@
         "brands": "Značky"
       },
       "add": "Přidat dodavatele"
+    },
+    "labels": {
+      "tab": "Štítky"
     },
     "inventory": {
       "tab": "Inventura",
@@ -700,5 +704,120 @@
     "submit": "Zahájit inventuru",
     "submitting": "Zahajuji…",
     "started": "Inventura zahájena"
+  },
+  "labels": {
+    "title": "Tisk štítků",
+    "stepsLabel": "Kroky",
+    "stepOf": "Krok {{step}} ze {{total}}",
+    "steps": {
+      "location": "Lokalita",
+      "items": "Položky",
+      "layout": "Rozložení",
+      "download": "Stažení"
+    },
+    "back": "Zpět",
+    "next": "Pokračovat",
+    "location": {
+      "heading": "Vyberte lokalitu",
+      "searchLabel": "Hledat lokalitu podle názvu nebo ID…",
+      "searchPlaceholder": "Hledat lokalitu podle názvu nebo ID…",
+      "results": "Lokality",
+      "itemCount_one": "{{count}} položka včetně podlokalit",
+      "itemCount_few": "{{count}} položky včetně podlokalit",
+      "itemCount_many": "{{count}} položky včetně podlokalit",
+      "itemCount_other": "{{count}} položek včetně podlokalit",
+      "chosen": "Vybraná lokalita",
+      "change": "Změnit",
+      "emptyHint": "V této lokalitě zatím nejsou žádné položky. Můžete je přidat vyhledáním v dalším kroku.",
+      "nothingFound": "Nic nenalezeno",
+      "nothingFoundHint": "Zkuste upravit hledaný text.",
+      "noLocations": "Zatím tu nejsou žádné lokality.",
+      "truncated": "Zobrazeno prvních {{shown}} z {{total}} lokalit. Ostatní najdete vyhledáním.",
+      "changeTitle": "Změnit lokalitu?",
+      "changeHint": "Změnou lokality se výběr položek zahodí.",
+      "changeCancel": "Zrušit",
+      "changeConfirm": "Změnit lokalitu"
+    },
+    "items": {
+      "heading": "Vyberte položky",
+      "summary": "Vybráno {{selected}} z {{total}}",
+      "summaryLimit": "Vybráno {{selected}} z {{total}} – nejvýše {{max}} štítků",
+      "truncated": "Zobrazeno prvních {{shown}} z {{total}} položek. Vyberte menší lokalitu nebo další položky přidejte vyhledáním.",
+      "selectAll": "Vybrat vše",
+      "selectNone": "Zrušit výběr",
+      "listLabel": "Položky k označení",
+      "columns": {
+        "name": "Název",
+        "code": "ID",
+        "location": "Umístění"
+      },
+      "inLocation": "přímo v lokalitě",
+      "empty": "V této lokalitě nejsou žádné položky. Přidejte je vyhledáním níže.",
+      "loadError": "Položky se nepodařilo načíst.",
+      "addedGroup": "Přidané ručně ({{count}})",
+      "addedBadge": "Přidáno",
+      "remove": "Odebrat {{name}}",
+      "check": "Označit {{name}}"
+    },
+    "quickAdd": {
+      "heading": "Přidat další položky",
+      "label": "Přidat další položky",
+      "placeholder": "Hledat podle názvu nebo ID…",
+      "results": "Nalezené položky",
+      "inList": "V seznamu",
+      "added": "Přidáno ✓",
+      "addedNotice": "Přidáno: {{name}} ({{code}})",
+      "nothingFound": "Nic nenalezeno",
+      "error": "Hledání se nepodařilo."
+    },
+    "layout": {
+      "heading": "Rozložení",
+      "format": "A4 na výšku · 210 × 297 mm",
+      "columns": "Sloupce",
+      "rows": "Řádky",
+      "range": "{{min}} až {{max}}",
+      "decrease": "Ubrat: {{label}}",
+      "increase": "Přidat: {{label}}",
+      "labelSize": "Štítek {{width}} × {{height}} mm",
+      "margin": "Okraj stránky {{mm}} mm, mezi štítky nejsou mezery.",
+      "tooSmall": "Štítky jsou příliš malé, QR kód by se špatně četl.",
+      "startPosition": "Začít od pozice",
+      "labelCount_one": "{{count}} štítek",
+      "labelCount_few": "{{count}} štítky",
+      "labelCount_many": "{{count}} štítku",
+      "labelCount_other": "{{count}} štítků",
+      "sheetCount_one": "{{count}} list",
+      "sheetCount_few": "{{count}} listy",
+      "sheetCount_many": "{{count}} listu",
+      "sheetCount_other": "{{count}} listů",
+      "emptyOnLast_one": "na posledním listu zůstane {{count}} místo prázdné",
+      "emptyOnLast_few": "na posledním listu zůstanou {{count}} místa prázdná",
+      "emptyOnLast_many": "na posledním listu zůstanou {{count}} místa prázdná",
+      "emptyOnLast_other": "na posledním listu zůstane {{count}} míst prázdných",
+      "previewLabel": "Náhled listu {{page}}",
+      "enlarge": "Zobrazit náhled na celou obrazovku",
+      "fullscreenTitle": "Náhled tisku",
+      "fullscreenHint": "Celý list tak, jak se vytiskne. Náhled zavřete tlačítkem Zavřít nebo klávesou Escape.",
+      "previousSheet": "Předchozí list",
+      "nextSheet": "Další list",
+      "sheetOf": "List {{page}} z {{total}}"
+    },
+    "download": {
+      "heading": "Stažení",
+      "location": "Lokalita",
+      "labels": "Štítky",
+      "sheet": "Rozložení",
+      "grid": "{{columns}} × {{rows}} · A4",
+      "sheets": "Listy",
+      "start": "Začátek",
+      "startPosition": "od pozice {{position}}",
+      "button": "Stáhnout PDF",
+      "print": "Vytisknout",
+      "working": "Připravuje se PDF…",
+      "failed": "PDF se nepodařilo vytvořit.",
+      "retry": "Zkusit znovu",
+      "tip": "Tiskněte v měřítku 100 % (bez přizpůsobení stránce).",
+      "restart": "Vytvořit nové štítky"
+    }
   }
 }

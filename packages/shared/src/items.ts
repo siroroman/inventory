@@ -1,5 +1,16 @@
 import { z } from 'zod';
-import { codeRef, documentsUrl, humanCode, hasChange, isoDate, nullableText, pageOf, recordFields, requiredText } from './fields.ts';
+import {
+  codeRef,
+  documentsUrl,
+  hasChange,
+  humanCode,
+  isoDate,
+  nullableText,
+  pageOf,
+  recordFields,
+  requiredText,
+  searchQuery,
+} from './fields.ts';
 import { archivedQuery, searchPageQuery, versionField } from './http.ts';
 
 /** One row of an item list; `itemSchema` extends it with the rest of the item. */
@@ -114,3 +125,23 @@ export const itemSearchQuery = itemListQuery.extend({
   locationId: z.uuid().optional(),
   manufacturerId: z.uuid().optional(),
 });
+
+/** The most labels one PDF holds (SPEC §9.4.12), and so the largest `limit` of `GET /items/labels`. */
+export const MAX_LABELS = 1000;
+
+/**
+ * `GET /items/labels`: `locationId` takes everything below that location, `q` is the item search.
+ * Not paged: `limit` caps the answer and `total` says how many matched.
+ */
+export const itemLabelsQuery = z.object({
+  q: searchQuery.optional(),
+  locationId: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(MAX_LABELS).default(MAX_LABELS),
+});
+
+/** What a label needs of an item; `path` is the names of its location from the top, joined by " › " ("" = no location). */
+export const itemLabelSchema = z.object({ id: z.uuid(), code: z.string(), name: z.string(), path: z.string() });
+export type ItemLabelDto = z.infer<typeof itemLabelSchema>;
+
+export const itemLabelsSchema = z.object({ items: z.array(itemLabelSchema), total: z.number().int().min(0) });
+export type ItemLabelsDto = z.infer<typeof itemLabelsSchema>;
