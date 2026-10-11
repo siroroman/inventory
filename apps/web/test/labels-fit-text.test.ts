@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitLabelText, type Measure, wrapName } from '../src/features/labels/fit-text.ts';
+import { breakId, fitLabelText, type Measure, wrapName } from '../src/features/labels/fit-text.ts';
 
 /** Every character is half an em wide, bold or not: simple to reason about. */
 const measure: Measure = (text, size) => text.length * size * 0.5;
@@ -23,8 +23,9 @@ describe('wrapName', () => {
     expect(lines[1]!.length).toBeLessThanOrEqual(20);
   });
 
-  it('breaks a single word wider than the line instead of losing it', () => {
-    expect(wrapName('Supercalifragilistic', 2, fits(10))).toEqual(['Supercalif', 'ragilistic']);
+  it('cuts a single word wider than the line with an ellipsis instead of splitting it', () => {
+    expect(wrapName('Supercalifragilistic', 2, fits(10))).toEqual(['Supercali…']);
+    expect(wrapName('Konvektomat 10 GN', 2, fits(9))).toEqual(['Konvekto…', '10 GN']);
   });
 
   it('honours a single line', () => {
@@ -36,6 +37,22 @@ describe('wrapName', () => {
   it('ignores extra whitespace and answers nothing for an empty name', () => {
     expect(wrapName('  Váha   malá ', 2, fits(20))).toEqual(['Váha malá']);
     expect(wrapName('   ', 2, fits(20))).toEqual([]);
+  });
+});
+
+describe('breakId', () => {
+  const fits = (n: number) => (text: string) => text.length <= n;
+
+  it('breaks after hyphens, keeping them, so no piece of the ID is cut', () => {
+    expect(breakId('INV-73-2023016', fits(8))).toEqual(['INV-73-', '2023016']);
+    expect(breakId('INV-73-2023016', fits(10))).toEqual(['INV-73-', '2023016']);
+    expect(breakId('INV-73-2023016', fits(14))).toEqual(['INV-73-2023016']);
+  });
+
+  it('splits inside a piece only when the piece alone is too wide, and drops nothing', () => {
+    const lines = breakId('INV-73-2023016', fits(5));
+    expect(lines.join('')).toBe('INV-73-2023016');
+    expect(lines.every((line) => line.length <= 5)).toBe(true);
   });
 });
 
@@ -59,7 +76,7 @@ describe('fitLabelText', () => {
   it('breaks an ID that does not fit even at 8 pt rather than abbreviating it, and sets the name at 8 pt', () => {
     const text = fitLabelText(measure, { id: 'INV-73-2023016', name: 'Notebook' }, boxFor(7));
     expect(text.idSize).toBe(8);
-    expect(text.idLines.length).toBeGreaterThan(1);
+    expect(text.idLines).toEqual(['INV-73-', '2023016']);
     expect(text.idLines.join('')).toBe('INV-73-2023016');
     expect(text.nameSize).toBe(8);
   });

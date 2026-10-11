@@ -23,7 +23,7 @@ export type LabelText = {
 
 const mm = (pt: number) => pt * MM_PER_PT;
 
-/** Splits `text` into pieces of at most `widthPt`, at any character. */
+/** Splits `text` into pieces that each fit, at any character. */
 function breakLongText(text: string, fits: (candidate: string) => boolean): string[] {
   const pieces: string[] = [];
   let current = '';
@@ -59,10 +59,8 @@ export function wrapName(name: string, maxLines: number, fits: (candidate: strin
       continue;
     }
     if (current) lines.push(current);
-    // A single word wider than the line is broken so that nothing is lost until the line limit.
-    const pieces = fits(word) ? [word] : breakLongText(word, fits);
-    current = pieces.pop() ?? '';
-    lines.push(...pieces);
+    // A word wider than the whole line is cut with an ellipsis rather than split in the middle.
+    current = withEllipsis(word, fits);
   }
   if (current) lines.push(current);
   if (lines.length <= maxLines) return lines;
@@ -71,6 +69,31 @@ export function wrapName(name: string, maxLines: number, fits: (candidate: strin
   const rest = lines.slice(maxLines - 1).join(' ');
   kept[maxLines - 1] = withEllipsis(rest, fits);
   return kept;
+}
+
+/**
+ * Splits an ID that does not fit on one line: after hyphens where it can ("INV-73-" / "2023016"),
+ * in the middle of a piece only when that piece alone is too wide. Nothing is dropped.
+ */
+export function breakId(id: string, fits: (candidate: string) => boolean): string[] {
+  const lines: string[] = [];
+  let current = '';
+  for (const piece of id.split(/(?<=-)/)) {
+    if (current && fits(current + piece)) {
+      current += piece;
+      continue;
+    }
+    if (current) lines.push(current);
+    if (fits(piece)) {
+      current = piece;
+    } else {
+      const parts = breakLongText(piece, fits);
+      current = parts.pop() ?? '';
+      lines.push(...parts);
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }
 
 /**
@@ -85,8 +108,7 @@ export function fitLabelText(
   const widthPt = widthMm / MM_PER_PT;
   let idSize = ID_MAX_PT;
   while (idSize > MIN_PT && measure(id, idSize, true) > widthPt) idSize -= 0.5;
-  const idLines =
-    measure(id, idSize, true) <= widthPt ? [id] : breakLongText(id, (c) => measure(c, idSize, true) <= widthPt);
+  const idLines = measure(id, idSize, true) <= widthPt ? [id] : breakId(id, (c) => measure(c, idSize, true) <= widthPt);
 
   const nameSize = idSize >= 10 ? NAME_PT : MIN_PT;
   const left = heightMm - idLines.length * mm(idSize * LINE_HEIGHT);
