@@ -712,7 +712,7 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
     3. SPA: `buildLabelsPdf`, the QR and PDF dependencies and the font, with the unit tests of §9.7.
     4. SPA: wizard steps 1–2 (location, items, quick add). Component tests: step validity (no continue with 0 chosen or no location), select all / none, the quick add keeps focus and adds once, a change of location asks first.
     5. SPA: steps 3–4 (layout, preview, start position, download). Component tests: the start position resets with the grid, plurals, the small-label warning.
-    6. E2E and a test print on real sheets.
+    6. E2E and a test print on real sheets (E2E waits for a Playwright setup; the test print is the client's).
 
 **Built so far** (2026-10-09), with what differs from the list above:
 
@@ -742,7 +742,14 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 - **`was_missing`** stays false until `items.missing_since` exists; the finish step must make a check clear that status (rule 12).
 - **Progress** (*Decided* 2026-10-10, replacing "expected rows only"): the bar, its "Zkontrolováno 66 % položek (84/128)", the checklist's box and the scanner's counter are `checked + new + missing` over `checked + unchecked + new + missing`, where `unchecked` is the `expected` rows of items not archived that are neither checked nor flagged. It never passes 100 % and reads 100 % exactly when nothing is left unchecked. The API's `counts` are unchanged (`expected`, `checked`, `elsewhere`, `new`, `missing`); the SPA adds them up (`progressOf` in `inventory-summary.tsx`). A location row's "24 / 32 položek" stays the list only.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
-- **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
+- **Step 8, labels** (2026-10-11): sub-steps 1–5 are built (the endpoint, the Štítky tab with the hamburger menu, the PDF builder, the four wizard steps); the test print of sub-step 6 is not. Where it differs from or adds to §9.4.12 and §9.7:
+  - **Label text on narrow labels:** the ID shrinks from 11 pt to 8 pt on one line; if it still does not fit it breaks after its hyphens ("INV-73-" / "2023016"), never cut or abbreviated. A word of the name wider than the line is cut with an ellipsis, not split. The name takes the lines that are left (none when there is no room). The name is 9 pt, or 8 pt when the ID had to shrink under 10 pt.
+  - **One plan, two renderings:** the PDF and the preview of step 3 draw the same plan of each label (`planLabel`). The preview is an SVG of the whole page set in the same Roboto files (loaded as a `FontFace`), so its line breaks match the PDF's; the PDF measures with the embedded font itself.
+  - **Fonts and size:** Roboto Regular and Bold (SIL OFL, about 160 KB each, subset into the PDF, which is about 25 KB for a sheet). The chunk with `pdf-lib` and the QR library is about 1.1 MB (500 KB gzip) and loads only when "Stáhnout PDF" is pressed; the CSP is unchanged (the fonts come from the app's own origin and the PDF is a `blob:` download).
+  - **More than 1 000 items:** step 2 loads the first 1 000 (`GET /items/labels` caps at 1 000), says so, and counts "z N" with the real total; the rest are reached by choosing a sub-location or by the quick add.
+  - **Memory:** the choices of steps 1–2 are in `sessionStorage` (`labels-wizard`), the sheet of step 3 in `labels-layout`. After a download "Vytvořit nové štítky" clears the first and puts the start position back to 1 (columns and rows are kept).
+  - **Not verified yet:** a test print on real sheets (does 5 mm margin plus 3 mm inner margin clear the printer?), the download in an installed iOS app (the new-tab fallback), and a phone camera reading the printed codes. A desktop browser run on 2026-10-11 against the real API (sign-in, choose a location, quick add, layout and preview, download of a valid PDF; the hamburger menu at 375 px) showed no problem.
+- **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it. The label flow is covered by component tests that go through the four steps (`labels-wizard`, `labels-layout-step`) and unit tests of the PDF.
 
 **E2E additions:** start a run, tick items by hand, flag one as missing, finish (the flagged item becomes Nezvěstná, the other unchecked ones stay Nezkontrolováno), print a protocol; make labels (choose a location, deselect two items, quick-add one by ID, set 2 × 4, download the PDF and check the file). The scanner's decoder is faked in component tests; the camera isn't available in jsdom.
 
