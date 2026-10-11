@@ -530,7 +530,7 @@
       "reopen": { "by": "Znovu otevřel {{who}} · {{date}} v {{time}}", "on": "Znovu otevřeno {{date}} v {{time}}" }
     },
     "progressLabel": "Průběh inventury",
-    "progress": "{{done}} / {{total}} zkontrolováno · {{percent}} %",
+    "progress": "Zkontrolováno {{percent}} % položek ({{done}}/{{total}})",
     "noItems": "V lokalitě nejsou žádné položky.",
     "activeNow_one": "{{who}} právě pracuje",
     "activeNow_few": "{{who}} právě pracují",
@@ -538,7 +538,7 @@
     "activeNow_other": "{{who}} právě pracují",
     "locations": {
       "inProgress": "Probíhající ({{count}})",
-      "notStarted": "Nekontrolované ({{count}})",
+      "notStarted": "Nezkontrolované ({{count}})",
       "done": "Hotovo ({{count}})",
       "items": "{{checked}} / {{total}} položek",
       "extra_one": "{{count}} nová",

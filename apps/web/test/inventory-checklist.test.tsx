@@ -140,7 +140,7 @@ describe('inventory checklist', () => {
 
     await rowsLoaded();
     expect(screen.getByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('24 / 32 zkontrolováno · 75 %')).toBeInTheDocument();
+    expect(screen.getByText('Zkontrolováno 75 % položek (24/32)')).toBeInTheDocument();
     const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
     expect(bar).toHaveAttribute('aria-valuenow', '24');
     expect(bar).toHaveAttribute('aria-valuemax', '32');
@@ -266,7 +266,7 @@ describe('inventory checklist', () => {
       expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '2', '1', '0']);
       // The bar and the figures belong to one box; the bar counts the find on both sides: 1 + 1 of 2 + 1 + 1.
       const box = screen.getByRole('progressbar', { name: 'Průběh inventury' }).closest('section')!;
-      expect(within(box).getByText('2 / 4 zkontrolováno · 50 %')).toBeInTheDocument();
+      expect(within(box).getByText('Zkontrolováno 50 % položek (2/4)')).toBeInTheDocument();
       expect(within(box).getByText('Nové', { selector: 'dt' })).toBeInTheDocument();
     });
 
@@ -277,7 +277,7 @@ describe('inventory checklist', () => {
       await rowsLoaded();
 
       expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '0', '0', '1']);
-      expect(screen.getByText('2 / 2 zkontrolováno · 100 %')).toBeInTheDocument();
+      expect(screen.getByText('Zkontrolováno 100 % položek (2/2)')).toBeInTheDocument();
       const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
       expect(bar).toHaveAttribute('aria-valuenow', '2');
       expect(bar).toHaveAttribute('aria-valuemax', '2');
@@ -594,7 +594,7 @@ describe('inventory checklist', () => {
       expect(posts(calls)).toHaveLength(1);
       expect(posts(calls)[0]).toMatch(/items\/[^/]+\/check$/);
       // The numbers in the header follow.
-      expect(await screen.findByText('1 / 2 zkontrolováno · 50 %')).toBeInTheDocument();
+      expect(await screen.findByText('Zkontrolováno 50 % položek (1/2)')).toBeInTheDocument();
     });
 
     it('can be done from the keyboard with Space', async () => {
@@ -725,7 +725,7 @@ describe('inventory checklist', () => {
       expect(within(flagged).getByText('Chybí')).toBeInTheDocument();
       expect(within(flagged).getByRole('button', { name: 'Zrušit označení chybějící položky: Mixér tyčový' })).toBeInTheDocument();
       // It is not checked but it is dealt with: the bar moves and the figures follow the next fetch.
-      expect(await screen.findByText('1 / 2 zkontrolováno · 50 %')).toBeInTheDocument();
+      expect(await screen.findByText('Zkontrolováno 50 % položek (1/2)')).toBeInTheDocument();
       await waitFor(() => expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['0', '1', '0', '1']));
       expect(posts(calls)).toHaveLength(1);
       expect(posts(calls)[0]).toMatch(/items\/[^/]+\/mark-missing$/);
