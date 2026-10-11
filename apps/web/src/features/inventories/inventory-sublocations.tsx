@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { sectionTitleClass } from '@/components/section';
 import { Progress, progressPercent } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import { FigureGrid } from './inventory-summary';
 
 /** How many of the run's locations are in each state (the groups of the overview). */
@@ -19,7 +20,7 @@ export function SubLocationsBox({ counts }: { counts: LocationCounts }) {
   if (total === 0) return null;
   return (
     <section aria-labelledby={titleId} className="flex flex-col gap-2">
-      <h2 id={titleId} className={sectionTitleClass}>
+      <h2 id={titleId} className={cn(sectionTitleClass, 'pt-6 text-xl')}>
         {t('inventory.locations.title')}
       </h2>
       <div className="flex flex-col gap-3 rounded-lg border bg-card p-4">
