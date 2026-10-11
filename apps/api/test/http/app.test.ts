@@ -47,7 +47,7 @@ describe('security headers', () => {
     const csp = res.headers.get('content-security-policy') ?? '';
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).toContain('frame-src https://storage.googleapis.com');
+    expect(csp).toContain('frame-src https://storage.googleapis.com blob:');
     expect(csp).toContain("object-src 'none'");
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('referrer-policy')).toBe('same-origin');

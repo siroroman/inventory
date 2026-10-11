@@ -812,6 +812,7 @@
       "start": "Začátek",
       "startPosition": "od pozice {{position}}",
       "button": "Stáhnout PDF",
+      "print": "Vytisknout",
       "working": "Připravuje se PDF…",
       "done": "PDF je připravené.",
       "again": "Stáhnout znovu",

@@ -228,12 +228,55 @@ describe('labels wizard: step 4, the download', () => {
     expect(screen.getByRole('button', { name: 'Stáhnout PDF' })).toBeDisabled();
     finish(new Uint8Array([1]));
     expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+  });
 
+  it('shows an error with a retry', async () => {
+    api();
+    remember();
     build.buildLabelsPdf.mockRejectedValueOnce(new Error('boom'));
-    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
+    open(4);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Stáhnout PDF' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('PDF se nepodařilo vytvořit.');
     await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }));
     expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+    expect(downloads).toHaveLength(1);
+  });
+
+  it('prints the PDF from a hidden frame, and makes it only once for a download and a print', async () => {
+    api();
+    remember();
+    open(4);
+    const print = vi.fn();
+    vi.spyOn(HTMLIFrameElement.prototype, 'contentWindow', 'get').mockReturnValue({ focus: vi.fn(), print } as never);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Vytisknout' }));
+    expect(await screen.findByText('PDF je připravené.')).toBeInTheDocument();
+    const frame = document.body.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', 'blob:labels');
+    expect(print).not.toHaveBeenCalled();
+    frame!.dispatchEvent(new Event('load'));
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(downloads).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
+    expect(downloads).toHaveLength(1);
+    expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an error with a retry that prints again when the PDF cannot be made for printing', async () => {
+    api();
+    remember();
+    open(4);
+    build.buildLabelsPdf.mockRejectedValueOnce(new Error('boom'));
+    const print = vi.fn();
+    vi.spyOn(HTMLIFrameElement.prototype, 'contentWindow', 'get').mockReturnValue({ focus: vi.fn(), print } as never);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Vytisknout' }));
+    expect(await screen.findByText('PDF se nepodařilo vytvořit.')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }));
+    await waitFor(() => expect(document.body.querySelector('iframe')).not.toBeNull());
+    expect(downloads).toHaveLength(0);
   });
 
   it('starts over after a download: nothing chosen, back at step 1, the sheet kept from its first place', async () => {

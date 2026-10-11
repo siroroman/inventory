@@ -581,7 +581,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 #### 9.4.12 Labels — `/?tab=labels`
 
-*Decided* 2026-10-11: labels are made in a 4-step wizard on the sixth Home tab and downloaded as an A4 PDF. This replaces the earlier design (a "Vybrat" selection mode on the Items tab, a fixed 3 × 8 sheet of 70 × 37 mm and the browser's print dialog; frames 21–23). Nothing is printed from the browser, and there are no labels for locations.
+*Decided* 2026-10-11: labels are made in a 4-step wizard on the sixth Home tab and downloaded as an A4 PDF. This replaces the earlier design (a "Vybrat" selection mode on the Items tab, a fixed 3 × 8 sheet of 70 × 37 mm and the browser's print dialog; frames 21–23). The PDF can also be printed from step 4 (the browser's print dialog, "Vytisknout"); the page itself has no print stylesheet. There are no labels for locations.
 
 **Who:** every role (Read, Write, Admin) may make labels. Nothing is written to the database, so there is no audit entry, no "Uloženo" toast and no unsaved-changes dialog.
 
@@ -632,6 +632,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 - A summary card: the location, "118 štítků", "3 × 8 · A4", "5 listů", and the start position when it is not 1.
 - The primary button "Stáhnout PDF" (full width on a phone). The file is `stitky-<LOC code>-<yyyy-mm-dd>.pdf`.
+- Beside it "Vytisknout" (*Decided* 2026-10-11): the same PDF (made once, reused by both buttons) loaded into a hidden `blob:` frame whose print dialog is opened; on iOS, which cannot print a frame, it opens in a new tab. This needs `blob:` in the CSP `frame-src`.
 - States: generating ("Připravuje se PDF…", the button disabled with a spinner), done ("PDF je připravené." with "Stáhnout znovu"), error ("PDF se nepodařilo vytvořit." with "Zkusit znovu").
 - The tip "Tiskněte v měřítku 100 % (bez přizpůsobení stránce)."
 - "Vytvořit nové štítky" starts over and clears the selection. "Zpět" returns to step 3 without losing anything.

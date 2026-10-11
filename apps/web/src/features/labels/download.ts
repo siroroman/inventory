@@ -5,11 +5,17 @@ export function pdfFileName(locationCode: string, now: Date = new Date()): strin
   return `stitky-${locationCode}-${day}.pdf`;
 }
 
+const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
+
 /** An installed iOS web app, where a blob download may open the PDF in the viewer instead of saving it. */
 function isIosStandalone(): boolean {
   const nav = navigator as Navigator & { standalone?: boolean };
-  return nav.standalone === true && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  return nav.standalone === true && isIos();
 }
+
+/** The browser has taken what it needs by then; a PDF must not stay in memory for the session. */
+const KEEP_MS = 60_000;
+const PRINT_KEEP_MS = 10 * KEEP_MS;
 
 /**
  * Hands the PDF to the user: a download under `name`. In an installed iOS app it opens in a new tab,
@@ -27,6 +33,34 @@ export function savePdf(bytes: Uint8Array, name: string): void {
     link.click();
     link.remove();
   }
-  // The browser has taken what it needs by then; a PDF must not stay in memory for the session.
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  setTimeout(() => URL.revokeObjectURL(url), KEEP_MS);
+}
+
+/**
+ * Opens the browser's print dialog for the PDF: it is loaded into a hidden frame and that frame is
+ * printed, so nothing leaves the page. iOS cannot print a frame, so there the PDF opens in a new
+ * tab, where the share sheet prints it.
+ */
+export function printPdf(bytes: Uint8Array): void {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
+  if (isIos()) {
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), KEEP_MS);
+    return;
+  }
+  const frame = document.createElement('iframe');
+  frame.setAttribute('aria-hidden', 'true');
+  frame.tabIndex = -1;
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  frame.addEventListener('load', () => {
+    frame.contentWindow?.focus();
+    frame.contentWindow?.print();
+  });
+  frame.src = url;
+  document.body.append(frame);
+  // Long enough for the print dialog to be open and the print preview to be drawn from the frame.
+  setTimeout(() => {
+    frame.remove();
+    URL.revokeObjectURL(url);
+  }, PRINT_KEEP_MS);
 }

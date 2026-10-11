@@ -1,8 +1,8 @@
-import { FileDown, LoaderCircle } from 'lucide-react';
+import { FileDown, LoaderCircle, Printer } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { savePdf, pdfFileName } from './download';
+import { pdfFileName, printPdf, savePdf } from './download';
 import type { LayoutChoice } from './layout-choice';
 import { emptyOnLastPage, pageCount } from './layout';
 import type { ChosenLocation, LabelRow } from './selection';
@@ -15,7 +15,12 @@ type Props = {
   onRestart: () => void;
 };
 
-type State = { status: 'idle' } | { status: 'working' } | { status: 'done'; bytes: Uint8Array } | { status: 'error' };
+type Action = 'save' | 'print';
+type State =
+  | { status: 'idle' }
+  | { status: 'working' }
+  | { status: 'done'; bytes: Uint8Array }
+  | { status: 'error'; action: Action };
 
 /** Step 4: summary and the download. The PDF is built here, in the browser, from code loaded only now. */
 export function DownloadStep({ location, items, layout, onRestart }: Props) {
@@ -26,22 +31,30 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
   const name = pdfFileName(location.code);
 
-  const make = async () => {
+  // The PDF is made once: "Stáhnout" after "Vytisknout" (and the other way round) reuses the bytes.
+  const build = async (): Promise<Uint8Array> => {
+    if (state.status === 'done') return state.bytes;
+    // The PDF library, the QR library and the fonts are a chunk of their own.
+    const [{ buildLabelsPdf }, { loadLabelFonts }] = await Promise.all([import('./build-pdf'), import('./fonts')]);
+    return buildLabelsPdf({
+      items: items.map(({ code, name: itemName }) => ({ code, name: itemName })),
+      columns: layout.columns,
+      rows: layout.rows,
+      startPosition: layout.startPosition,
+      fonts: await loadLabelFonts(),
+    });
+  };
+
+  const make = async (action: Action) => {
+    const had = state.status === 'done';
     setState({ status: 'working' });
     try {
-      // The PDF library, the QR library and the fonts are a chunk of their own.
-      const [{ buildLabelsPdf }, { loadLabelFonts }] = await Promise.all([import('./build-pdf'), import('./fonts')]);
-      const bytes = await buildLabelsPdf({
-        items: items.map(({ code, name: itemName }) => ({ code, name: itemName })),
-        columns: layout.columns,
-        rows: layout.rows,
-        startPosition: layout.startPosition,
-        fonts: await loadLabelFonts(),
-      });
-      savePdf(bytes, name);
+      const bytes = await build();
+      if (action === 'print') printPdf(bytes);
+      else savePdf(bytes, name);
       setState({ status: 'done', bytes });
     } catch {
-      setState({ status: 'error' });
+      setState(had ? state : { status: 'error', action });
     }
   };
 
@@ -73,9 +86,13 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
       </dl>
 
       <div className="flex flex-col gap-3 sm:max-w-sm">
-        <Button size="default" disabled={working} onClick={() => void make()} className="w-full">
+        <Button size="default" disabled={working} onClick={() => void make('save')} className="w-full">
           {working ? <LoaderCircle aria-hidden className="animate-spin" /> : <FileDown aria-hidden />}
           {t('labels.download.button')}
+        </Button>
+        <Button variant="outline" disabled={working} onClick={() => void make('print')} className="w-full">
+          <Printer aria-hidden />
+          {t('labels.download.print')}
         </Button>
         <div role="status" className="text-sm">
           {working && <p>{t('labels.download.working')}</p>}
@@ -91,7 +108,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
         {state.status === 'error' && (
           <p role="alert" className="flex flex-wrap items-center gap-x-2 text-sm text-destructive">
             {t('labels.download.failed')}
-            <Button variant="link" onClick={() => void make()}>
+            <Button variant="link" onClick={() => void make(state.action)}>
               {t('labels.download.retry')}
             </Button>
           </p>
