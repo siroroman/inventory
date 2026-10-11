@@ -1,4 +1,16 @@
-import { and, asc, count, eq, getTableColumns, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
+import {
+  type AnyColumn,
+  and,
+  asc,
+  count,
+  eq,
+  getTableColumns,
+  isNotNull,
+  isNull,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, afterPath, type Page, toPage } from '../../db/pagination.ts';
 import { locations, locationTypes } from '../../db/schema/index.ts';
@@ -107,18 +119,22 @@ function andBelow(match: SQL): SQL {
 }
 
 /**
- * The names from the top-level location down, {Centrála Hradec Králové, Zasedačka}, in Czech
- * collation. Arrays compare name by name and a prefix sorts first, so ordered by it every location
+ * The names from the top-level location down to the location with this ID (a column of any table),
+ * {Centrála Hradec Králové, Zasedačka}, in Czech collation; NULL for no location. Arrays compare name by name and a prefix sorts first, so ordered by it every location
  * follows the one it is in, before any sibling of that one ("Sklad", "Sklad › A", "Sklad - B").
  */
-const pathNames = sql<string[]>`((
-  WITH RECURSIVE up (parent_id, name, depth) AS (
-    SELECT p.parent_id, p.name, 0 FROM locations p WHERE p.id = ${locations.id}
-    UNION ALL
-    SELECT p.parent_id, p.name, up.depth + 1 FROM locations p JOIN up ON p.id = up.parent_id
-  )
-  SELECT array_agg(up.name ORDER BY up.depth DESC) FROM up
-) COLLATE cs_cz)`;
+export function pathNamesOf(locationId: AnyColumn | SQL): SQL<string[]> {
+  return sql<string[]>`((
+    WITH RECURSIVE up (parent_id, name, depth) AS (
+      SELECT p.parent_id, p.name, 0 FROM locations p WHERE p.id = ${locationId}
+      UNION ALL
+      SELECT p.parent_id, p.name, up.depth + 1 FROM locations p JOIN up ON p.id = up.parent_id
+    )
+    SELECT array_agg(up.name ORDER BY up.depth DESC) FROM up
+  ) COLLATE cs_cz)`;
+}
+
+const pathNames = pathNamesOf(locations.id);
 
 function listWhere(filter: LocationFilter): SQL[] {
   const conditions: SQL[] = [filter.archived ? isNotNull(locations.archivedAt) : isNull(locations.archivedAt)];

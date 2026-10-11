@@ -114,6 +114,37 @@ describe('item repository', () => {
     expect(await repo().count({})).toBe(4);
   });
 
+  it('lists items for labels by the names of their path in Czech order, then by name, without a location last', async () => {
+    const { praha, prizemi, kuchyne, brno, add } = await setup();
+    const cesky = await insertLocation(t().app, { name: 'Čerpací stanice' });
+    await add('Ž stůl', brno.id);
+    await add('Čistič', kuchyne.id);
+    await add('Aaa', kuchyne.id);
+    await add('Váha', praha.id);
+    await add('Pec', prizemi.id);
+    await add('Čerpadlo', cesky.id);
+    await repo().insert({ name: 'Bez místa', locationId: null, createdBy: (await insertUser(t().app)).id });
+
+    const rows = await repo().listForLabels({}, 1000);
+    // Centrála Praha < … › Přízemí výroba < … › Kuchyně (a prefix sorts first), then Čerpací (after C, before P), Prodejna Brno.
+    expect(rows.map((r) => r.name)).toEqual(['Váha', 'Pec', 'Aaa', 'Čistič', 'Čerpadlo', 'Ž stůl', 'Bez místa']);
+    expect(rows[0]).toEqual({ id: expect.any(String), code: expect.stringMatching(/^INV-/), name: 'Váha', locationId: praha.id });
+  });
+
+  it('limits the label list, narrows it by subtree and search, and leaves archived items out', async () => {
+    const { user, praha, prizemi, kuchyne, brno, add } = await setup();
+    await add('Váha', praha.id);
+    await add('Váha malá', kuchyne.id);
+    const old = await add('Váha stará', prizemi.id);
+    await repo().setArchived(old.id, 1, true, user.id);
+    await add('Váha jinde', brno.id);
+
+    expect((await repo().listForLabels({ locationId: praha.id }, 1000)).map((r) => r.name)).toEqual(['Váha', 'Váha malá']);
+    expect((await repo().listForLabels({ q: 'VAHA' }, 1000)).map((r) => r.name)).toEqual(['Váha', 'Váha malá', 'Váha jinde']);
+    expect((await repo().listForLabels({ q: 'vaha' }, 2)).map((r) => r.name)).toEqual(['Váha', 'Váha malá']);
+    expect(await repo().count({ q: 'vaha' })).toBe(3);
+  });
+
   it('lists the archived items when asked, and no active ones', async () => {
     const { user, kuchyne, add } = await setup();
     await add('Hrnec', kuchyne.id);

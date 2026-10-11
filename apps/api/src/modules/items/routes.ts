@@ -3,6 +3,8 @@ import {
   createItemBody,
   idParam,
   itemDetailSchema,
+  itemLabelsQuery,
+  itemLabelsSchema,
   itemListSchema,
   itemSchema,
   itemSearchQuery,
@@ -13,7 +15,7 @@ import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
 import { toPhotoDto } from '../photos/dto.ts';
 import type { PhotoService } from '../photos/service.ts';
-import { toItemDto, toItemListEntryDto } from './dto.ts';
+import { toItemDto, toItemLabelDto, toItemListEntryDto } from './dto.ts';
 import type { ItemService } from './service.ts';
 
 const list = defineRoute({
@@ -25,6 +27,19 @@ const list = defineRoute({
     'List and search active items by name (`archived=true`: the archived ones); the search covers name, code, serial number, model, external IDs, manufacturer and location names',
   request: { query: itemSearchQuery },
   responses: { 200: { description: 'One page of items', content: jsonContent(itemListSchema) } },
+});
+
+const labels = defineRoute({
+  method: 'get',
+  path: '/items/labels',
+  minRole: 'read',
+  tags: ['items'],
+  summary:
+    'Active items for QR labels: those below `locationId` and/or matching `q`, at most `limit` (1 000), ' +
+    'by location path then name, with the total; not paged',
+  request: { query: itemLabelsQuery },
+  errors: [404],
+  responses: { 200: { description: 'The items and how many matched', content: jsonContent(itemLabelsSchema) } },
 });
 
 const get = defineRoute({
@@ -96,6 +111,12 @@ export function createItemRoutes({ items, photos }: ItemServices) {
       const filter = { q, locationId, manufacturerId, archived: archived === 'true' };
       const page = await items.list(c.get('actor'), filter, { limit, cursor });
       return c.json({ ...page, items: page.items.map(toItemListEntryDto) }, 200);
+    })
+    // Before `/items/{id}`, which would take "labels" for an id and answer 400.
+    .openapi(labels, async (c) => {
+      const { q, locationId, limit } = c.req.valid('query');
+      const result = await items.listLabels(c.get('actor'), { q, locationId }, limit);
+      return c.json({ items: result.items.map(toItemLabelDto), total: result.total }, 200);
     })
     .openapi(get, async (c) => {
       const actor = c.get('actor');

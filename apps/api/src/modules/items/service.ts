@@ -13,6 +13,7 @@ import {
   type ExternalId,
   type ExternalIdInput,
   type ItemFilter,
+  type ItemLabelRow,
   type ItemListRow,
   type ItemRepository,
   type ItemWithManufacturer,
@@ -46,6 +47,8 @@ export type ItemDeps = { repos: ItemRepos; transact: Transact<ItemRepos>; now?: 
 /** An item with its external IDs and the path of its location (the location itself last). */
 export type ItemDetail = ItemWithManufacturer & { externalIds: ExternalId[]; path: PathSegment[] };
 export type ItemListEntry = ItemListRow & { path: PathSegment[] };
+/** An item for a label, with the path of its location (empty without one). */
+export type ItemLabel = Omit<ItemLabelRow, 'locationId'> & { path: PathSegment[] };
 
 export type CreateItemInput = {
   /** Chosen by the user; the database assigns the next INV-nnnnn when missing. */
@@ -245,6 +248,30 @@ export function createItemService({ repos, transact, now = () => new Date() }: I
       assertRole(actor, 'read');
       if (!(await repos.locations.findById(locationId))) throw new DomainError('not_found');
       return list(actor, { ...filter, locationId }, page);
+    },
+
+    /**
+     * Active items for the label wizard: those in a location's subtree and/or matching the search,
+     * at most `limit`, by location path then name, with the total of all that match. An unknown
+     * location is not found, not an empty answer.
+     */
+    async listLabels(
+      actor: Actor,
+      filter: Pick<ItemFilter, 'q' | 'locationId'>,
+      limit: number,
+    ): Promise<{ items: ItemLabel[]; total: number }> {
+      assertRole(actor, 'read');
+      if (filter.locationId && !(await repos.locations.findById(filter.locationId))) {
+        throw new DomainError('not_found');
+      }
+      const [rows, total] = await Promise.all([repos.items.listForLabels(filter, limit), repos.items.count(filter)]);
+      const paths = await repos.locations.findPaths([
+        ...new Set(rows.flatMap((row) => (row.locationId ? [row.locationId] : []))),
+      ]);
+      return {
+        items: rows.map(({ locationId, ...row }) => ({ ...row, path: (locationId && paths.get(locationId)) || [] })),
+        total,
+      };
     },
 
     async create(actor: Actor, input: CreateItemInput): Promise<CreatedItem> {

@@ -75,6 +75,26 @@ export function createFakeItemStore() {
       );
       return { ...result, items: rows };
     },
+    async listForLabels(filter, limit) {
+      const rows = matching({ ...filter, archived: false });
+      const paths = await locations.findPaths(rows.flatMap((row) => (row.locationId ? [row.locationId] : [])));
+      const names = (row: Item) => (row.locationId ? (paths.get(row.locationId) ?? []).map((s) => s.name) : null);
+      const collator = new Intl.Collator('cs');
+      // Name by name, a prefix first, items without a location last, like `ORDER BY text[]`.
+      const byPath = (a: Item, b: Item) => {
+        const [x, y] = [names(a), names(b)];
+        if (!x || !y) return x === y ? 0 : x ? -1 : 1;
+        for (let i = 0; i < Math.min(x.length, y.length); i++) {
+          const order = collator.compare(x[i]!, y[i]!);
+          if (order) return order;
+        }
+        return x.length - y.length;
+      };
+      return rows
+        .sort((a, b) => byPath(a, b) || collator.compare(a.name, b.name) || (a.id < b.id ? -1 : 1))
+        .slice(0, limit)
+        .map(({ id, code, name, locationId }) => ({ id, code, name, locationId }));
+    },
     async count(filter) {
       return matching(filter).length;
     },

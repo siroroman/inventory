@@ -1,6 +1,6 @@
-import type { ItemDto, ItemListEntryDto } from '@inventory/shared';
+import type { ItemDto, ItemLabelDto, ItemListEntryDto } from '@inventory/shared';
 import { recordDto } from '../../http/dto.ts';
-import type { ItemDetail, ItemListEntry } from './service.ts';
+import type { ItemDetail, ItemLabel, ItemListEntry } from './service.ts';
 
 export function toItemListEntryDto(row: ItemListEntry): ItemListEntryDto {
   return {
@@ -41,4 +41,9 @@ export function toItemDto(row: ItemDetail): ItemDto {
     note: row.note,
     externalIds: row.externalIds.map(({ source, value }) => ({ source, value })),
   };
+}
+
+/** The path is the location names from the top, joined as breadcrumbs are shown. */
+export function toItemLabelDto({ id, code, name, path }: ItemLabel): ItemLabelDto {
+  return { id, code, name, path: path.map((segment) => segment.name).join(' › ') };
 }
