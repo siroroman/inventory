@@ -8,6 +8,7 @@ import { type AuditRepository, createAuditRepository } from '../audit/repository
 import { createLocationRepository, type LocationRepository, type PathSegment } from '../locations/repository.ts';
 import {
   createInventoryRepository,
+  type Inventory,
   type InventoryCounts,
   type InventoryFilter,
   type InventoryRepository,
@@ -170,6 +171,17 @@ export function createInventoryService({ repos, transact, now = () => new Date()
   }
 
   /**
+   * The run's row, locked shared until the end of the transaction, for a run in progress. Ticks,
+   * flags and scans go on side by side but never past a finish or cancel (those take it `FOR UPDATE`).
+   */
+  async function lockOpen(r: InventoryRepos, id: string): Promise<Inventory> {
+    const run = await r.inventories.lockShared(id);
+    if (!run) throw new DomainError('not_found');
+    if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+    return run;
+  }
+
+  /**
    * Ticks or unticks an item by hand. The run's row is locked shared, so ticks go on side by side
    * but never past a finish or cancel. A tick that changes nothing (already checked, already
    * unchecked) is not an error and leaves no audit entry; the first check wins.
@@ -177,9 +189,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
   async function setChecked(actor: Actor, id: string, itemId: string, checked: boolean): Promise<InventoryRunItem> {
     assertRole(actor, 'write');
     const answer = await transact(async (r) => {
-      const run = await r.inventories.lockShared(id);
-      if (!run) throw new DomainError('not_found');
-      if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+      await lockOpen(r, id);
       const row = await r.inventories.findRunItem(id, itemId);
       if (!row) throw new DomainError('item_not_in_inventory');
       if (checked) {
@@ -224,9 +234,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
   async function setMissing(actor: Actor, id: string, itemId: string, missing: boolean): Promise<InventoryRunItem> {
     assertRole(actor, 'write');
     const answer = await transact(async (r) => {
-      const run = await r.inventories.lockShared(id);
-      if (!run) throw new DomainError('not_found');
-      if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+      await lockOpen(r, id);
       const row = await r.inventories.findRunItem(id, itemId);
       if (row?.kind !== 'expected') throw new DomainError('item_not_in_inventory');
       if (missing) {
@@ -265,9 +273,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
     assertRole(actor, 'write');
     const method = input.method ?? 'scan';
     const decision = await transact(async (r): Promise<ScanDecision> => {
-      const run = await r.inventories.lockShared(id);
-      if (!run) throw new DomainError('not_found');
-      if (run.status !== 'in_progress') throw new DomainError('inventory_closed');
+      const run = await lockOpen(r, id);
       if (input.locationId) {
         const path = (await r.locations.findPaths([input.locationId])).get(input.locationId);
         if (!path) throw new DomainError('location_not_found');
