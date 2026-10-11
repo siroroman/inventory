@@ -72,14 +72,14 @@ describe('home: inventory tab', () => {
     const card = (await screen.findAllByRole('listitem'))[0]!;
     expect(card).toHaveTextContent('Sklad');
     expect(card).toHaveTextContent('Centrála Praha › Patro 2');
-    expect(card).toHaveTextContent('84 / 128 zkontrolováno · 66 %');
+    expect(card).toHaveTextContent('Zkontrolováno 66 % položek (84/128)');
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '84');
     expect(card).toHaveTextContent(/Zahájil RS · 3\. 10\. 2026 v \d{1,2}:\d{2}/);
     expect(within(card).getByText('Roman Siro, Jan Novák')).toBeInTheDocument();
     // The whole card is the link; there is no button on it.
     const link = within(card).getByRole('link');
     expect(link).toHaveAttribute('href', `/inventories/${run.id}`);
-    expect(link).toHaveTextContent('84 / 128 zkontrolováno');
+    expect(link).toHaveTextContent('Zkontrolováno 66 % položek (84/128)');
     expect(within(card).queryByRole('button')).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Pokračovat' })).not.toBeInTheDocument();
   });
@@ -90,7 +90,7 @@ describe('home: inventory tab', () => {
     renderApp('/?tab=inventory');
 
     const card = (await screen.findAllByRole('listitem'))[0]!;
-    expect(card).toHaveTextContent('10 / 10 zkontrolováno · 100 %');
+    expect(card).toHaveTextContent('Zkontrolováno 100 % položek (10/10)');
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10');
   });
 
@@ -98,7 +98,7 @@ describe('home: inventory tab', () => {
     const run = running();
     api({ open: () => page([run], { total: 1 }) });
     const { router } = renderApp('/?tab=inventory');
-    await userEvent.click(await screen.findByText(/84 \/ 128 zkontrolováno/));
+    await userEvent.click(await screen.findByText(/Zkontrolováno 66 % položek \(84\/128\)/));
     await waitFor(() => expect(router.state.location.pathname).toBe(`/inventories/${run.id}`));
   });
 
@@ -272,11 +272,11 @@ describe('home: inventory tab', () => {
     let count = 0;
     const calls = api({ open: () => page([running({ counts: { expected: 10, checked: ++count, elsewhere: 0, new: 0, missing: 0 } })]) });
     const { router } = renderApp('/?tab=inventory');
-    expect(await screen.findByText('1 / 10 zkontrolováno · 10 %')).toBeInTheDocument();
+    expect(await screen.findByText('Zkontrolováno 10 % položek (1/10)')).toBeInTheDocument();
 
     await router.navigate({ to: '/', search: { tab: 'items' } });
     await router.navigate({ to: '/', search: { tab: 'inventory' } });
-    expect(await screen.findByText('2 / 10 zkontrolováno · 20 %')).toBeInTheDocument();
+    expect(await screen.findByText('Zkontrolováno 20 % položek (2/10)')).toBeInTheDocument();
     expect(listCalls(calls).filter((params) => params.get('state') === 'open').length).toBeGreaterThanOrEqual(2);
   });
 
@@ -292,7 +292,7 @@ describe('home: inventory tab', () => {
     const retry = await screen.findByRole('button', { name: 'Zkusit znovu' });
     fail = false;
     await userEvent.click(retry);
-    expect(await screen.findByText('84 / 128 zkontrolováno · 66 %')).toBeInTheDocument();
+    expect(await screen.findByText('Zkontrolováno 66 % položek (84/128)')).toBeInTheDocument();
   });
 
   describe('archived runs', () => {

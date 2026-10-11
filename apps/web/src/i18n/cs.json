@@ -517,6 +517,7 @@
   "inventory": {
     "notFoundTitle": "Inventura nenalezena",
     "notFoundHint": "Inventura neexistuje nebo byla odstraněna.",
+    "breadcrumb": "Umístění",
     "status": {
       "in_progress": "Probíhá",
       "finished": "Dokončená",
@@ -529,16 +530,20 @@
       "reopen": { "by": "Znovu otevřel {{who}} · {{date}} v {{time}}", "on": "Znovu otevřeno {{date}} v {{time}}" }
     },
     "progressLabel": "Průběh inventury",
-    "progress": "{{done}} / {{total}} zkontrolováno · {{percent}} %",
+    "progress": "Zkontrolováno {{percent}} % položek ({{done}}/{{total}})",
     "noItems": "V lokalitě nejsou žádné položky.",
     "activeNow_one": "{{who}} právě pracuje",
     "activeNow_few": "{{who}} právě pracují",
     "activeNow_many": "{{who}} právě pracují",
     "activeNow_other": "{{who}} právě pracují",
     "locations": {
+      "title": "Podlokality",
+      "progress": "Dokončeno {{percent}} % podlokalit ({{done}}/{{total}})",
+      "progressLabel": "Průběh podlokalit",
+      "figures": { "notStarted": "Nezkontrolováno", "inProgress": "Probíhající", "done": "Dokončené" },
       "inProgress": "Probíhající ({{count}})",
-      "notStarted": "Nekontrolované ({{count}})",
-      "done": "Hotovo ({{count}})",
+      "notStarted": "Nezkontrolované ({{count}})",
+      "done": "Dokončené ({{count}})",
       "items": "{{checked}} / {{total}} položek",
       "extra_one": "{{count}} nová",
       "extra_few": "{{count}} nové",
@@ -556,7 +561,6 @@
       "missing": "Chybí"
     },
     "actions": {
-      "menu": "Akce inventury",
       "finish": "Dokončit inventuru",
       "cancel": "Zrušit inventuru",
       "reopen": "Znovu otevřít inventuru",

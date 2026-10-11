@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { inventoryQueryOptions } from '../src/features/inventories/api.ts';
-import { inventory, inventoryLocation, person, ref } from './fixtures.ts';
+import { inventory, inventoryLocation, page, person, ref } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi, stubTouchScreen } from './helpers.tsx';
 
 const id = '5d9e2a63-8b5c-4e7a-9f1b-0a2c3d4e5f60';
@@ -40,10 +40,9 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Centrála Praha')).toBeInTheDocument();
     expect(screen.queryByText('Probíhá')).not.toBeInTheDocument();
     const started = screen.getByText(/^Zahájil RS · 3\. 10\. 2026 v \d{1,2}:\d{2}$/);
-    expect(screen.getByText('84 / 128 zkontrolováno · 66 %')).toBeInTheDocument();
+    expect(screen.getByText('Zkontrolováno 66 % položek (84/128)')).toBeInTheDocument();
     const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
     expect(bar).toHaveAttribute('aria-valuenow', '84');
     expect(bar).toHaveAttribute('aria-valuemax', '128');
@@ -53,7 +52,38 @@ describe('inventory run overview', () => {
     expect(box.lastElementChild).toBe(started.parentElement);
     expect(box.contains(bar)).toBe(true);
     expect(within(box).queryByText('Roman Siro, Jan Novák')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', '/?tab=inventory');
+    expect(screen.queryByRole('link', { name: 'Zpět' })).not.toBeInTheDocument();
+  });
+
+  it('has a breadcrumb: the Inventura tab and the root as the current page, without what is above the root', async () => {
+    const praha = ref('LOC-001', 'Centrála Praha');
+    const root = ref('LOC-004', 'Sklad');
+    signedIn(() => jsonResponse(inventory({ id, location: root, path: [praha, root] })));
+    renderApp(`/inventories/${id}`);
+
+    await screen.findByRole('heading', { name: 'Sklad', level: 1 });
+    const crumbs = within(screen.getByRole('navigation', { name: 'Umístění' }));
+    // Centrála Praha is above the root and has no screen in the run, so it is no crumb.
+    expect(crumbs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Inventura', 'Sklad']);
+    // Every crumb is a link: the tab and the root (this page).
+    expect(crumbs.getByRole('link', { name: 'Inventura' })).toHaveAttribute('href', '/?tab=inventory');
+    const current = crumbs.getByRole('link', { name: 'Sklad' });
+    expect(current).toHaveAttribute('href', `/inventories/${id}`);
+    expect(current).toHaveAttribute('aria-current', 'page');
+    // Only the current page is bold.
+    expect(current).toHaveClass('font-bold');
+    expect(crumbs.getByRole('link', { name: 'Inventura' })).not.toHaveClass('font-bold');
+  });
+
+  it('leads the Inventura crumb to the list of runs', async () => {
+    stubApi({
+      'GET /api/v1/me': () => jsonResponse(me),
+      [`GET /api/v1/inventories/${id}`]: () => jsonResponse(inventory({ id })),
+      'GET /api/v1/inventories': () => jsonResponse(page([])),
+    });
+    renderApp(`/inventories/${id}`);
+    await userEvent.click(await screen.findByRole('link', { name: 'Inventura' }));
+    expect(await screen.findByRole('tab', { name: 'Inventura', selected: true })).toBeInTheDocument();
   });
 
   it('groups the locations by progress and keeps their order inside a group', async () => {
@@ -80,11 +110,12 @@ describe('inventory run overview', () => {
         .map((row) => row.querySelector('p')!.textContent);
     await screen.findByRole('heading', { name: 'Probíhající (2)', level: 2 });
     expect(names('Probíhající (2)')).toEqual(['Dílna', 'Sklad']);
-    expect(names('Nekontrolované (2)')).toEqual(['Hala', 'Šatna']);
-    expect(names('Hotovo (1)')).toEqual(['Čistírna']);
+    expect(names('Nezkontrolované (2)')).toEqual(['Hala', 'Šatna']);
+    expect(names('Dokončené (1)')).toEqual(['Čistírna']);
 
+    // The Podlokality box comes first, then the groups.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(['Probíhající (2)', 'Nekontrolované (2)', 'Hotovo (1)']);
+    expect(headings).toEqual(['Podlokality', 'Probíhající (2)', 'Nezkontrolované (2)', 'Dokončené (1)']);
 
     const dilna = screen.getByText('Dílna').closest('li')!;
     expect(dilna).toHaveTextContent('2 / 5 položek');
@@ -96,6 +127,46 @@ describe('inventory run overview', () => {
     expect(within(dilna).queryByText('Hotovo')).not.toBeInTheDocument();
   });
 
+  describe('Podlokality box', () => {
+    const rooms = [
+      inventoryLocation({ name: 'Čistírna', total: 4, checked: 4 }),
+      inventoryLocation({ name: 'Dílna', total: 5, checked: 2 }),
+      inventoryLocation({ name: 'Hala', total: 3, checked: 0 }),
+      inventoryLocation({ name: 'Sklad', total: 2, checked: 1 }),
+      inventoryLocation({ name: 'Šatna', total: 0, checked: 0 }),
+    ];
+
+    it('sits between the overview box and the groups with a bar and the three figures', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 14, checked: 7, elsewhere: 0, new: 0, missing: 0 }, locations: rooms })));
+      renderApp(`/inventories/${id}`);
+
+      const title = await screen.findByRole('heading', { name: 'Podlokality', level: 2 });
+      const box = title.closest('section')!;
+      // 1 of 5 locations is done; the bar and its text say so.
+      expect(within(box).getByText('Dokončeno 20 % podlokalit (1/5)')).toBeInTheDocument();
+      const bar = within(box).getByRole('progressbar', { name: 'Průběh podlokalit' });
+      expect(bar).toHaveAttribute('aria-valuenow', '1');
+      expect(bar).toHaveAttribute('aria-valuemax', '5');
+      const figure = (label: string) => within(box).getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+      expect(['Nezkontrolováno', 'Probíhající', 'Dokončené'].map(figure)).toEqual(['2', '2', '1']);
+
+      // Order on the page: the overview box (item progress), this box, then the groups.
+      const itemBar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
+      const groupHeading = screen.getByRole('heading', { name: 'Probíhající (2)', level: 2 });
+      expect(itemBar.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(title.compareDocumentPosition(groupHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('is left out when the run has no locations', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 0, checked: 0, elsewhere: 0, new: 0, missing: 0 } })));
+      renderApp(`/inventories/${id}`);
+
+      await screen.findByText('V lokalitě nejsou žádné položky.');
+      expect(screen.queryByRole('heading', { name: 'Podlokality' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Průběh podlokalit' })).not.toBeInTheDocument();
+    });
+  });
+
   it('adds the run up in four figures under the bar', async () => {
     signedIn(() =>
       jsonResponse(inventory({ id, counts: { expected: 91, checked: 3, elsewhere: 1, new: 1, missing: 0 } })),
@@ -103,7 +174,7 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     // The bar is the four figures added up: 3 + 2 settled of 3 + 88 + 2.
-    await screen.findByText('5 / 93 zkontrolováno · 5 %');
+    await screen.findByText('Zkontrolováno 5 % položek (5/93)');
     const figure = (label: string) => screen.getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
     expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['3', '88', '2', '0']);
   });
@@ -114,7 +185,7 @@ describe('inventory run overview', () => {
     );
     renderApp(`/inventories/${id}`);
 
-    expect(await screen.findByText('10 / 10 zkontrolováno · 100 %')).toBeInTheDocument();
+    expect(await screen.findByText('Zkontrolováno 100 % položek (10/10)')).toBeInTheDocument();
     const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
     expect(bar).toHaveAttribute('aria-valuenow', '10');
     expect(bar).toHaveAttribute('aria-valuemax', '10');
@@ -126,7 +197,7 @@ describe('inventory run overview', () => {
     signedIn(() => jsonResponse(inventory({ id, counts: { expected: 0, checked: 0, elsewhere: 0, new: 2, missing: 0 } })));
     renderApp(`/inventories/${id}`);
 
-    expect(await screen.findByText('2 / 2 zkontrolováno · 100 %')).toBeInTheDocument();
+    expect(await screen.findByText('Zkontrolováno 100 % položek (2/2)')).toBeInTheDocument();
     expect(screen.queryByText('V lokalitě nejsou žádné položky.')).not.toBeInTheDocument();
   });
 
@@ -161,7 +232,7 @@ describe('inventory run overview', () => {
     );
     renderApp(`/inventories/${id}`);
 
-    expect(await screen.findByText('4 / 92 zkontrolováno · 4 %')).toBeInTheDocument();
+    expect(await screen.findByText('Zkontrolováno 4 % položek (4/92)')).toBeInTheDocument();
     // The row says what the list did and names the find apart.
     expect(screen.getByText('Arkády Pankrác').closest('li')).toHaveTextContent('3 / 91 položek · 1 nová');
   });
@@ -186,7 +257,7 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     const headings = await screen.findAllByRole('heading', { level: 2 });
-    expect(headings.map((h) => h.textContent)).toEqual(['Probíhající (1)', 'Nekontrolované (1)', 'Hotovo (1)']);
+    expect(headings.map((h) => h.textContent)).toEqual(['Podlokality', 'Probíhající (1)', 'Nezkontrolované (1)', 'Dokončené (1)']);
     const done = screen.getByText('Čistírna').closest('li')!;
     expect(done).toHaveTextContent('4 / 5 položek · 1 chybí');
     expect(within(done).getByText('Hotovo')).toBeInTheDocument();
@@ -218,10 +289,12 @@ describe('inventory run overview', () => {
   });
 
   it('links each location to its checklist', async () => {
-    const sklad = inventoryLocation({ name: 'Sklad', total: 3, checked: 1 });
+    const root = ref('LOC-001', 'Centrála Praha');
+    const self = ref('LOC-004', 'Sklad');
+    const sklad = inventoryLocation({ ...self, path: [root, self], total: 3, checked: 1 });
     stubApi({
       'GET /api/v1/me': () => jsonResponse(me),
-      [`GET /api/v1/inventories/${id}`]: () => jsonResponse(inventory({ id, locations: [sklad] })),
+      [`GET /api/v1/inventories/${id}`]: () => jsonResponse(inventory({ id, location: root, path: [root], locations: [sklad] })),
       [`GET /api/v1/inventories/${id}/items`]: () => jsonResponse({ items: [] }),
     });
     renderApp(`/inventories/${id}`);
@@ -230,8 +303,10 @@ describe('inventory run overview', () => {
 
     await userEvent.click(link);
     expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
-    // Back goes to the overview it came from.
-    await userEvent.click(screen.getByRole('button', { name: 'Zpět' }));
+    // The run's root in the breadcrumb leads back to the overview.
+    const crumbs = within(screen.getByRole('navigation', { name: 'Umístění' }));
+    await userEvent.click(crumbs.getByRole('link', { name: 'Centrála Praha' }));
+    expect(await screen.findByRole('heading', { name: 'Centrála Praha', level: 1 })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Sklad/ })).toBeInTheDocument();
   });
 
@@ -270,7 +345,8 @@ describe('inventory run overview', () => {
     );
     renderApp(`/inventories/${id}`);
 
-    const rows = await screen.findAllByRole('listitem');
+    const heading = await screen.findByRole('heading', { name: 'Nezkontrolované (3)', level: 2 });
+    const rows = within(heading.closest('section')!).getAllByRole('listitem');
     expect(rows).toHaveLength(3);
     expect(within(rows[0]!).queryByText(/›|Patro/)).not.toBeInTheDocument();
     expect(within(rows[1]!).queryByText(/Patro/)).not.toBeInTheDocument();
@@ -332,25 +408,25 @@ describe('inventory run overview', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  describe('actions menu', () => {
-    /** Opens the "…" menu and chooses an entry. */
+  describe('actions', () => {
+    /** Presses one of the buttons under the heading. */
     async function choose(name: string) {
-      await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
-      await userEvent.click(await screen.findByRole('menuitem', { name }));
+      await userEvent.click(await screen.findByRole('button', { name }));
     }
+    const actionNames = ['Dokončit inventuru', 'Zrušit inventuru', 'Znovu otevřít inventuru', 'Archivovat', 'Obnovit'];
+    /** Which of the action buttons the screen shows, in the order they are named above. */
+    const offered = () =>
+      actionNames.filter((name) => screen.queryByRole('button', { name }) !== null);
     const ended = { endedAt: '2026-10-03T14:02:00.000Z', endedBy: jan };
 
-    it('replaces the cancel button: a run in progress offers finish and cancel, nothing else', async () => {
+    it('shows the buttons themselves, no menu: a run in progress offers finish and cancel, nothing else', async () => {
       signedIn(() => jsonResponse(inventory({ id })));
       renderApp(`/inventories/${id}`);
 
-      expect(await screen.findByRole('button', { name: 'Akce inventury' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Zrušit inventuru' })).not.toBeInTheDocument();
-      await userEvent.click(screen.getByRole('button', { name: 'Akce inventury' }));
-      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
-        'Dokončit inventuru',
-        'Zrušit inventuru',
-      ]);
+      expect(await screen.findByRole('button', { name: 'Dokončit inventuru' })).toBeInTheDocument();
+      expect(offered()).toEqual(['Dokončit inventuru', 'Zrušit inventuru']);
+      expect(screen.queryByRole('button', { name: 'Akce inventury' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
     });
 
     it('asks first, then cancels with the current version and shows the run cancelled (phone)', async () => {
@@ -507,11 +583,7 @@ describe('inventory run overview', () => {
       expect(screen.getByText('Chybí', { selector: 'dt' }).nextElementSibling).toHaveTextContent('3');
       expect(await calls.find((call) => call.url.endsWith('/reopen'))!.clone().json()).toEqual({ version: 5 });
       // In progress again: finish and cancel are offered.
-      await userEvent.click(screen.getByRole('button', { name: 'Akce inventury' }));
-      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
-        'Dokončit inventuru',
-        'Zrušit inventuru',
-      ]);
+      await waitFor(() => expect(offered()).toEqual(['Dokončit inventuru', 'Zrušit inventuru']));
     });
 
     it('tells the user when another run is in progress on the location', async () => {
@@ -530,11 +602,8 @@ describe('inventory run overview', () => {
     it('offers to reopen a cancelled run, and to archive it', async () => {
       signedIn(() => jsonResponse(inventory({ id, status: 'cancelled', ...ended })));
       renderApp(`/inventories/${id}`);
-      await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
-      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
-        'Znovu otevřít inventuru',
-        'Archivovat',
-      ]);
+      await screen.findByRole('button', { name: 'Znovu otevřít inventuru' });
+      expect(offered()).toEqual(['Znovu otevřít inventuru', 'Archivovat']);
     });
 
     it('archives an ended run after a question, and restores an archived one at once', async () => {
@@ -558,13 +627,10 @@ describe('inventory run overview', () => {
       });
       renderApp(`/inventories/${id}`);
 
-      await userEvent.click(await screen.findByRole('button', { name: 'Akce inventury' }));
       // A finished run can be taken back or archived.
-      expect((await screen.findAllByRole('menuitem')).map((item) => item.textContent)).toEqual([
-        'Znovu otevřít inventuru',
-        'Archivovat',
-      ]);
-      await userEvent.click(screen.getByRole('menuitem', { name: 'Archivovat' }));
+      await screen.findByRole('button', { name: 'Archivovat' });
+      expect(offered()).toEqual(['Znovu otevřít inventuru', 'Archivovat']);
+      await userEvent.click(screen.getByRole('button', { name: 'Archivovat' }));
       const dialog = await screen.findByRole('alertdialog');
       expect(within(dialog).getByText('Archivovat inventuru?')).toBeInTheDocument();
       await userEvent.click(within(dialog).getByRole('button', { name: 'Archivovat' }));
@@ -572,6 +638,8 @@ describe('inventory run overview', () => {
       expect(await screen.findByText('Inventura archivována')).toBeInTheDocument();
       expect(await calls.find((call) => call.url.endsWith('/archive'))!.clone().json()).toEqual({ version: 4 });
 
+      // An archived run offers only Obnovit, which asks nothing.
+      await waitFor(() => expect(offered()).toEqual(['Obnovit']));
       await choose('Obnovit');
       await waitFor(() => expect(screen.queryByText('Archivováno')).not.toBeInTheDocument());
       expect(await screen.findByText('Inventura obnovena')).toBeInTheDocument();
@@ -579,11 +647,11 @@ describe('inventory run overview', () => {
       expect(await calls.find((call) => call.url.endsWith('/restore'))!.clone().json()).toEqual({ version: 5 });
     });
 
-    it('offers a reader no menu at all', async () => {
+    it('offers a reader no buttons at all', async () => {
       signedIn(() => jsonResponse(inventory({ id })), 'read');
       renderApp(`/inventories/${id}`);
       await screen.findByRole('heading', { name: 'Centrála Praha', level: 1 });
-      expect(screen.queryByRole('button', { name: 'Akce inventury' })).not.toBeInTheDocument();
+      expect(offered()).toEqual([]);
     });
   });
 
@@ -607,7 +675,7 @@ describe('inventory run overview', () => {
     // Both lines have the form "who · date v time", the start line first.
     const lines = screen.getAllByText(/ · \d{1,2}\. \d{1,2}\. 2026 v \d{1,2}:\d{2}$/).map((line) => line.textContent);
     expect(lines).toEqual([expect.stringMatching(/^Zahájil \S+ · /), expect.stringMatching(/^Zrušil JN · 4\. 10\. 2026 v \d{1,2}:\d{2}$/)]);
-    expect(screen.getByText('4 / 10 zkontrolováno · 40 %')).toBeInTheDocument();
+    expect(screen.getByText('Zkontrolováno 40 % položek (4/10)')).toBeInTheDocument();
     expect(screen.queryByText(/právě pracuj/)).not.toBeInTheDocument();
   });
 

@@ -140,14 +140,12 @@ describe('inventory checklist', () => {
 
     await rowsLoaded();
     expect(screen.getByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 })).toBeInTheDocument();
-    // From the run's root down to the parent: the root is "Centrála Praha", the floor sits between.
-    expect(screen.getByText('Centrála Praha › Přízemí výroba')).toBeInTheDocument();
-    expect(screen.getByText('24 / 32 zkontrolováno · 75 %')).toBeInTheDocument();
+    expect(screen.getByText('Zkontrolováno 75 % položek (24/32)')).toBeInTheDocument();
     const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
     expect(bar).toHaveAttribute('aria-valuenow', '24');
     expect(bar).toHaveAttribute('aria-valuemax', '32');
     expect(screen.getByText('Roman Siro, Jan Novák')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Zpět' })).toHaveAttribute('href', `/inventories/${runId}`);
+    expect(screen.queryByRole('link', { name: 'Zpět' })).not.toBeInTheDocument();
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['Nezkontrolované1', 'Zkontrolované1']);
@@ -268,7 +266,7 @@ describe('inventory checklist', () => {
       expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '2', '1', '0']);
       // The bar and the figures belong to one box; the bar counts the find on both sides: 1 + 1 of 2 + 1 + 1.
       const box = screen.getByRole('progressbar', { name: 'Průběh inventury' }).closest('section')!;
-      expect(within(box).getByText('2 / 4 zkontrolováno · 50 %')).toBeInTheDocument();
+      expect(within(box).getByText('Zkontrolováno 50 % položek (2/4)')).toBeInTheDocument();
       expect(within(box).getByText('Nové', { selector: 'dt' })).toBeInTheDocument();
     });
 
@@ -279,7 +277,7 @@ describe('inventory checklist', () => {
       await rowsLoaded();
 
       expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['1', '0', '0', '1']);
-      expect(screen.getByText('2 / 2 zkontrolováno · 100 %')).toBeInTheDocument();
+      expect(screen.getByText('Zkontrolováno 100 % položek (2/2)')).toBeInTheDocument();
       const bar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
       expect(bar).toHaveAttribute('aria-valuenow', '2');
       expect(bar).toHaveAttribute('aria-valuemax', '2');
@@ -306,26 +304,119 @@ describe('inventory checklist', () => {
     });
   });
 
-  it('starts the path at the root of the run, not at the top of the tree', async () => {
-    const sklad = ref('LOC-021', 'Sklad');
-    const praha = ref('LOC-002', 'Pobočka');
-    stubApi({
-      'GET /api/v1/me': () => jsonResponse(me),
-      [`GET /api/v1/inventories/${runId}`]: () =>
-        jsonResponse(
-          inventory({
-            id: runId,
-            location: floor,
-            path: [root, floor],
-            locations: [inventoryLocation({ ...sklad, path: [root, praha, floor, sklad], total: 1 })],
-          }),
-        ),
-      [`GET /api/v1/inventories/${runId}/items`]: () => jsonResponse({ items: [] }),
+  describe('breadcrumb', () => {
+    const crumbs = () => within(screen.getByRole('navigation', { name: 'Umístění' }));
+    const href = (name: string) => crumbs().getByRole('link', { name }).getAttribute('href');
+
+    /** A run whose root is `top`, with checklists for `locations` (each with its path from the top of the tree). */
+    function openRun(top: ReturnType<typeof ref>, topPath: ReturnType<typeof ref>[], locations: Record<string, unknown>[], url: string) {
+      stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/inventories/${runId}`]: () => jsonResponse(inventory({ id: runId, location: top, path: topPath, locations })),
+        [`GET /api/v1/inventories/${runId}/items`]: () => jsonResponse({ items: [] }),
+      });
+      return renderApp(url);
+    }
+
+    it('runs from the Inventura tab through the root of the run to the location, which is bold and the current page', async () => {
+      openChecklist([row('Mixér tyčový')]);
+      await screen.findByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 });
+
+      // The floor in between has no checklist in this run, so it has no crumb.
+      expect(crumbs().getAllByRole('link').map((link) => link.textContent)).toEqual([
+        'Inventura',
+        'Centrála Praha',
+        '0.19 – Teplá kuchyně',
+      ]);
+      expect(href('Inventura')).toBe('/?tab=inventory');
+      // The run's root is the run: its overview.
+      expect(href('Centrála Praha')).toBe(`/inventories/${runId}`);
+      const current = crumbs().getByRole('link', { name: '0.19 – Teplá kuchyně' });
+      expect(current).toHaveAttribute('href', `/inventories/${runId}/locations/${kitchen.id}`);
+      expect(current).toHaveAttribute('aria-current', 'page');
+      expect(current).toHaveClass('font-bold');
+      for (const name of ['Inventura', 'Centrála Praha']) {
+        expect(crumbs().getByRole('link', { name })).not.toHaveClass('font-bold');
+        expect(crumbs().getByRole('link', { name })).not.toHaveAttribute('aria-current');
+      }
     });
-    renderApp(`/inventories/${runId}/locations/${sklad.id}`);
-    expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Přízemí výroba')).toBeInTheDocument();
-    expect(screen.queryByText(/Centrála Praha/)).not.toBeInTheDocument();
+
+    it('goes back to the overview from the root crumb', async () => {
+      stubApi({
+        'GET /api/v1/me': () => jsonResponse(me),
+        [`GET /api/v1/inventories/${runId}`]: () =>
+          jsonResponse(
+            inventory({
+              id: runId,
+              location: root,
+              path: [root],
+              locations: [inventoryLocation({ ...kitchen, path: [root, floor, kitchen], total: 1 })],
+            }),
+          ),
+        [`GET /api/v1/inventories/${runId}/items`]: () => jsonResponse({ items: [] }),
+      });
+      renderApp(checklistUrl);
+      await userEvent.click(await screen.findByRole('link', { name: 'Centrála Praha' }));
+      expect(await screen.findByRole('heading', { name: 'Centrála Praha', level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /0\.19 – Teplá kuchyně/ })).toHaveAttribute(
+        'href',
+        `/inventories/${runId}/locations/${kitchen.id}`,
+      );
+    });
+
+    it('starts at the root of the run: what is above it, and a floor without a checklist, have no crumb', async () => {
+      const sklad = ref('LOC-021', 'Sklad');
+      const praha = ref('LOC-002', 'Pobočka');
+      openRun(
+        floor,
+        [root, floor],
+        [inventoryLocation({ ...sklad, path: [root, praha, floor, sklad], total: 1 })],
+        `/inventories/${runId}/locations/${sklad.id}`,
+      );
+      expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
+
+      expect(crumbs().getAllByRole('link').map((link) => link.textContent)).toEqual(['Inventura', 'Přízemí výroba', 'Sklad']);
+      expect(href('Přízemí výroba')).toBe(`/inventories/${runId}`);
+      expect(href('Sklad')).toBe(`/inventories/${runId}/locations/${sklad.id}`);
+      // Nothing in the breadcrumb leads out of the inventory.
+      for (const link of crumbs().getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/^\/locations\//);
+    });
+
+    it('opens the checklist of a location on the way down when the run has one for it', async () => {
+      const patro = ref('LOC-010', 'Patro 2');
+      const room = ref('LOC-011', 'Zasedačka');
+      openRun(
+        root,
+        [root],
+        [
+          inventoryLocation({ ...patro, path: [root, patro], total: 2 }),
+          inventoryLocation({ ...room, path: [root, patro, room], total: 1 }),
+        ],
+        `/inventories/${runId}/locations/${room.id}`,
+      );
+      await screen.findByRole('heading', { name: 'Zasedačka', level: 1 });
+
+      expect(href('Patro 2')).toBe(`/inventories/${runId}/locations/${patro.id}`);
+      await userEvent.click(crumbs().getByRole('link', { name: 'Patro 2' }));
+      expect(await screen.findByRole('heading', { name: 'Patro 2', level: 1 })).toBeInTheDocument();
+      expect(crumbs().getByRole('link', { name: 'Patro 2' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('keeps the root leading to the overview on the checklist of the root itself, in bold', async () => {
+      openRun(root, [root], [inventoryLocation({ ...root, path: [root], total: 3 })], `/inventories/${runId}/locations/${root.id}`);
+      await screen.findByRole('heading', { name: 'Centrála Praha', level: 1 });
+
+      expect(crumbs().getAllByRole('link').map((link) => link.textContent)).toEqual(['Inventura', 'Centrála Praha']);
+      expect(href('Centrála Praha')).toBe(`/inventories/${runId}`);
+      expect(crumbs().getByRole('link', { name: 'Centrála Praha' })).toHaveClass('font-bold');
+    });
+
+    it('is still the same page with a search typed', async () => {
+      openChecklist([row('Mixér tyčový')], { url: `${checklistUrl}?q=mix` });
+      await screen.findByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 });
+      expect(crumbs().getByRole('link', { name: '0.19 – Teplá kuchyně' })).toHaveAttribute('aria-current', 'page');
+      expect(crumbs().getByRole('link', { name: 'Centrála Praha' })).not.toHaveAttribute('aria-current');
+    });
   });
 
   it('lists the unchecked by name in Czech order and the checked with the newest first, with who and how', async () => {
@@ -503,7 +594,7 @@ describe('inventory checklist', () => {
       expect(posts(calls)).toHaveLength(1);
       expect(posts(calls)[0]).toMatch(/items\/[^/]+\/check$/);
       // The numbers in the header follow.
-      expect(await screen.findByText('1 / 2 zkontrolováno · 50 %')).toBeInTheDocument();
+      expect(await screen.findByText('Zkontrolováno 50 % položek (1/2)')).toBeInTheDocument();
     });
 
     it('can be done from the keyboard with Space', async () => {
@@ -634,7 +725,7 @@ describe('inventory checklist', () => {
       expect(within(flagged).getByText('Chybí')).toBeInTheDocument();
       expect(within(flagged).getByRole('button', { name: 'Zrušit označení chybějící položky: Mixér tyčový' })).toBeInTheDocument();
       // It is not checked but it is dealt with: the bar moves and the figures follow the next fetch.
-      expect(await screen.findByText('1 / 2 zkontrolováno · 50 %')).toBeInTheDocument();
+      expect(await screen.findByText('Zkontrolováno 50 % položek (1/2)')).toBeInTheDocument();
       await waitFor(() => expect(['Zkontrolováno', 'Nezkontrolováno', 'Nové', 'Chybí'].map(figure)).toEqual(['0', '1', '0', '1']));
       expect(posts(calls)).toHaveLength(1);
       expect(posts(calls)[0]).toMatch(/items\/[^/]+\/mark-missing$/);

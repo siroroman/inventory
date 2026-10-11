@@ -5,8 +5,7 @@ import type { Transact } from '../../db/transaction.ts';
 import { DomainError } from '../../errors.ts';
 import { changedFields, initialFields } from '../audit/changes.ts';
 import { type AuditRepository, createAuditRepository } from '../audit/repository.ts';
-import type { InventoryRepository } from '../inventories/repository.ts';
-import { createInventoryRepository } from '../inventories/repository.ts';
+import { createInventoryRepository, type InventoryRepository } from '../inventories/repository.ts';
 import { createLocationRepository, type LocationRepository, type PathSegment } from '../locations/repository.ts';
 import { createManufacturerRepository, type ManufacturerRepository } from '../manufacturers/repository.ts';
 import {
