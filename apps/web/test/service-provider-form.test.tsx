@@ -205,7 +205,7 @@ describe('new supplier', () => {
 
     await user.clear(screen.getByLabelText('Název'));
     await user.click(screen.getByRole('link', { name: 'Zrušit' }));
-    expect(await screen.findByRole('tab', { name: 'Dodavatelé', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Dodavatelé', level: 2 })).toBeInTheDocument();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 

@@ -3,7 +3,8 @@
     "name": "Správa majetku"
   },
   "nav": {
-    "main": "Hlavní navigace"
+    "main": "Hlavní navigace",
+    "menu": "Menu"
   },
   "common": {
     "back": "Zpět",
@@ -137,6 +138,11 @@
         "brands": "Značky"
       },
       "add": "Přidat dodavatele"
+    },
+    "labels": {
+      "tab": "Štítky",
+      "title": "Tisk štítků",
+      "placeholder": "Průvodce tiskem QR štítků se připravuje."
     },
     "inventory": {
       "tab": "Inventura",

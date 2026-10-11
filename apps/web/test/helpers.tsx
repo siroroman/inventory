@@ -1,5 +1,6 @@
 import { createMemoryHistory } from '@tanstack/react-router';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { createQueryClient } from '../src/lib/query.ts';
@@ -44,6 +45,12 @@ export function stubTouchScreen() {
     addEventListener: () => {},
     removeEventListener: () => {},
   }));
+}
+
+/** On a phone: opens the hamburger menu of the Home top bar and goes to the section `name`. */
+export async function openSection(name: string) {
+  await userEvent.click(await screen.findByRole('button', { name: 'Menu' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name }));
 }
 
 /** A JSON `Response`, the way the API answers (`application/problem+json` for errors). */

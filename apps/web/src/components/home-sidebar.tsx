@@ -1,23 +1,13 @@
 import { Link } from '@tanstack/react-router';
-import { Building2, BriefcaseBusiness, ClipboardCheck, Image, type LucideIcon, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { AppLogo } from '@/components/app-logo';
+import { type HomeTab, homeSections } from '@/components/home-sections';
 import { UserMenu } from '@/features/auth/user-menu';
 import { cn } from '@/lib/utils';
 
-export type HomeTab = 'locations' | 'items' | 'maintenance' | 'suppliers' | 'inventory';
-
-const entries: { tab: HomeTab; icon: LucideIcon; label: `home.${HomeTab}.tab` }[] = [
-  { tab: 'locations', icon: Building2, label: 'home.locations.tab' },
-  { tab: 'items', icon: Image, label: 'home.items.tab' },
-  { tab: 'maintenance', icon: Wrench, label: 'home.maintenance.tab' },
-  { tab: 'suppliers', icon: BriefcaseBusiness, label: 'home.suppliers.tab' },
-  { tab: 'inventory', icon: ClipboardCheck, label: 'home.inventory.tab' },
-];
-
 /**
- * Side menu of the Home screens on desktop (designed 240 px): the logo, the lists the tabs
- * switch between on a phone, and the signed-in user at the bottom. Another list starts without
+ * Side menu of the Home screens on desktop (designed 240 px): the logo, the sections the hamburger
+ * menu lists on a phone, and the signed-in user at the bottom. Another list starts without
  * search text, as with the tabs.
  */
 export function HomeSidebar({ tab }: { tab: HomeTab }) {
@@ -29,7 +19,7 @@ export function HomeSidebar({ tab }: { tab: HomeTab }) {
         <span className="text-[15px] font-bold">{t('app.name')}</span>
       </div>
       <nav aria-label={t('nav.main')} className="flex flex-col gap-0.5 px-3">
-        {entries.map(({ tab: value, icon: Icon, label }) => {
+        {homeSections.map(({ tab: value, icon: Icon, label }) => {
           const active = value === tab;
           return (
             <Link

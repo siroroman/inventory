@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { page, provider } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
+import { jsonResponse, me, openSection, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
 function api(list: (request: Request) => Response = () => page([]), role = 'write') {
   return stubApi({
@@ -25,7 +25,7 @@ describe('home: suppliers tab', () => {
     api(() => page([novak], { total: 3 }));
     renderApp('/?tab=suppliers');
 
-    expect(await screen.findByRole('tab', { name: 'Dodavatelé', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Dodavatelé', level: 2 })).toBeInTheDocument();
     expect(await screen.findByText('3 dodavatelé')).toBeInTheDocument();
     const row = await screen.findByRole('listitem');
     expect(row).toHaveTextContent('Servis Novák s.r.o.');
@@ -124,7 +124,7 @@ describe('home: suppliers tab', () => {
   it('switches to the tab and drops the search of the other one', async () => {
     api();
     const { router } = renderApp('/?tab=items&q=abc');
-    await userEvent.click(await screen.findByRole('tab', { name: 'Dodavatelé' }));
+    await openSection('Dodavatelé');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'suppliers' }));
   });
 });

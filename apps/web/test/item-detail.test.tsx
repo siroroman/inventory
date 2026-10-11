@@ -207,7 +207,7 @@ describe('item detail', () => {
     expect(router.state.location.pathname).toBe(`/items/${id}`);
 
     router.history.back();
-    expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Položky', level: 2 })).toBeInTheDocument();
   });
 });
 
