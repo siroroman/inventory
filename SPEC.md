@@ -615,7 +615,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 - The format is fixed: a read-only chip "A4 na výšku · 210 × 297 mm". No other sizes, presets or fonts.
 - Two steppers, **Sloupce** (1–6, default 3) and **Řádky** (1–16, default 8): − / +, or type a number.
 - *Decided*: the page margin is a fixed 5 mm, shown as information, not a control, and there are no gaps. A label is (210 − 10) ÷ columns by (297 − 10) ÷ rows, shown live: "Štítek 66,7 × 35,9 mm" for 3 × 8.
-- **Začít od pozice** (*Decided* 2026-10-09, kept): a small grid of the chosen columns × rows. The user taps the first free cell of a partly used sheet; earlier cells are hatched as used. Positions count left to right, top to bottom, the default is 1, and it resets to 1 when columns or rows change so the position stays valid. Each item prints once.
+- **Začít od pozice** (*Decided* 2026-10-09, kept): a third number field with − and + beside Sloupce and Řádky on the same line (the same stepper, range 1 to columns × rows). The user sets the first free place of a partly used sheet; the earlier places are hatched as used in the preview. Positions count left to right, top to bottom, the default is 1, and it resets to 1 when columns or rows change so the position stays valid. Each item prints once.
 - A preview of the whole first page, so the margin is visible, with the real label content scaled down, and "List 1 z 5" paging when there are more sheets.
 - The summary "118 štítků · 5 listů · na posledním listu zůstanou 2 místa prázdná" (Czech plurals: 1 štítek, 3 štítky, 5 štítků; 1 list, 3 listy, 5 listů).
 - A warning that blocks nothing when the QR's side would be under 15 mm: "Štítky jsou příliš malé, QR kód by se špatně četl."

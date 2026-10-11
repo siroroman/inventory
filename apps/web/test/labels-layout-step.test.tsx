@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
@@ -119,16 +119,22 @@ describe('labels wizard: step 3, the layout', () => {
     open(3);
     await screen.findByText('Štítek 66,7 × 35,9 mm');
 
-    expect(screen.getByRole('button', { name: 'Pozice 1' })).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(screen.getByRole('button', { name: 'Pozice 5' }));
-    expect(screen.getByRole('button', { name: 'Pozice 5' })).toHaveAttribute('aria-pressed', 'true');
+    const start = screen.getByLabelText('Začít od pozice');
+    expect(start).toHaveValue('1');
+    expect(screen.getByRole('button', { name: 'Ubrat: Začít od pozice' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Přidat: Začít od pozice' }));
+    expect(start).toHaveValue('2');
+    await userEvent.clear(start);
+    await userEvent.type(start, '5');
+    await userEvent.tab();
+    expect(start).toHaveValue('5');
     const sheet = screen.getByRole('img', { name: 'Náhled listu 1' });
     expect(sheet.querySelectorAll('[data-used]')).toHaveLength(4);
     expect(screen.getByText(/na posledním listu zůstane 17 míst prázdných/)).toBeInTheDocument();
     expect(JSON.parse(sessionStorage.getItem('labels-layout')!).startPosition).toBe(5);
 
     await userEvent.click(screen.getByRole('button', { name: 'Přidat: Řádky' }));
-    expect(screen.getByRole('button', { name: 'Pozice 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Začít od pozice')).toHaveValue('1');
     expect(screen.getByRole('img', { name: 'Náhled listu 1' }).querySelectorAll('[data-used]')).toHaveLength(0);
   });
 
@@ -233,9 +239,6 @@ describe('labels wizard: step 4, the download', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Zpět' }));
     await waitFor(() => expect(router.state.location.search.step).toBe(3));
     expect(await screen.findByLabelText('Sloupce')).toHaveValue('4');
-    expect(within(screen.getByRole('group', { name: 'Začít od pozice' })).getByRole('button', { name: 'Pozice 7' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(screen.getByLabelText('Začít od pozice')).toHaveValue('7');
   });
 });

@@ -2,9 +2,8 @@ import { ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { loadPreviewFonts } from './fonts';
-import { clamp, type LayoutChoice } from './layout-choice';
+import type { LayoutChoice } from './layout-choice';
 import {
   emptyOnLastPage,
   isQrTooSmall,
@@ -29,7 +28,7 @@ type Props = {
 
 const oneDecimal = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-/** Step 3: the grid of the sheet, where to start on a partly used one, and the sheet as it will print. */
+/** Step 3: the grid of the sheet, the place to start from on a partly used one, and the sheet as it will print. */
 export function LayoutStep({ items, layout, onChange }: Props) {
   const { t } = useTranslation();
   const grid = { columns: layout.columns, rows: layout.rows };
@@ -77,6 +76,13 @@ export function LayoutStep({ items, layout, onChange }: Props) {
               max={MAX_ROWS}
               onChange={(rows) => setGrid({ rows })}
             />
+            <Stepper
+              label={t('labels.layout.startPosition')}
+              value={layout.startPosition}
+              min={1}
+              max={slotsPerPage(grid)}
+              onChange={(startPosition) => onChange({ ...layout, startPosition })}
+            />
           </div>
 
           <div className="flex flex-col gap-1">
@@ -95,38 +101,6 @@ export function LayoutStep({ items, layout, onChange }: Props) {
               {t('labels.layout.tooSmall')}
             </p>
           )}
-
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">{t('labels.layout.startPosition')}</legend>
-            <p className="text-sm text-muted-foreground">{t('labels.layout.startHint')}</p>
-            <div
-              className="grid max-w-xs gap-1"
-              style={{ gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))` }}
-            >
-              {Array.from({ length: slotsPerPage(grid) }, (_, slot) => {
-                const position = slot + 1;
-                const used = position < layout.startPosition;
-                const chosen = position === layout.startPosition;
-                return (
-                  <button
-                    key={position}
-                    type="button"
-                    aria-pressed={chosen}
-                    aria-label={t('labels.layout.position', { position })}
-                    onClick={() => onChange({ ...layout, startPosition: clamp(position, 1, slotsPerPage(grid)) })}
-                    className={cn(
-                      'flex min-h-9 items-center justify-center rounded-sm border text-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                      chosen && 'border-primary bg-primary text-primary-foreground',
-                      used && 'bg-[repeating-linear-gradient(135deg,transparent,transparent_4px,var(--color-border)_4px,var(--color-border)_5px)] text-muted-foreground',
-                      !used && !chosen && 'bg-card hover:bg-accent',
-                    )}
-                  >
-                    {position}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
 
           <p role="status" className="font-medium">
             {t('labels.layout.labelCount', { count: items.length })} · {t('labels.layout.sheetCount', { count: sheets })}

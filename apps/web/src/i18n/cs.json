@@ -781,8 +781,6 @@
       "margin": "Okraj stránky {{mm}} mm, mezi štítky nejsou mezery.",
       "tooSmall": "Štítky jsou příliš malé, QR kód by se špatně četl.",
       "startPosition": "Začít od pozice",
-      "startHint": "Klepněte na první volné místo na částečně použitém listu.",
-      "position": "Pozice {{position}}",
       "labelCount_one": "{{count}} štítek",
       "labelCount_few": "{{count}} štítky",
       "labelCount_many": "{{count}} štítku",
