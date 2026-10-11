@@ -108,14 +108,14 @@ describe('inventory run overview', () => {
       within((screen.getByRole('heading', { name: heading, level: 2 }).closest('section'))!)
         .getAllByRole('listitem')
         .map((row) => row.querySelector('p')!.textContent);
-    await screen.findByRole('heading', { name: 'Probíhající', level: 2 });
-    expect(names('Probíhající')).toEqual(['Dílna', 'Sklad']);
-    expect(names('Nezkontrolované')).toEqual(['Hala', 'Šatna']);
-    expect(names('Dokončené')).toEqual(['Čistírna']);
+    await screen.findByRole('heading', { name: 'Probíhající (2)', level: 2 });
+    expect(names('Probíhající (2)')).toEqual(['Dílna', 'Sklad']);
+    expect(names('Nezkontrolované (2)')).toEqual(['Hala', 'Šatna']);
+    expect(names('Dokončené (1)')).toEqual(['Čistírna']);
 
     // The Podlokality box comes first, then the groups.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(['Podlokality', 'Probíhající', 'Nezkontrolované', 'Dokončené']);
+    expect(headings).toEqual(['Podlokality', 'Probíhající (2)', 'Nezkontrolované (2)', 'Dokončené (1)']);
 
     const dilna = screen.getByText('Dílna').closest('li')!;
     expect(dilna).toHaveTextContent('2 / 5 položek');
@@ -148,11 +148,11 @@ describe('inventory run overview', () => {
       expect(bar).toHaveAttribute('aria-valuenow', '1');
       expect(bar).toHaveAttribute('aria-valuemax', '5');
       const figure = (label: string) => within(box).getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
-      expect(['Nezkontrolováno', 'Probíhající', 'Dokončeno'].map(figure)).toEqual(['2', '2', '1']);
+      expect(['Nezkontrolováno', 'Probíhající', 'Dokončené'].map(figure)).toEqual(['2', '2', '1']);
 
       // Order on the page: the overview box (item progress), this box, then the groups.
       const itemBar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
-      const groupHeading = screen.getByRole('heading', { name: 'Probíhající', level: 2 });
+      const groupHeading = screen.getByRole('heading', { name: 'Probíhající (2)', level: 2 });
       expect(itemBar.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(title.compareDocumentPosition(groupHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -257,7 +257,7 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     const headings = await screen.findAllByRole('heading', { level: 2 });
-    expect(headings.map((h) => h.textContent)).toEqual(['Podlokality', 'Probíhající', 'Nezkontrolované', 'Dokončené']);
+    expect(headings.map((h) => h.textContent)).toEqual(['Podlokality', 'Probíhající (1)', 'Nezkontrolované (1)', 'Dokončené (1)']);
     const done = screen.getByText('Čistírna').closest('li')!;
     expect(done).toHaveTextContent('4 / 5 položek · 1 chybí');
     expect(within(done).getByText('Hotovo')).toBeInTheDocument();
@@ -345,7 +345,7 @@ describe('inventory run overview', () => {
     );
     renderApp(`/inventories/${id}`);
 
-    const heading = await screen.findByRole('heading', { name: 'Nezkontrolované', level: 2 });
+    const heading = await screen.findByRole('heading', { name: 'Nezkontrolované (3)', level: 2 });
     const rows = within(heading.closest('section')!).getAllByRole('listitem');
     expect(rows).toHaveLength(3);
     expect(within(rows[0]!).queryByText(/›|Patro/)).not.toBeInTheDocument();
