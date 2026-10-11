@@ -155,7 +155,7 @@ export async function importInventory(db: Db, options: ImportOptions): Promise<I
 
       const inventoryNumber = row.inv_number.trim();
       const parsed = createItemBody.safeParse({
-        // Without an inventory number the database assigns the next INV-nnnnn.
+        // Without an inventory number the database assigns the next INV-nnnn.
         ...(inventoryNumber && { code: itemCode(row.location_id.trim(), inventoryNumber) }),
         name: row.name,
         model: orNull(row.model),

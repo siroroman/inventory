@@ -1,0 +1,1 @@
+ALTER TABLE "items" ALTER COLUMN "code" SET DEFAULT format_code('INV', nextval('item_code_seq'), 4);

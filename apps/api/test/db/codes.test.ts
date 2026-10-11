@@ -12,7 +12,7 @@ describe('human-readable codes', () => {
     const b = await insertLocation(t().app, { name: 'B' });
     const item = await insertItem(t().app, { locationId: a.id });
     const provider = await insertProvider(t().app);
-    expect([a.code, b.code, item.code, provider.code]).toEqual(['LOC-001', 'LOC-002', 'INV-00001', 'SUP-001']);
+    expect([a.code, b.code, item.code, provider.code]).toEqual(['LOC-001', 'LOC-002', 'INV-0001', 'SUP-001']);
   });
 
   it('can be supplied explicitly, e.g. when importing existing numbers', async () => {

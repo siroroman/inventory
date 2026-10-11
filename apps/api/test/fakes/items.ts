@@ -81,7 +81,7 @@ export function createFakeItemStore() {
     async insert(values) {
       const row: Item = {
         id: randomUUID(),
-        code: values.code ?? `INV-${String(state.items.length + 1).padStart(5, '0')}`,
+        code: values.code ?? `INV-${String(state.items.length + 1).padStart(4, '0')}`,
         name: values.name,
         locationId: values.locationId ?? null,
         manufacturerId: values.manufacturerId ?? null,

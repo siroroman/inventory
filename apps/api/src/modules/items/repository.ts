@@ -33,7 +33,7 @@ type ItemFields = Pick<
   | 'documentsUrl'
   | 'note'
 >;
-/** `code` is optional: the database assigns the next INV-nnnnn unless an existing number is imported. */
+/** `code` is optional: the database assigns the next INV-nnnn unless an existing number is imported. */
 export type NewItem = ItemFields & { code?: string; createdBy: string };
 export type ItemPatch = Partial<ItemFields> & { updatedBy: string };
 export type ExternalIdInput = { source: string; value: string };

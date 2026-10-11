@@ -92,7 +92,7 @@ describe('inventory import', () => {
     // The same number in two centres gives two different IDs.
     expect(codes['Lednice, 2 ks']).toBe('INV-50-2024003');
     expect(codes.Tiskárna).toBe('INV-620-2024003');
-    expect(codes.Lednice).toMatch(/^INV-\d{5}$/);
+    expect(codes.Lednice).toMatch(/^INV-\d{4}$/);
     const found = await createItemRepository(t().app).list({ q: 'inv-50-2024003' }, { limit: 50 });
     expect(found.items.map((i) => i.name)).toEqual(['Lednice, 2 ks']);
   });

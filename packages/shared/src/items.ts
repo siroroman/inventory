@@ -84,7 +84,7 @@ const optionalItemFields = {
 } as const;
 
 /**
- * `code` is optional: without it the database assigns the next INV-nnnnn. Fixed once the item exists.
+ * `code` is optional: without it the database assigns the next INV-nnnn. Fixed once the item exists.
  * `inventoryId` is the run the item is created for (from a checklist): when it is still in progress
  * and the item's location is in it, the item is added to it as a checked *Nové* row, in the same
  * transaction. Otherwise the item is only created (`addedToInventory` in the answer says which).

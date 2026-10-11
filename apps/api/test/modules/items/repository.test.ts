@@ -30,7 +30,7 @@ describe('item repository', () => {
     const { user, kuchyne, add } = await setup();
     const rational = await insertManufacturer(t().app, { name: 'Rational' });
     const item = await add('Konvektomat', kuchyne.id, { manufacturerId: rational.id, nextServiceOn: '2026-10-15' });
-    expect(item).toMatchObject({ code: 'INV-00001', createdBy: user.id, updatedBy: user.id, nextServiceOn: '2026-10-15' });
+    expect(item).toMatchObject({ code: 'INV-0001', createdBy: user.id, updatedBy: user.id, nextServiceOn: '2026-10-15' });
     expect(await repo().findById(item.id)).toMatchObject({ manufacturer: { id: rational.id, name: 'Rational' } });
     expect((await repo().findById((await add('Stůl', kuchyne.id)).id))?.manufacturer).toBeNull();
     expect(await repo().findById(randomUUID())).toBeUndefined();
@@ -53,7 +53,7 @@ describe('item repository', () => {
 
   it.each([
     ['name', 'konvektomat'],
-    ['code', 'inv-00001'],
+    ['code', 'inv-0001'],
     ['serial number', 'sn-77'],
     ['model', 'icombi'],
     ['external ID', 'el-4821'],

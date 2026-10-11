@@ -176,6 +176,13 @@
       "when": 1791659952484,
       "tag": "0024_audit_inventory_missing",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791746516393,
+      "tag": "0025_item_code_width",
+      "breakpoints": true
     }
   ]
 }
