@@ -8,14 +8,17 @@ type Props = {
   step: number;
   /** The furthest step already visited: its number and the ones before it are buttons. */
   reached: number;
+  /** Whether "Pokračovat" is enabled: then the number of the next step is a button too. */
+  canContinue: boolean;
   onSelect: (step: number) => void;
 };
 
 /**
  * The four steps as a numbered list, the current one marked; a phone also gets "Krok 2 ze 4". A step
- * that was already set (the current one excepted) can be tapped to go back to it, or forward again.
+ * that was already set (the current one excepted) can be tapped to go back to it, or forward again,
+ * and so can the next one while the step is valid, the same as "Pokračovat".
  */
-export function StepIndicator({ step, reached, onSelect }: Props) {
+export function StepIndicator({ step, reached, canContinue, onSelect }: Props) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-2">
@@ -24,6 +27,8 @@ export function StepIndicator({ step, reached, onSelect }: Props) {
           const number = index + 1;
           const current = number === step;
           const done = number <= reached && !current;
+          // The step after this one is as reachable as Pokračovat says; any further one is not.
+          const linked = done || (canContinue && number === step + 1);
           const content = (
             <>
               <span
@@ -51,7 +56,7 @@ export function StepIndicator({ step, reached, onSelect }: Props) {
                 !current && 'max-sm:flex-none',
               )}
             >
-              {done ? (
+              {linked ? (
                 <button
                   type="button"
                   onClick={() => onSelect(number)}

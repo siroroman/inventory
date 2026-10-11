@@ -97,7 +97,7 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
       {/* One column, centred in the page: the wizard has no list to fill the width. */}
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
         <h2 className={desktop ? 'text-[28px] font-semibold' : 'text-2xl font-semibold'}>{t('labels.title')}</h2>
-        <StepIndicator step={current} reached={linkable} onSelect={go} />
+        <StepIndicator step={current} reached={linkable} canContinue={canContinue && current < STEP_COUNT} onSelect={go} />
 
         <div>
           {current === 1 && (

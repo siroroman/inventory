@@ -239,10 +239,12 @@ describe('labels wizard: step 2, the items', () => {
     const { router } = open();
     await screen.findByText('Vybráno 3 z 3');
     const steps = screen.getByRole('list', { name: 'Kroky' });
-    // At step 2 nothing but the first step was left behind; the current one and the rest are plain.
+    // At step 2 the first step was left behind and Pokračovat is enabled, so the next number is a
+    // link too; the current one and the step after the next are plain.
     expect(within(steps).getByRole('button', { name: 'Lokalita' })).toBeInTheDocument();
     expect(within(steps).queryByRole('button', { name: 'Položky' })).not.toBeInTheDocument();
-    expect(within(steps).queryByRole('button', { name: 'Rozložení' })).not.toBeInTheDocument();
+    expect(within(steps).getByRole('button', { name: 'Rozložení' })).toBeInTheDocument();
+    expect(within(steps).queryByRole('button', { name: 'Stažení' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Pokračovat' }));
     await waitFor(() => expect(router.state.location.search.step).toBe(3));
@@ -255,6 +257,21 @@ describe('labels wizard: step 2, the items', () => {
     expect(within(steps).queryByRole('button', { name: 'Stažení' })).not.toBeInTheDocument();
     await userEvent.click(within(steps).getByRole('button', { name: 'Položky' }));
     await waitFor(() => expect(router.state.location.search.step).toBe(2));
+  });
+
+  it('makes the number of the next step a link exactly while Pokračovat is enabled', async () => {
+    api();
+    const { router } = renderApp('/?tab=labels');
+    const steps = await screen.findByRole('list', { name: 'Kroky' });
+    expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeDisabled();
+    expect(within(steps).queryByRole('button', { name: 'Položky' })).not.toBeInTheDocument();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Přízemí/ }));
+    expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
+    expect(within(steps).queryByRole('button', { name: 'Rozložení' })).not.toBeInTheDocument();
+    await userEvent.click(within(steps).getByRole('button', { name: 'Položky' }));
+    await waitFor(() => expect(router.state.location.search.step).toBe(2));
+    expect(await screen.findByRole('heading', { name: 'Vyberte položky' })).toBeInTheDocument();
   });
 
   it('shows a table with a checkbox column on a desktop screen', async () => {
