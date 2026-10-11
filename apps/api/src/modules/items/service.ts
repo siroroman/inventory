@@ -252,7 +252,7 @@ export function createItemService({ repos, transact, now = () => new Date() }: I
 
     /**
      * Active items for the label wizard: those in a location's subtree and/or matching the search,
-     * at most `limit`, by location path then name, with the total of all that match. An unknown
+     * at most `limit`, by ID (the repository's order), with the total of all that match. An unknown
      * location is not found, not an empty answer.
      */
     async listLabels(

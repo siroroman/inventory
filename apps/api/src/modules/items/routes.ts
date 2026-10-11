@@ -36,7 +36,7 @@ const labels = defineRoute({
   tags: ['items'],
   summary:
     'Active items for QR labels: those below `locationId` and/or matching `q`, at most `limit` (1 000), ' +
-    'by location path then name, with the total; not paged',
+    'by ID with the numbers in it compared by value, with the total; not paged',
   request: { query: itemLabelsQuery },
   errors: [404],
   responses: { 200: { description: 'The items and how many matched', content: jsonContent(itemLabelsSchema) } },
