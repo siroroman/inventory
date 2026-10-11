@@ -537,6 +537,10 @@
     "activeNow_many": "{{who}} právě pracují",
     "activeNow_other": "{{who}} právě pracují",
     "locations": {
+      "title": "Podlokality",
+      "progress": "Hotovo {{percent}} % podlokalit ({{done}}/{{total}})",
+      "progressLabel": "Průběh podlokalit",
+      "figures": { "notStarted": "Nezkontrolováno", "inProgress": "Probíhající", "done": "Hotovo" },
       "inProgress": "Probíhající ({{count}})",
       "notStarted": "Nezkontrolované ({{count}})",
       "done": "Hotovo ({{count}})",

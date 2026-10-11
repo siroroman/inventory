@@ -19,6 +19,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
 import { InventoryActions } from './inventory-actions';
 import { InventoryBreadcrumb } from './inventory-breadcrumb';
+import { SubLocationsBox } from './inventory-sublocations';
 import { InventorySummary, progressOf, runFigures } from './inventory-summary';
 import { shortName, shortNames } from './people';
 import { ScanEntry } from './scan-entry';
@@ -168,6 +169,10 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
         )}
         <RunLines inventory={inventory} />
       </section>
+
+      <SubLocationsBox
+        counts={{ notStarted: byGroup.notStarted.length, inProgress: byGroup.inProgress.length, done: byGroup.done.length }}
+      />
 
       {groups.map((group) => {
         const locations = byGroup[group];

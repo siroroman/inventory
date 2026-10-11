@@ -113,8 +113,9 @@ describe('inventory run overview', () => {
     expect(names('Nezkontrolované (2)')).toEqual(['Hala', 'Šatna']);
     expect(names('Hotovo (1)')).toEqual(['Čistírna']);
 
+    // The Podlokality box comes first, then the groups.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
-    expect(headings).toEqual(['Probíhající (2)', 'Nezkontrolované (2)', 'Hotovo (1)']);
+    expect(headings).toEqual(['Podlokality', 'Probíhající (2)', 'Nezkontrolované (2)', 'Hotovo (1)']);
 
     const dilna = screen.getByText('Dílna').closest('li')!;
     expect(dilna).toHaveTextContent('2 / 5 položek');
@@ -124,6 +125,46 @@ describe('inventory run overview', () => {
     expect(done).toHaveTextContent('4 / 4 položek');
     expect(within(done).getByText('Hotovo')).toBeInTheDocument();
     expect(within(dilna).queryByText('Hotovo')).not.toBeInTheDocument();
+  });
+
+  describe('Podlokality box', () => {
+    const rooms = [
+      inventoryLocation({ name: 'Čistírna', total: 4, checked: 4 }),
+      inventoryLocation({ name: 'Dílna', total: 5, checked: 2 }),
+      inventoryLocation({ name: 'Hala', total: 3, checked: 0 }),
+      inventoryLocation({ name: 'Sklad', total: 2, checked: 1 }),
+      inventoryLocation({ name: 'Šatna', total: 0, checked: 0 }),
+    ];
+
+    it('sits between the overview box and the groups with a bar and the three figures', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 14, checked: 7, elsewhere: 0, new: 0, missing: 0 }, locations: rooms })));
+      renderApp(`/inventories/${id}`);
+
+      const title = await screen.findByRole('heading', { name: 'Podlokality', level: 2 });
+      const box = title.closest('section')!;
+      // 1 of 5 locations is done; the bar and its text say so.
+      expect(within(box).getByText('Hotovo 20 % podlokalit (1/5)')).toBeInTheDocument();
+      const bar = within(box).getByRole('progressbar', { name: 'Průběh podlokalit' });
+      expect(bar).toHaveAttribute('aria-valuenow', '1');
+      expect(bar).toHaveAttribute('aria-valuemax', '5');
+      const figure = (label: string) => within(box).getByText(label, { selector: 'dt' }).nextElementSibling!.textContent;
+      expect(['Nezkontrolováno', 'Probíhající', 'Hotovo'].map(figure)).toEqual(['2', '2', '1']);
+
+      // Order on the page: the overview box (item progress), this box, then the groups.
+      const itemBar = screen.getByRole('progressbar', { name: 'Průběh inventury' });
+      const groupHeading = screen.getByRole('heading', { name: 'Probíhající (2)', level: 2 });
+      expect(itemBar.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(title.compareDocumentPosition(groupHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('is left out when the run has no locations', async () => {
+      signedIn(() => jsonResponse(inventory({ id, counts: { expected: 0, checked: 0, elsewhere: 0, new: 0, missing: 0 } })));
+      renderApp(`/inventories/${id}`);
+
+      await screen.findByText('V lokalitě nejsou žádné položky.');
+      expect(screen.queryByRole('heading', { name: 'Podlokality' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Průběh podlokalit' })).not.toBeInTheDocument();
+    });
   });
 
   it('adds the run up in four figures under the bar', async () => {
@@ -216,7 +257,7 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     const headings = await screen.findAllByRole('heading', { level: 2 });
-    expect(headings.map((h) => h.textContent)).toEqual(['Probíhající (1)', 'Nezkontrolované (1)', 'Hotovo (1)']);
+    expect(headings.map((h) => h.textContent)).toEqual(['Podlokality', 'Probíhající (1)', 'Nezkontrolované (1)', 'Hotovo (1)']);
     const done = screen.getByText('Čistírna').closest('li')!;
     expect(done).toHaveTextContent('4 / 5 položek · 1 chybí');
     expect(within(done).getByText('Hotovo')).toBeInTheDocument();

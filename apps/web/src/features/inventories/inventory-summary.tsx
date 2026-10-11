@@ -40,6 +40,26 @@ export const progressOf = ({ checked, unchecked, extra, missing }: InventoryFigu
   total: checked + unchecked + extra + missing,
 });
 
+/** Small boxes, each a label over a number: the figures under a progress bar. */
+export function FigureGrid({
+  figures,
+  className,
+}: {
+  figures: { key: string; label: string; value: number; className?: string }[];
+  className: string;
+}) {
+  return (
+    <dl className={cn('grid gap-2', className)}>
+      {figures.map(({ key, label, value, className: valueClass }) => (
+        <div key={key} className="flex flex-col rounded-md bg-muted px-3 py-2">
+          <dt className="text-xs text-muted-foreground">{label}</dt>
+          <dd className={cn('text-lg font-semibold', valueClass)}>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /**
  * "Zkontrolováno · Nezkontrolováno · Nové · Chybí": what the progress bar's "10 / 10" is made of.
  * The same four figures on the run's overview and on a checklist. Chybí is what people flagged as
@@ -47,20 +67,16 @@ export const progressOf = ({ checked, unchecked, extra, missing }: InventoryFigu
  */
 export function InventorySummary({ figures }: { figures: InventoryFigures }) {
   const { t } = useTranslation();
-  const items: { key: keyof InventoryFigures; className?: string }[] = [
-    { key: 'checked' },
-    { key: 'unchecked' },
-    { key: 'extra' },
-    { key: 'missing', className: figures.missing > 0 ? 'text-destructive' : undefined },
-  ];
+  const keys: (keyof InventoryFigures)[] = ['checked', 'unchecked', 'extra', 'missing'];
   return (
-    <dl className="grid grid-cols-2 gap-2 md:grid-cols-4">
-      {items.map(({ key, className }) => (
-        <div key={key} className="flex flex-col rounded-md bg-muted px-3 py-2">
-          <dt className="text-xs text-muted-foreground">{t(`inventory.summary.${key}`)}</dt>
-          <dd className={cn('text-lg font-semibold', className)}>{figures[key]}</dd>
-        </div>
-      ))}
-    </dl>
+    <FigureGrid
+      className="grid-cols-2 md:grid-cols-4"
+      figures={keys.map((key) => ({
+        key,
+        label: t(`inventory.summary.${key}`),
+        value: figures[key],
+        className: key === 'missing' && figures.missing > 0 ? 'text-destructive' : undefined,
+      }))}
+    />
   );
 }
