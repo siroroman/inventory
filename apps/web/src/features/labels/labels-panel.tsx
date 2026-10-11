@@ -72,11 +72,22 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
     if (current >= 3 && loaded && !withinLimit(rows.length)) navigated.current({ step: 2 }, true);
   }, [current, loaded, rows.length]);
 
+  // The furthest step the user has been to; its number in the indicator is a link back to it. The
+  // steps depend on the location, so another one starts over, and so does a list that cannot be printed.
+  const [reached, setReached] = useState(current);
+  useEffect(() => setReached((furthest) => Math.max(furthest, current)), [current]);
+  const printable = !loaded || withinLimit(rows.length);
+  const linkable = !location ? 1 : printable ? reached : Math.min(reached, 2);
+
   const go = (next: number) => onNavigate({ step: next === 1 ? undefined : next });
-  const choose = (next: ChosenLocation) => setSelection({ location: next, excluded: [], added: [] });
+  const choose = (next: ChosenLocation) => {
+    setSelection({ location: next, excluded: [], added: [] });
+    setReached(1);
+  };
   // "Vytvořit nové štítky": nothing chosen, the sheet is used up so it starts at its first place again.
   const restart = () => {
     setSelection(emptySelection);
+    setReached(1);
     setLayout({ ...layout, startPosition: defaultLayout.startPosition });
     onNavigate({ step: undefined, locationId: undefined });
   };
@@ -84,7 +95,7 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
   return (
     <div className={desktop ? 'flex flex-col gap-5 px-8 pt-7 pb-8' : 'flex flex-col gap-5 px-4 pt-6 pb-6'}>
       <h2 className={desktop ? 'text-[28px] font-semibold' : 'text-2xl font-semibold'}>{t('labels.title')}</h2>
-      <StepIndicator step={current} />
+      <StepIndicator step={current} reached={linkable} onSelect={go} />
 
       <div className="max-w-3xl">
         {current === 1 && (

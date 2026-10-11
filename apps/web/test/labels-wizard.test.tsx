@@ -223,6 +223,30 @@ describe('labels wizard: step 2, the items', () => {
     expect(await screen.findByText('LOC-004 · 3 položky včetně podlokalit')).toBeInTheDocument();
   });
 
+  it('makes the numbers of the steps already set links, and only those', async () => {
+    api();
+    stored();
+    const { router } = open();
+    await screen.findByText('Vybráno 3 z 3');
+    const steps = screen.getByRole('list', { name: 'Kroky' });
+    // At step 2 nothing but the first step was left behind; the current one and the rest are plain.
+    expect(within(steps).getByRole('button', { name: 'Lokalita' })).toBeInTheDocument();
+    expect(within(steps).queryByRole('button', { name: 'Položky' })).not.toBeInTheDocument();
+    expect(within(steps).queryByRole('button', { name: 'Rozložení' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Pokračovat' }));
+    await waitFor(() => expect(router.state.location.search.step).toBe(3));
+    await userEvent.click(await within(steps).findByRole('button', { name: 'Lokalita' }));
+    await waitFor(() => expect(router.state.location.search.step).toBeUndefined());
+
+    // Back at step 1 the step reached stays a link, so there is a way forward without Pokračovat.
+    expect(within(steps).queryByRole('button', { name: 'Lokalita' })).not.toBeInTheDocument();
+    expect(within(steps).getByRole('button', { name: 'Rozložení' })).toBeInTheDocument();
+    expect(within(steps).queryByRole('button', { name: 'Stažení' })).not.toBeInTheDocument();
+    await userEvent.click(within(steps).getByRole('button', { name: 'Položky' }));
+    await waitFor(() => expect(router.state.location.search.step).toBe(2));
+  });
+
   it('shows a table with a checkbox column on a desktop screen', async () => {
     stubWideScreen(true);
     api();
