@@ -112,7 +112,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
       </div>
 
       {state.status === 'done' && (
-        <div>
+        <div className="pt-6">
           <Button variant="outline" onClick={onRestart}>
             {t('labels.download.restart')}
           </Button>
