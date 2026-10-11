@@ -178,7 +178,7 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
         const locations = byGroup[group];
         if (locations.length === 0) return null;
         return (
-          <Section key={group} title={t(`inventory.locations.${group}`, { count: locations.length })}>
+          <Section key={group} title={t(`inventory.locations.${group}`)}>
             <ul className="-my-2 flex flex-col divide-y">
               {locations.map((location) => (
                 <LocationRow key={location.id} inventory={inventory} location={location} group={group} />
