@@ -16,6 +16,7 @@ import {
 } from './layout';
 import { previewMeasure } from './preview-measure';
 import { qrModules, qrPath } from './qr';
+import { cn } from '@/lib/utils';
 import type { LabelRow } from './selection';
 
 type Props = {
@@ -26,13 +27,15 @@ type Props = {
   page: number;
   /** Turns true once the label fonts are loaded, so the text is measured again with them. */
   fontsReady: boolean;
+  /** Replaces the default width (the whole column); the sheet keeps its proportions either way. */
+  className?: string;
 };
 
 /**
  * One whole A4 sheet as it will print: the margin, the places already used (hatched) and the
  * labels with their real QR codes and text, from the same plan the PDF is drawn from.
  */
-export function SheetPreview({ items, grid, startPosition, page, fontsReady }: Props) {
+export function SheetPreview({ items, grid, startPosition, page, fontsReady, className }: Props) {
   const { t } = useTranslation();
   const { columns, rows } = grid;
   const size = labelSize(grid);
@@ -68,7 +71,7 @@ export function SheetPreview({ items, grid, startPosition, page, fontsReady }: P
       role="img"
       aria-label={t('labels.layout.previewLabel', { page: page + 1 })}
       viewBox={`0 0 ${PAGE_WIDTH_MM} ${PAGE_HEIGHT_MM}`}
-      className="w-full rounded-sm border bg-white text-black shadow-sm"
+      className={cn('w-full rounded-sm border bg-white text-black shadow-sm', className)}
     >
       <defs>
         <pattern id="labels-used" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

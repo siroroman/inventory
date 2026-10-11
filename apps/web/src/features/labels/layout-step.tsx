@@ -1,7 +1,8 @@
-import { ChevronLeft, ChevronRight, TriangleAlert } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize2, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { loadPreviewFonts } from './fonts';
 import type { LayoutChoice } from './layout-choice';
 import {
@@ -37,6 +38,8 @@ export function LayoutStep({ items, layout, onChange }: Props) {
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
   const [page, setPage] = useState(0);
   const shownPage = Math.min(page, Math.max(0, sheets - 1));
+  // The sheet at the size of the screen, to check the text on the labels.
+  const [enlarged, setEnlarged] = useState(false);
 
   // The preview sets its text in the PDF's font once it has been fetched, then draws again.
   const [fontsReady, setFontsReady] = useState(false);
@@ -50,6 +53,30 @@ export function LayoutStep({ items, layout, onChange }: Props) {
 
   // A new grid makes the old position meaningless, so it starts again at the first place.
   const setGrid = (next: Partial<typeof grid>) => onChange({ ...layout, ...next, startPosition: 1 });
+
+  const pager = (
+    <div className="mx-auto flex w-full max-w-sm items-center justify-between gap-2">
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={t('labels.layout.previousSheet')}
+        disabled={shownPage === 0}
+        onClick={() => setPage(shownPage - 1)}
+      >
+        <ChevronLeft aria-hidden />
+      </Button>
+      <p className="text-sm">{t('labels.layout.sheetOf', { page: shownPage + 1, total: sheets })}</p>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={t('labels.layout.nextSheet')}
+        disabled={shownPage >= sheets - 1}
+        onClick={() => setPage(shownPage + 1)}
+      >
+        <ChevronRight aria-hidden />
+      </Button>
+    </div>
+  );
 
   return (
     <section aria-labelledby="labels-step-heading" className="flex flex-col gap-5">
@@ -109,36 +136,46 @@ export function LayoutStep({ items, layout, onChange }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <SheetPreview
-            items={items}
-            grid={grid}
-            startPosition={layout.startPosition}
-            page={shownPage}
-            fontsReady={fontsReady}
-          />
-          <div className="flex items-center justify-between gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t('labels.layout.previousSheet')}
-              disabled={shownPage === 0}
-              onClick={() => setPage(shownPage - 1)}
+          <div className="relative">
+            <SheetPreview
+              items={items}
+              grid={grid}
+              startPosition={layout.startPosition}
+              page={shownPage}
+              fontsReady={fontsReady}
+            />
+            <button
+              type="button"
+              onClick={() => setEnlarged(true)}
+              aria-label={t('labels.layout.enlarge')}
+              className="absolute inset-0 flex cursor-zoom-in items-end justify-end rounded-sm p-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              <ChevronLeft aria-hidden />
-            </Button>
-            <p className="text-sm">{t('labels.layout.sheetOf', { page: shownPage + 1, total: sheets })}</p>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t('labels.layout.nextSheet')}
-              disabled={shownPage >= sheets - 1}
-              onClick={() => setPage(shownPage + 1)}
-            >
-              <ChevronRight aria-hidden />
-            </Button>
+              <span aria-hidden className="flex size-9 items-center justify-center rounded-md border bg-card text-foreground shadow-sm">
+                <Maximize2 className="size-4" />
+              </span>
+            </button>
           </div>
+          {pager}
         </div>
       </div>
+
+      <Dialog open={enlarged} onOpenChange={setEnlarged}>
+        <DialogContent className="h-dvh max-h-dvh w-screen max-w-none gap-3 rounded-none border-0 p-4 sm:p-6">
+          <DialogTitle>{t('labels.layout.fullscreenTitle')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('labels.layout.fullscreenHint')}</DialogDescription>
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <SheetPreview
+              items={items}
+              grid={grid}
+              startPosition={layout.startPosition}
+              page={shownPage}
+              fontsReady={fontsReady}
+              className="aspect-[210/297] h-full w-auto max-w-full"
+            />
+          </div>
+          {pager}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
@@ -154,6 +154,25 @@ describe('labels wizard: step 3, the layout', () => {
     expect(screen.getByText('List 5 z 5')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Náhled listu 5' }).querySelectorAll('[data-label]')).toHaveLength(22);
     expect(screen.getByRole('button', { name: 'Další list' })).toBeDisabled();
+  });
+
+  it('opens the sheet full screen, pages there and closes again', async () => {
+    api(30);
+    remember();
+    open(3);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Zobrazit náhled na celou obrazovku' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Náhled tisku' });
+    expect(within(dialog).getByRole('img', { name: 'Náhled listu 1' }).querySelectorAll('[data-label]')).toHaveLength(24);
+    expect(within(dialog).getByText('List 1 z 2')).toBeInTheDocument();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Další list' }));
+    expect(within(dialog).getByRole('img', { name: 'Náhled listu 2' }).querySelectorAll('[data-label]')).toHaveLength(6);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Zavřít' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // The sheet shown beside the controls stayed on the page chosen in the full-screen view.
+    expect(screen.getByText('List 2 z 2')).toBeInTheDocument();
   });
 
   it('goes back to step 2 for a list that cannot be printed', async () => {

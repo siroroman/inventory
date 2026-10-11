@@ -795,6 +795,9 @@
       "emptyOnLast_many": "na posledním listu zůstanou {{count}} místa prázdná",
       "emptyOnLast_other": "na posledním listu zůstane {{count}} míst prázdných",
       "previewLabel": "Náhled listu {{page}}",
+      "enlarge": "Zobrazit náhled na celou obrazovku",
+      "fullscreenTitle": "Náhled tisku",
+      "fullscreenHint": "Celý list tak, jak se vytiskne. Náhled zavřete tlačítkem Zavřít nebo klávesou Escape.",
       "previousSheet": "Předchozí list",
       "nextSheet": "Další list",
       "sheetOf": "List {{page}} z {{total}}"
