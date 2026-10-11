@@ -106,7 +106,7 @@ From the user menu (avatar with initials, top right) you can also reach: Users (
 
 | Group | Field | Behavior |
 | --- | --- | --- |
-| Basic info | ID | e.g. INV-00042; later the content of the QR label |
+| Basic info | ID | e.g. INV-0042; later the content of the QR label |
 | Basic info | External IDs | 0..N entries shaped "Supplier: ID", e.g. "Electrician: EL-4821" |
 | Basic info | Name | required |
 | Basic info | Location | full path, every level is a link |
@@ -164,7 +164,7 @@ Item (link), Date, Title, Service performed by, Responsible person, Description 
 
 ## 4. Data model
 
-Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, never changes), and locations, items and providers also have a human `code` per the UI design: LOC-004, INV-00042, SUP-001. The code is unique and will later be the content of a QR label.
+Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, never changes), and locations, items and providers also have a human `code` per the UI design: LOC-004, INV-0042, SUP-001. The code is unique and will later be the content of a QR label.
 
 | Table | Key columns | Relationships & rules |
 | --- | --- | --- |
@@ -597,8 +597,8 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 **Label** (70 × 37 mm, black on white only):
 
-- The QR code on the left, about 28 mm including a quiet zone of at least 4 modules. *Decided*: it holds only the item's ID (`INV-73-2023016`), not a URL, with error correction level Q.
-- To the right, the ID in bold on one line, at 11 pt shrinking to 8 pt if needed (`INV-73-2023016` fits at full size). Under it, the item's name in up to 2 lines with an ellipsis. No text below 8 pt.
+- The QR code on the left, about 28 mm including a quiet zone of at least 4 modules. *Decided*: it holds only the item's ID (`INV-0042`), not a URL, with error correction level Q.
+- To the right, the ID in bold on one line, at 11 pt shrinking to 8 pt if needed (`INV-0042` fits at full size). Under it, the item's name in up to 2 lines with an ellipsis. No text below 8 pt.
 - A 3 mm safe margin inside every label, and nothing else on the label.
 - An office printer usually can't print the outer 4–5 mm of the paper. The first test print on the chosen sheets decides whether the outer columns need a wider margin.
 
@@ -752,7 +752,7 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 1. **Login:** Does the company use Google Workspace, and does every user have a company Google account? If so, Google sign-in restricted to the domain is enough, and passwords plus password-reset emails become unnecessary.
 2. **Username:** Is it fine for the login name to be the email address?
 3. **Permissions:** May the Write role manage manufacturers, providers, and service order, and archive records — or only Admin?
-4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-00001, SUP-001)? Can an ID change later?
+4. **Record IDs:** Do you have existing inventory numbers (what format), or should the app generate them (LOC-001, INV-0001, SUP-001)? Can an ID change later? *Decided (2026-10)*: items are numbered INV-0001, INV-0002... with no centre or accounting number in the code; the accounting number is the external ID `Účetnictví` (`<centre>-<number>`).
 5. **Starting data:** Is there an existing spreadsheet to import? Roughly how many locations, sub-locations, and items?
 6. **Sub-locations:** Can an item be assigned to any level, or only the lowest one? Does a sub-location inherit its parent's address? ~~What should happen when archiving a location that still has sub-locations or items?~~ *Decided:* allowed, with a warning (see §4).
 7. **External IDs:** Is free text in the Supplier field enough, or should it link to a registered service provider? ~~Must an external ID be unique?~~ *Decided:* unique per supplier — "Elektrikář: EL-4821" can exist only once across all items (archived included, case-insensitive); the same ID under another supplier is allowed. The supplier-link part is still open.
