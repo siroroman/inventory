@@ -114,6 +114,39 @@ describe('item repository', () => {
     expect(await repo().count({})).toBe(4);
   });
 
+  it('lists items for labels by ID, with the numbers in it compared by value', async () => {
+    const { kuchyne, brno, add } = await setup();
+    const codes = ['INV-73-2023016', 'INV-9-100', 'INV-9-20', 'INV-00042', 'INV-10-5', 'INV-00007'];
+    for (const [i, code] of codes.entries()) await add(`Položka ${i}`, i % 2 ? kuchyne.id : brno.id, { code });
+    await repo().insert({ name: 'Bez místa', locationId: null, code: 'INV-00001', createdBy: (await insertUser(t().app)).id });
+
+    const rows = await repo().listForLabels({}, 1000);
+    expect(rows.map((r) => r.code)).toEqual([
+      'INV-00001',
+      'INV-00007',
+      'INV-9-20',
+      'INV-9-100',
+      'INV-10-5',
+      'INV-00042',
+      'INV-73-2023016',
+    ]);
+    expect(rows[0]).toEqual({ id: expect.any(String), code: 'INV-00001', name: 'Bez místa', locationId: null });
+  });
+
+  it('limits the label list, narrows it by subtree and search, and leaves archived items out', async () => {
+    const { user, praha, prizemi, kuchyne, brno, add } = await setup();
+    await add('Váha', praha.id);
+    await add('Váha malá', kuchyne.id);
+    const old = await add('Váha stará', prizemi.id);
+    await repo().setArchived(old.id, 1, true, user.id);
+    await add('Váha jinde', brno.id);
+
+    expect((await repo().listForLabels({ locationId: praha.id }, 1000)).map((r) => r.name)).toEqual(['Váha', 'Váha malá']);
+    expect((await repo().listForLabels({ q: 'VAHA' }, 1000)).map((r) => r.name)).toEqual(['Váha', 'Váha malá', 'Váha jinde']);
+    expect((await repo().listForLabels({ q: 'vaha' }, 2)).map((r) => r.name)).toEqual(['Váha', 'Váha malá']);
+    expect(await repo().count({ q: 'vaha' })).toBe(3);
+  });
+
   it('lists the archived items when asked, and no active ones', async () => {
     const { user, kuchyne, add } = await setup();
     await add('Hrnec', kuchyne.id);

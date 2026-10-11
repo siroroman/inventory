@@ -2,7 +2,8 @@ import type { MiddlewareHandler } from 'hono';
 import { secureHeaders } from 'hono/secure-headers';
 
 // Photos and documents are read from and uploaded to the private bucket through signed URLs; a
-// PDF is shown in a frame from it.
+// PDF is shown in a frame from it. The label wizard prints its PDF from a `blob:` frame, made by
+// the page itself (nothing else can create a blob URL of this origin).
 const STORAGE = 'https://storage.googleapis.com';
 
 /**
@@ -18,7 +19,7 @@ export function securityHeaders({ isProduction }: { isProduction: boolean }): Mi
       styleSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'blob:', STORAGE],
       connectSrc: ["'self'", STORAGE],
-      frameSrc: [STORAGE],
+      frameSrc: [STORAGE, 'blob:'],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],

@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { inventoryEntry, page, person, ref } from './fixtures.ts';
-import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
+import { jsonResponse, me, openSection, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
 const praha = ref('LOC-001', 'Centrála Praha');
 const patro = ref('LOC-002', 'Patro 2');
@@ -50,17 +50,10 @@ const ended = (over: Record<string, unknown> = {}) =>
   });
 
 describe('home: inventory tab', () => {
-  it('is the fifth tab and is selected by the URL', async () => {
+  it('is a section of Home and is selected by the URL', async () => {
     api();
     renderApp('/?tab=inventory');
-    expect(await screen.findByRole('tab', { name: 'Inventura', selected: true })).toBeInTheDocument();
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      'Lokality',
-      'Položky',
-      'Údržba',
-      'Dodavatelé',
-      'Inventura',
-    ]);
+    expect(await screen.findByRole('heading', { name: 'Inventura', level: 2 })).toBeInTheDocument();
   });
 
   it('shows the runs in progress as cards with the progress, the starter and the people', async () => {
@@ -344,7 +337,7 @@ describe('home: inventory tab', () => {
   it('switches to the tab from another one and drops the search', async () => {
     api();
     const { router } = renderApp('/?tab=items&q=abc');
-    await userEvent.click(await screen.findByRole('tab', { name: 'Inventura' }));
+    await openSection('Inventura');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'inventory' }));
   });
 });

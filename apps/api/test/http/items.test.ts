@@ -1,4 +1,11 @@
-import { createdItemSchema, inventoryRowsSchema, itemDetailSchema, itemListSchema, itemSchema } from '@inventory/shared';
+import {
+  createdItemSchema,
+  inventoryRowsSchema,
+  itemDetailSchema,
+  itemLabelsSchema,
+  itemListSchema,
+  itemSchema,
+} from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
 import { auditLog, inventoryItems, locations, manufacturers } from '../../src/db/schema/index.ts';
@@ -174,6 +181,83 @@ describe('GET /items', () => {
     await expectProblem(await read.get('/items?cursor=garbage'), 400, 'invalid_cursor');
     await expectProblem(await read.get('/items?locationId=nope'), 400, 'validation_error');
     await expectProblem(await read.get('/items?manufacturerId=nope'), 400, 'validation_error');
+  });
+});
+
+describe('GET /items/labels', () => {
+  it('lists the items below a location with their path, ordered by ID', async () => {
+    const { read } = await setup();
+    const praha = await insertLocation(db().app, { name: 'Praha' });
+    const kuchyne = await insertLocation(db().app, { name: 'Kuchyně', parentId: praha.id });
+    const brno = await insertLocation(db().app, { name: 'Brno' });
+    const vaha = await insertItem(db().app, { name: 'Váha', locationId: kuchyne.id });
+    await insertItem(db().app, { name: 'Čistička', locationId: kuchyne.id });
+    const stul = await insertItem(db().app, { name: 'Stůl', locationId: praha.id });
+    await insertItem(db().app, { name: 'Cizí', locationId: brno.id });
+
+    const body = await expectJson(await read.get(`/items/labels?locationId=${praha.id}`), 200, itemLabelsSchema);
+    expect(body.total).toBe(3);
+    expect(body.items).toEqual([
+      { id: vaha.id, code: vaha.code, name: 'Váha', path: 'Praha › Kuchyně' },
+      { id: expect.any(String), code: expect.any(String), name: 'Čistička', path: 'Praha › Kuchyně' },
+      { id: stul.id, code: stul.code, name: 'Stůl', path: 'Praha' },
+    ]);
+  });
+
+  it('searches the whole inventory with ?q=, ignoring case and diacritics, and shows no path without a location', async () => {
+    const { read } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    await insertItem(db().app, { name: 'Váha', locationId: loc.id, serialNumber: 'SN-Žluťoučký' });
+    await insertItem(db().app, { name: 'Bez místa váha', locationId: null });
+    await insertItem(db().app, { name: 'Pec', locationId: loc.id });
+
+    const byName = await expectJson(await read.get('/items/labels?q=VAHA'), 200, itemLabelsSchema);
+    expect(byName.items.map((i) => [i.name, i.path])).toEqual([
+      ['Váha', 'Sklad'],
+      ['Bez místa váha', ''],
+    ]);
+    const bySerial = await expectJson(await read.get('/items/labels?q=zlutoucky'), 200, itemLabelsSchema);
+    expect(bySerial.items.map((i) => i.name)).toEqual(['Váha']);
+  });
+
+  it('leaves archived items out and counts only the active ones', async () => {
+    const { read } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    await insertItem(db().app, { name: 'Váha', locationId: loc.id });
+    await insertItem(db().app, { name: 'Starý', locationId: loc.id, archivedAt: new Date() });
+    const body = await expectJson(await read.get(`/items/labels?locationId=${loc.id}`), 200, itemLabelsSchema);
+    expect(body.items.map((i) => i.name)).toEqual(['Váha']);
+    expect(body.total).toBe(1);
+  });
+
+  it('caps the answer at ?limit= while total counts everything that matched', async () => {
+    const { read } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Sklad' });
+    for (const name of ['A', 'B', 'C']) await insertItem(db().app, { name, locationId: loc.id });
+    const body = await expectJson(await read.get(`/items/labels?locationId=${loc.id}&limit=2`), 200, itemLabelsSchema);
+    expect(body.items.map((i) => i.name)).toEqual(['A', 'B']);
+    expect(body.total).toBe(3);
+  });
+
+  it('answers an empty list for an empty location, 404 for an unknown one', async () => {
+    const { read } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Prázdná' });
+    const body = await expectJson(await read.get(`/items/labels?locationId=${loc.id}`), 200, itemLabelsSchema);
+    expect(body).toEqual({ items: [], total: 0 });
+    await expectProblem(await read.get(`/items/labels?locationId=${MISSING}`), 404, 'not_found');
+  });
+
+  it('answers 400 for a bad id or limit, and takes "labels" as a path, not an item id', async () => {
+    const { read } = await setup();
+    await expectProblem(await read.get('/items/labels?locationId=nope'), 400, 'validation_error');
+    await expectProblem(await read.get('/items/labels?limit=0'), 400, 'validation_error');
+    await expectProblem(await read.get('/items/labels?limit=1001'), 400, 'validation_error');
+    expect((await read.get('/items/labels')).status).toBe(200);
+  });
+
+  it('is open to every role', async () => {
+    const { read, write, admin } = await setup();
+    for (const client of [read, write, admin]) expect((await client.get('/items/labels')).status).toBe(200);
   });
 });
 

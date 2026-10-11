@@ -279,7 +279,7 @@ describe('new item', () => {
 
     await user.click(screen.getByRole('link', { name: 'Zrušit' }));
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Opustit stránku' }));
-    expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Položky', level: 2 })).toBeInTheDocument();
     expect(confirm).not.toHaveBeenCalled();
   });
 
@@ -288,7 +288,7 @@ describe('new item', () => {
     const user = userEvent.setup();
     renderApp('/items/new');
     await user.click(await screen.findByRole('link', { name: 'Zrušit' }));
-    expect(await screen.findByRole('tab', { name: 'Položky', selected: true })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Položky', level: 2 })).toBeInTheDocument();
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 

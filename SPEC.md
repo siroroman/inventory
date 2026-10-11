@@ -22,7 +22,7 @@ Priorities, in order: **simplicity, reliability, security, user friendliness**.
 - External IDs on items assigned by suppliers (e.g. a number an electrician assigned to an item); searchable
 - Item photos and a link to a documents folder in Google Drive
 - Manufacturers and service providers with the order in which to contact them
-- Inventory runs (Inventura) with QR labels, scanning on phones, the Nezvěstná status, a printable protocol and a CSV export (§9)
+- Inventory runs (Inventura) with scanning on phones, the Nezvěstná status, a printable protocol and a CSV export, and QR labels for items made in a wizard and downloaded as an A4 PDF (§9)
 - Installable PWA, mobile and desktop
 
 ### Out of scope for v1, but the architecture accounts for it
@@ -67,7 +67,7 @@ The UI design (link above) has screens 1–11 for both mobile (390 px) and deskt
 
 From the user menu (avatar with initials, top right) you can also reach: Users (admin only) and Sign out. Every screen has its own URL, so browser back, bookmarks, and future QR links all work.
 
-**Navigation map:** Login → Home (5 tabs: Locations, Items, Maintenance, Suppliers, Inventory) → Location detail (has sub-locations, loops back to itself for nested levels) → Item detail (links to Manufacturer detail and lists its service providers) → Manufacturer detail (lists Service providers with priority order) → Service provider detail (links to the Manufacturers it services) → Service provider form. Inventory: Inventory tab → Start / Run overview → Location checklist → Scanner; Finish → Result → Protocol (§9.4). On touch devices, Home also offers a quick scan that opens an item (§9.4.11).
+**Navigation map:** Login → Home (6 tabs: Locations, Items, Maintenance, Suppliers, Inventory, Labels) → Location detail (has sub-locations, loops back to itself for nested levels) → Item detail (links to Manufacturer detail and lists its service providers) → Manufacturer detail (lists Service providers with priority order) → Service provider detail (links to the Manufacturers it services) → Service provider form. Inventory: Inventory tab → Start / Run overview → Location checklist → Scanner; Finish → Result → Protocol (§9.4). Labels: Labels tab → 4-step wizard → PDF (§9.4.12). On touch devices, Home also offers a quick scan that opens an item (§9.4.11).
 
 ### 3.1 Login
 
@@ -76,17 +76,18 @@ From the user menu (avatar with initials, top right) you can also reach: Users (
 - Errors: "Nesprávný e-mail nebo heslo." and "Tento účet nemá do aplikace přístup. Obraťte se na správce."
 - After login, return to the originally requested URL.
 
-### 3.2 Home — Locations, Items, Maintenance, Suppliers and Inventory tabs
+### 3.2 Home — Locations, Items, Maintenance, Suppliers, Inventory and Labels tabs
 
-- Top bar with app name and avatar; below it, tabs Locations / Items / Maintenance / Suppliers / Inventory (the tab bar scrolls sideways on phones). Active tab and search text live in the URL. On touch devices the top bar also has a scan icon for the quick scan (§9.4.11).
-- On desktop (from 1024 px) Home has a side menu instead of the top bar and the tabs: logo and name, links Locations / Items / Maintenance / Suppliers / Inventory, and the signed-in user (name, role, sign-out menu) at the bottom. The heading, search and "Add" button share one row above the list. Other screens keep the top bar.
+- Below 1024 px the top bar has a hamburger button ("Menu"), the app name and the avatar; the hamburger opens a menu with the six sections Locations / Items / Maintenance / Suppliers / Inventory / Labels and marks the active one (§9.4.12), so there is no tab bar. Active tab and search text live in the URL. On touch devices the top bar also has a scan icon for the quick scan (§9.4.11).
+- On desktop (from 1024 px) Home has a side menu instead of the top bar and the tabs: logo and name, links Locations / Items / Maintenance / Suppliers / Inventory / Labels, and the signed-in user (name, role, sign-out menu) at the bottom. The heading, search and "Add" button share one row above the list. Other screens keep the top bar.
 - **Inventory** lists the runs in progress, then the finished and cancelled ones (§9.4.1).
+- **Labels** is the 4-step wizard that makes a PDF of QR labels (§9.4.12). It has no list, search or "Add" button of its own.
 - Heading with a record count, a search field, and an "Add location" / "Add item" button (Write and Admin only).
 - **Locations** shows only top-level locations. Mobile: name, type badge, a line like "Praha · 38 items · 4 sub-locations". Desktop: table with Name, Type, City, Item count, Sub-locations.
 - A location's item count includes items in all of its sub-locations.
 - **Items** search placeholder: "Search by name, ID, serial number, external ID…". Mobile: thumbnail, name, ID with the full location path, manufacturer and model. Desktop: table with Name, ID, Location, Manufacturer & model, Service.
 - Status badges: "Service overdue" and "Service due within 30 days".
-- Missing items carry a "Nezvěstná" badge; the Items tab has a "Jen nezvěstné" filter and a selection mode for printing labels (§9.4.10, §9.4.12).
+- Missing items carry a "Nezvěstná" badge; the Items tab has a "Jen nezvěstné" filter (§9.4.10).
 - Search runs live (300 ms debounce after the last keystroke) and is diacritics- and case-insensitive. Item search covers name, ID, serial number, external IDs, manufacturer, model, and the location names along the full path. Location search (the Locations tab and the location pickers) covers name and ID; several words may be spread over the path, each word in the location or one above it and at least one in the location itself ("zasedačka hradec" finds Zasedačka in Centrála Hradec Králové).
 - **Maintenance** lists the service records of all items, newest first. Search placeholder: "Hledat podle názvu, položky, lokality…"; it covers the record title, the item's name and ID, and the location names along the path (words are not split across fields). Mobile: title, "date · item", then the location path. Desktop: table with Title, Date, Item (a link to the item), Location. The "Add record" button (Write and Admin) opens the service record form with a required item search field; an item's own "Add record" keeps the item fixed.
 - **Suppliers** (the service providers) lists them by name. Search placeholder: "Hledat podle názvu, ID, telefonu, značky…"; it covers the name, the SUP code, the phone number (with or without the spaces it is written with) and the names of the brands the supplier services (so a brand finds the suppliers to call for it). Mobile: name, then "SUP-001 · phone". Desktop: table with Name, ID, Phone. The "Add supplier" button (Write and Admin) opens the supplier form.
@@ -328,7 +329,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
 | `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |
 | `GET /items?missing=true` | only the items marked Nezvěstná; combinable with `q` and `archived`; item responses carry `missingSince` | Read |
-| `GET /items/labels?q=&missing=` | `{id, code, name}` of every item matching the search, at most 500, plus the total; for "Vybrat vše (N)" | Read |
+| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by ID (the numbers in it compared by value: INV-9-100 before INV-73-2023016); for the label wizard (§9.4.12) | Read |
 | `GET /items/by-code/{code}` | the item with this ID (case ignored, archived too) or 404; for the quick scan | Read |
 | `POST /items/{id}/mark-found` | clear Nezvěstná, with `version` | Write |
 | `POST /items` with `inventoryId` | also adds the new item to that run as Nové (§9.3 rule 9) | Write |
@@ -398,7 +399,7 @@ Specified 2026-10-09; the first slice is built, see "Built so far" in §9.8. Sou
 - **Inventory runs:** a physical check that items are where the register says, for one location including all its sub-locations. Several people can work on one run at once. Items are checked by scanning their QR label on a phone or by ticking them in a checklist on any device.
 - **The Nezvěstná (missing) status** on items: set when a run finishes, cleared when the item turns up.
 - **A printable protocol** (inventurní soupis) and **a CSV export** of every finished run.
-- **QR labels** for items, printed on A4 label sheets on an office printer.
+- **QR labels** for items, made in a wizard and downloaded as an A4 PDF (§9.4.12).
 - **A quick scan** outside a run, which opens the scanned item's detail.
 
 **Not in:** offline scanning (a scan needs a connection), labels for locations, other barcodes (EAN, manufacturers' codes), scanning on a desktop webcam, scheduled or recurring inventories and reminders, and a "decommissioned" status (an item is still retired with Archive).
@@ -446,7 +447,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 
 #### 9.4.1 Inventura tab — `/?tab=inventory` [17A mobile, 17 desktop]
 
-- *Decided*: the fifth Home tab. On phones the tab bar scrolls sideways (Lokality · Položky · Údržba · Dodavatelé · Inventura); from 1024 px the side menu gets a fifth link, "Inventura".
+- *Decided*: the fifth Home tab, followed by Štítky (§9.4.12). Below 1024 px the Home tabs are the hamburger menu (Lokality · Položky · Údržba · Dodavatelé · Inventura · Štítky); from 1024 px the side menu has the link "Inventura".
 - Search "Hledat podle lokality…" over the root's name, code and the names along its path (the location search rules of §3.2).
 - **Probíhající (N):** cards with:
   - the root's path
@@ -578,29 +579,76 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 - An unknown ID offers "Přidat novou položku" with the ID filled in (writers). A foreign code says "Tento kód nepatří do aplikace."
 - Nothing is recorded.
 
-#### 9.4.12 Labels
+#### 9.4.12 Labels — `/?tab=labels`
 
-**Selection** (Home Items tab) [21; desktop not drawn]:
+*Decided* 2026-10-11: labels are made in a 4-step wizard on the sixth Home tab and downloaded as an A4 PDF. This replaces the earlier design (a "Vybrat" selection mode on the Items tab, a fixed 3 × 8 sheet of 70 × 37 mm and the browser's print dialog; frames 21–23). The PDF can also be printed from step 4 (the browser's print dialog, "Vytisknout"); the page itself has no print stylesheet. There are no labels for locations.
 
-- "Vybrat" in the toolbar turns the rows into checkboxes; on desktop the table gets a checkbox column. Every role may print labels. The button is hidden in the archived view.
-- Search and "Jen nezvěstné" still work. The selection survives a new search and a page reload (kept in `sessionStorage`).
-- "Vybrat vše (N)" (*Proposed*) selects every item matching the current search, not only the loaded page, at most 500 at a time ("Vybráno 500 z 640 – upřesněte hledání"). It is the way to label a whole room or floor: search for its name, then select all.
-- A sticky bar: "Vybráno 12 · Tisknout štítky" and "Zrušit výběr".
+**Who:** every role (Read, Write, Admin) may make labels. Nothing is written to the database, so there is no audit entry, no "Uloženo" toast and no unsaved-changes dialog.
 
-**Print** `/labels` [22, 23]:
+**Entry:** the sixth Home tab "Štítky". The URL keeps the step and the chosen location: `/?tab=labels&step=2&locationId=<uuid>`. The chosen items live in memory and in `sessionStorage`, so a reload or leaving the tab and coming back keeps them. A deep link to step 2 or later without a restored selection starts at step 1. The heading is "Tisk štítků". An indicator shows the four steps "Lokalita · Položky · Rozložení · Stažení" (a numbered list, the current step marked, and on a phone the text "Krok 2 ze 4"; the number of a step already visited is a button back to it, and the furthest step reached stays one after going back, so Pokračovat is not the only way forward; the number of the next step is a button too while Pokračovat is enabled; choosing another location starts over). "Zpět" and "Pokračovat" move between steps; forward is disabled until the step is valid. On a phone they are a sticky bar at the bottom (step 2 also shows the live count there). Going back loses nothing.
 
-- The sheet format is fixed: "A4, 3 × 8 štítků, 70 × 37 mm".
-- "Začít od pozice" (*Decided*): a small 3 × 8 grid. The user taps the first free label of a partly used sheet; positions before it are drawn as used. Positions count left to right, top to bottom, and the default is 1. Each item prints once.
-- The selected items, each removable (×).
-- The summary "12 štítků · 1 list · zbylých 9 míst zůstane prázdných", a preview of the sheet(s), and the tip "Tiskněte v měřítku 100 % a bez okrajů".
-- "Tisknout" opens the browser's print dialog, which prints only the sheets.
+**Step 1 — Lokalita** ("Vyberte lokalitu"; *Proposed*: required)
 
-**Label** (70 × 37 mm, black on white only):
+- A search field "Hledat lokalitu podle názvu nebo ID…" over the existing location search (`GET /locations?q=&withSubLocations=true`, every level; the rules of §3.2). Each result shows the name, the path above it ("Centrála Praha › 2. patro"), the ID (LOC-004) and the item count including sub-locations.
+- With an empty field the top-level locations are listed, so the choice can be made without typing.
+- One location is chosen. It is shown as a card with name, path and "128 položek včetně podlokalit", and "Změnit".
+- Archived locations are not offered. A location with 0 items may be chosen; the card then says "V této lokalitě zatím nejsou žádné položky. Můžete je přidat vyhledáním v dalším kroku."
+- Changing the location after items were chosen asks first (`AlertDialog`: "Změnou lokality se výběr položek zahodí." / "Zrušit", "Změnit lokalitu").
+- States: results, "Nic nenalezeno", loading (skeleton), error with retry.
 
-- The QR code on the left, about 28 mm including a quiet zone of at least 4 modules. *Decided*: it holds only the item's ID (`INV-73-2023016`), not a URL, with error correction level Q.
-- To the right, the ID in bold on one line, at 11 pt shrinking to 8 pt if needed (`INV-73-2023016` fits at full size). Under it, the item's name in up to 2 lines with an ellipsis. No text below 8 pt.
-- A 3 mm safe margin inside every label, and nothing else on the label.
-- An office printer usually can't print the outer 4–5 mm of the paper. The first test print on the chosen sheets decides whether the outer columns need a wider margin.
+**Step 2 — Položky** ("Vyberte položky")
+
+- It loads every active item of the location and its whole subtree (`GET /items/labels?locationId=`). **All are selected by default.**
+- A summary "Vybráno 118 z 128" and two text buttons, "Vybrat vše" and "Zrušit výběr".
+- Rows: a checkbox (44 px target, the whole row toggles), the name, the ID, and the sub-location path below the chosen location. From 768 px a table with a checkbox column, Název, ID, Umístění. A filter over the loaded rows is not required.
+- **Quick add** ("Přidat další položky", placeholder "Hledat podle názvu nebo ID…") puts items from anywhere on the list. It uses the item search (name, ID, serial number, external ID; `GET /items/labels?q=&limit=20`):
+  - The field sits above the list with its results directly below it (live search, 300 ms debounce, diacritics ignored). The result list is a listbox: ↑ ↓ and Enter work.
+  - Items already in the list show "V seznamu" and cannot be added twice.
+  - **One tap (or Enter on the highlighted row) adds the item and selects it.** The row shows "Přidáno ✓" for a moment, the field keeps focus and its text stays selected, so the next query replaces it without an extra tap, and the results stay open. It is built for adding 10–20 items in a row on a phone with the keyboard open: the results and the sticky bar stay usable.
+  - Typing an ID that matches exactly and pressing Enter adds that item at once, with a one-line confirmation "Přidáno: Notebook Dell (INV-00042)" read out through a live region.
+  - Added items sit at the top of the list in the group "Přidané ručně (3)" with a badge "Přidáno", checked; they can be unchecked or removed (×).
+- *Proposed*: at most 1 000 labels per PDF. Above that the summary reads "Vybráno 1 000 z 1 240 – nejvýše 1 000 štítků" and "Pokračovat" is disabled; it is enabled only with 1 to 1 000 chosen.
+- States: loading skeleton, an empty location (it explains the quick add), "Nic nenalezeno" for the quick add, error with retry, 0 chosen ("Pokračovat" disabled).
+
+**Step 3 — Rozložení** ("Rozložení")
+
+- The format is fixed: a read-only chip "A4 na výšku · 210 × 297 mm". No other sizes, presets or fonts.
+- Two steppers, **Sloupce** (1–6, default 3) and **Řádky** (1–16, default 8): − / +, or type a number.
+- *Decided*: the page margin is a fixed 5 mm, shown as information, not a control, and there are no gaps. A label is (210 − 10) ÷ columns by (297 − 10) ÷ rows, shown live: "Štítek 66,7 × 35,9 mm" for 3 × 8.
+- **Začít od pozice** (*Decided* 2026-10-09, kept): a third number field with − and + beside Sloupce and Řádky on the same line (the same stepper, range 1 to columns × rows). The user sets the first free place of a partly used sheet; the earlier places are hatched as used in the preview. Positions count left to right, top to bottom, the default is 1, and it resets to 1 when columns or rows change so the position stays valid. Each item prints once.
+- A preview of the whole first page, so the margin is visible, with the real label content scaled down, and "List 1 z 5" paging when there are more sheets.
+- The summary "118 štítků · 5 listů · na posledním listu zůstanou 2 místa prázdná" (Czech plurals: 1 štítek, 3 štítky, 5 štítků; 1 list, 3 listy, 5 listů).
+- A warning that blocks nothing when the QR's side would be under 15 mm: "Štítky jsou příliš malé, QR kód by se špatně četl."
+- Desktop: the controls on the left, the preview on the right. Phone: the controls first, the preview below.
+
+**Label** (black on white only)
+
+- *Decided*: the QR code holds only the item's ID (`INV-73-2023016`), not a URL, with error correction level Q. It sits on the left; its side is the label's height minus a 3 mm inner margin on each side, and the quiet zone is at least 4 modules.
+- To its right the ID in bold on one line, at 11 pt shrinking to 8 pt (`INV-73-2023016` fits at full size); under it the item's name in up to 2 lines with an ellipsis. No text below 8 pt.
+- When the label is portrait-ish (width < 1.3 × height) the QR is on top and the text below it.
+- Nothing else on the label: no logo, no other fields, no copies per item.
+
+**Step 4 — Stažení** ("Stáhnout PDF")
+
+- A summary card: the location, "118 štítků", "3 × 8 · A4", "5 listů", and the start position when it is not 1.
+- The primary button "Stáhnout PDF". The file is `stitky-<location name>-<yyyy-mm-dd>.pdf` (*Decided* 2026-10-11: the name, with spaces as hyphens and characters a file name cannot hold dropped; the ID only when nothing is left of the name).
+- Beside it, side by side at every width, "Vytisknout" (*Decided* 2026-10-11): the same PDF (made once, reused by both buttons) loaded into a hidden `blob:` frame whose print dialog is opened; on iOS, which cannot print a frame, it opens in a new tab. This needs `blob:` in the CSP `frame-src`.
+- States: generating ("Připravuje se PDF…", the button disabled with a spinner), done (no message: the file has been saved or the print dialog opened, and "Vytvořit nové štítky" appears; the buttons stay and reuse the PDF), error ("PDF se nepodařilo vytvořit." with "Zkusit znovu").
+- The tip "Tiskněte v měřítku 100 % (bez přizpůsobení stránce)."
+- "Vytvořit nové štítky" starts over and clears the selection. "Zpět" returns to step 3 without losing anything.
+
+**Mobile menu** (*Proposed*)
+
+- Below 1024 px the Home tab bar (which scrolled sideways) is gone. The Home top bar gets a hamburger button (44 × 44, `aria-label` "Menu") left of the logo. It opens a drawer (or a dropdown; the design decides) with the six sections, icon and name, the active one marked with `aria-current`. It closes on a choice, on Escape and on a tap outside, and the focus returns to the button.
+- The panel's heading ("Položky (128)") already names the section. Other screens keep their top bar. The quick-scan icon (§9.4.11) stays beside the avatar.
+- From 1024 px the existing side menu gets a sixth link, "Štítky".
+
+**API** (new; no write endpoint, no table, no migration)
+
+- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path }], total }` of **active** items, ordered by `code` with the numbers in it compared by value (INV-9-100 before INV-73-2023016). The wizard sorts the chosen rows the same way, so items added by hand fall in place, and the labels are printed in that order.
+- `locationId` takes the whole subtree (the recursive query of `GET /locations/{id}/items`). `q` uses the item search; the quick add calls it without `locationId` and with `limit=20`. `limit` defaults to 1 000 and is at most 1 000; `total` counts everything that matches. The response is not paged.
+- `path` is the item's location path from the top ("" = no location). A malformed `locationId` is 400 (`validation_error`); an unknown one is `not_found`, as for `GET /locations/{id}/items`.
+- The Zod schema is in `@inventory/shared`; the route goes through `defineRoute({ minRole: 'read' })`.
 
 ### 9.5 Data model
 
@@ -640,7 +688,10 @@ The endpoints are listed in §7. Scan answers (`POST /inventories/{id}/scans` wi
   - The decoder must run from a same-origin script: the CSP allows no `blob:` workers.
   - The torch is offered only when the camera track reports it. Vibration where `navigator.vibrate` exists (not on iOS).
   - Verify in the installed PWA on an iPhone as well as in the browser.
-- **QR on labels:** generated in the browser as SVG by a small library. This one new dependency serves the labels; the scanner's decoder is the other. Labels are positioned in millimetres with print CSS (`@page { size: A4; margin: 0 }`).
+- **QR on labels:** generated in the browser as a module matrix by a small library and drawn as vector. This one new dependency serves the labels; the scanner's decoder is the other.
+- **Labels PDF** (*Proposed*): built in the browser (no server load; the data is already there) by a PDF library with an embedded Czech-capable font (Regular and Bold subsets, a sans such as Noto Sans or Roboto: the standard PDF fonts have no ě š č ř ž). The QR library, the PDF library and the font are loaded only when "Stáhnout PDF" is pressed (own chunk; roughly 100–150 KB per font weight). A pure function `buildLabelsPdf({ items, columns, rows, startPosition }) → Uint8Array` in `features/labels/` holds the layout and is unit-tested without a browser: the page count, the position of label n, the empty cells before `startPosition`.
+- **iOS:** a blob download inside the installed PWA may open the PDF in the viewer instead of saving it. The button then opens the PDF in a new tab, where the share sheet is available. Verify on an iPhone.
+- **Printing:** an office printer cannot print the outer 4–5 mm of the paper; the fixed 5 mm page margin plus the 3 mm inner margin covers it. Pre-cut sticker sheets will not match the free grid exactly, so a test print on the chosen sheets is part of acceptance.
 - **Live updates:** TanStack Query polling (`refetchInterval` 5 s on run screens, only while visible; the Inventura tab refreshes on focus). No WebSockets.
 - **Config:** optional `ORG_NAME` and `ORG_ID_NUMBER` on the API, returned with a run's detail for the protocol header.
 - **Item form:** `/items/new?locationId=&inventoryId=&code=`; `POST /items` takes an optional `inventoryId` (rule 9). After saving, it returns to the screen it was opened from, replacing the form in the history.
@@ -656,7 +707,13 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 5. **SPA, finish:** finish, cancel and result; the Nezvěstná badge, filter and "Označit jako nalezenou"; item and location histories.
 6. **SPA, scanner:** the scanner with all its sheets and camera states, then the quick scan.
 7. **SPA, documents:** the protocol print view and the CSV export.
-8. **SPA, labels:** label selection and printing; a test print on real sheets.
+8. **SPA, labels** (one PR each; the wizard of §9.4.12 replaces the earlier selection-and-print design):
+    1. API: `GET /items/labels` with the shared schema and integration tests (subtree, archived items excluded, `q`, `limit`, 401, 400 for a bad id, `total` above the limit).
+    2. SPA: Labels as the sixth tab, the hamburger menu below 1024 px and the side-menu link (the tab body is a placeholder). Tests: the menu opens, shows six entries with the active one marked, Escape closes it, the focus returns to the button.
+    3. SPA: `buildLabelsPdf`, the QR and PDF dependencies and the font, with the unit tests of §9.7.
+    4. SPA: wizard steps 1–2 (location, items, quick add). Component tests: step validity (no continue with 0 chosen or no location), select all / none, the quick add keeps focus and adds once, a change of location asks first.
+    5. SPA: steps 3–4 (layout, preview, start position, download). Component tests: the start position resets with the grid, plurals, the small-label warning.
+    6. E2E and a test print on real sheets (E2E waits for a Playwright setup; the test print is the client's).
 
 **Built so far** (2026-10-09), with what differs from the list above:
 
@@ -686,14 +743,21 @@ One PR per step, each with its tests (CLAUDE.md, Working agreement):
 - **`was_missing`** stays false until `items.missing_since` exists; the finish step must make a check clear that status (rule 12).
 - **Progress** (*Decided* 2026-10-10, replacing "expected rows only"): the bar, its "Zkontrolováno 66 % položek (84/128)", the checklist's box and the scanner's counter are `checked + new + missing` over `checked + unchecked + new + missing`, where `unchecked` is the `expected` rows of items not archived that are neither checked nor flagged. It never passes 100 % and reads 100 % exactly when nothing is left unchecked. The API's `counts` are unchanged (`expected`, `checked`, `elsewhere`, `new`, `missing`); the SPA adds them up (`progressOf` in `inventory-summary.tsx`). A location row's "24 / 32 položek" stays the list only.
 - **Colour:** the success green is `#197a37` on `#E6F4EA` (4.77:1); the design's `#1B7F3B` is 4.46:1, under WCAG AA for small text.
-- **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it.
+- **Step 8, labels** (2026-10-11): sub-steps 1–5 are built (the endpoint, the Štítky tab with the hamburger menu, the PDF builder, the four wizard steps); the test print of sub-step 6 is not. Where it differs from or adds to §9.4.12 and §9.7:
+  - **Label text on narrow labels:** the ID shrinks from 11 pt to 8 pt on one line; if it still does not fit it breaks after its hyphens ("INV-73-" / "2023016"), never cut or abbreviated. A word of the name wider than the line is cut with an ellipsis, not split. The name takes the lines that are left (none when there is no room). The name is 9 pt, or 8 pt when the ID had to shrink under 10 pt.
+  - **One plan, two renderings:** the PDF and the preview of step 3 draw the same plan of each label (`planLabel`). The preview is an SVG of the whole page set in the same Roboto files (loaded as a `FontFace`), so its line breaks match the PDF's; the PDF measures with the embedded font itself.
+  - **Fonts and size:** Roboto Regular and Bold (SIL OFL, about 160 KB each, subset into the PDF, which is about 25 KB for a sheet). The chunk with `pdf-lib` and the QR library is about 1.1 MB (500 KB gzip) and loads only when "Stáhnout PDF" is pressed; the CSP is unchanged (the fonts come from the app's own origin and the PDF is a `blob:` download).
+  - **More than 1 000 items:** step 2 loads the first 1 000 (`GET /items/labels` caps at 1 000), says so, and counts "z N" with the real total; the rest are reached by choosing a sub-location or by the quick add.
+  - **Memory:** the choices of steps 1–2 are in `sessionStorage` (`labels-wizard`), the sheet of step 3 in `labels-layout`. After a download "Vytvořit nové štítky" clears the first and puts the start position back to 1 (columns and rows are kept).
+  - **Not verified yet:** a test print on real sheets (does 5 mm margin plus 3 mm inner margin clear the printer?), the download in an installed iOS app (the new-tab fallback), and a phone camera reading the printed codes. A desktop browser run on 2026-10-11 against the real API (sign-in, choose a location, quick add, layout and preview, download of a valid PDF; the hamburger menu at 375 px) showed no problem.
+- **No E2E tests yet:** the repository has no Playwright setup, so the additions below wait for it. The label flow is covered by component tests that go through the four steps (`labels-wizard`, `labels-layout-step`) and unit tests of the PDF.
 
-**E2E additions:** start a run, tick items by hand, flag one as missing, finish (the flagged item becomes Nezvěstná, the other unchecked ones stay Nezkontrolováno), print a protocol; select items and open the label preview. The scanner's decoder is faked in component tests; the camera isn't available in jsdom.
+**E2E additions:** start a run, tick items by hand, flag one as missing, finish (the flagged item becomes Nezvěstná, the other unchecked ones stay Nezkontrolováno), print a protocol; make labels (choose a location, deselect two items, quick-add one by ID, set 2 × 4, download the PDF and check the file). The scanner's decoder is faked in component tests; the camera isn't available in jsdom.
 
 ### 9.9 Later
 
 - **Offline inventory:** scans kept in IndexedDB and sent when back online. Excluded now (rule 15); the snapshot model allows it later.
-- **Labels for locations** and a single "Tisknout štítek" on the item detail.
+- **Labels for locations** and a shortcut from the item detail into the wizard with that item.
 - **Native app:** reuses the same `/api/v1`. A Swift or KMP client is generated from the OpenAPI spec, and sign-in uses a bearer token instead of a cookie.
 
 ## 10. Iteration plan
@@ -712,7 +776,7 @@ Build the API first, with tests, then the SPA on top of finished modules. The UI
 
 ## 11. UI design summary
 
-The finished design ([Evidence majetku — UI design](https://claude.ai/artifact/348Z5z5RWitYajoUzqSoDP)) is the source of truth for visuals. It has screens 1–9 for mobile and desktop, service-provider detail, service record detail and form (10, 11), users, states, a components/tokens overview for React, Tailwind and shadcn/ui, the app icon (16), and the inventory and label frames 17–27.
+The finished design ([Evidence majetku — UI design](https://claude.ai/artifact/348Z5z5RWitYajoUzqSoDP)) is the source of truth for visuals. It has screens 1–9 for mobile and desktop, service-provider detail, service record detail and form (10, 11), users, states, a components/tokens overview for React, Tailwind and shadcn/ui, the app icon (16), and the inventory frames 17–27 (the label frames 21–23 are superseded by the wizard of §9.4.12, whose frames are still to be drawn).
 
 | Token | Value |
 | --- | --- |
@@ -727,7 +791,7 @@ The finished design ([Evidence majetku — UI design](https://claude.ai/artifact
 
 **What the design added beyond the original brief:** sub-locations with breadcrumb navigation, external item IDs, the Site and Warehouse location types, a single-line address field, provider reordering (arrows in the design, dragging in the app), photos in the form instead of on the detail screen, and a "Pending" status for invited users.
 
-**Inventory and labels (frames 17–27):** Home with the fifth tab (17A mobile, 17 desktop), start (18), scanner and three result sheets (20), the run overview by location (24), the location checklist (25), the item's and the location's inventory history (26, 27), the "Inventura" sections on the item and location detail, label selection (21), label print preview (22) and the printed A4 sheet (23). The canvas replaced the brief's single grouped checklist with the overview (24) and per-location checklists (25), and dropped the variant with a top-bar icon (17B).
+**Inventory (frames 17–27):** Home with the Inventura tab as the fifth (17A mobile, 17 desktop; the sixth tab Štítky and the hamburger menu are not drawn), start (18), scanner and three result sheets (20), the run overview by location (24), the location checklist (25), the item's and the location's inventory history (26, 27), the "Inventura" sections on the item and location detail. The first label design (selection 21, print preview 22, printed A4 sheet 23) is replaced by the wizard of §9.4.12. The canvas replaced the brief's single grouped checklist with the overview (24) and per-location checklists (25), and dropped the variant with a top-bar icon (17B).
 
 **Still to add to the design:**
 - a Documents field (Google Drive link) in the item form
@@ -739,10 +803,9 @@ The finished design ([Evidence majetku — UI design](https://claude.ai/artifact
   - the protocol print layout
   - the overlap warning on the start screen
   - the scanner sheets Byla nezvěstná, Archivovaná položka, Neznámý kód, Cizí kód and Bez připojení, the camera-denied and no-camera states, and "Zadat kód ručně"
-  - the Nezvěstná badge and "Označit jako nalezenou" on the item detail; the badge, "Jen nezvěstné" and "Vybrat vše (N)" on the Items tab
+  - the Nezvěstná badge and "Označit jako nalezenou" on the item detail; the badge and "Jen nezvěstné" on the Items tab
   - the quick-scan icon in the Home top bar and side menu
-  - "Začít od pozice" on the label print screen
-  - desktop frames of label selection and printing
+  - the label wizard (§9.4.12): the Štítky tab and the hamburger menu on phones, steps 1–4 on mobile and desktop with their states, and the label itself in several sizes
 - dark mode, if the client wants it
 
 ## 12. Open questions
@@ -767,6 +830,8 @@ Questions 1–7 change the design the most; the rest can be settled during devel
 16. **Operations:** Who will own the GCP project and billing, what domain (e.g. `majetek.firma.cz`), what address will invitations be sent from, and who maintains the app after launch?
 17. **Design:** Do you have company colors and a logo, or does the accent stay `#2454C7`? Do you want dark mode?
 18. **Inventory protocol:** the company name and IČO for the header (`ORG_NAME`, `ORG_ID_NUMBER`), and does the company's accountant accept the protocol's layout (§9.4.8) as the inventurní soupis?
-19. **Label sheets:** which product (70 × 37 mm, 24 per A4 sheet) and which printer? A test print decides the margins at the paper's edge (§9.4.12).
+19. **Label sheets:** which printer and which sticker sheets are in use? The grid is free (1–6 columns, 1–16 rows) and the page margin is a fixed 5 mm; a test print on the chosen sheets decides whether 5 mm is enough (§9.4.12).
 
 Decided for inventory on 2026-10-09 (§9): Nezvěstná is a status on the item; runs may not overlap; QR labels hold only the item's ID, not a URL, so the app's domain doesn't affect printed labels; a finished run has a printable protocol (with purchase prices and totals, a signature block, the company header and a note) and a CSV export; a quick scan opens an item; labels can start at any position of a partly used sheet, one per item; Inventory is the fifth Home tab.
+
+2026-10-11: labels are made in a 4-step wizard on the Štítky tab (the sixth Home tab, a hamburger menu below 1024 px) and downloaded as an A4 PDF built in the browser; free columns × rows with a fixed 5 mm page margin and no gaps; "Začít od pozice" is kept; the Items-tab selection mode, the fixed 3 × 8 sheet and the browser print screen are dropped; the QR still holds only the item's ID.

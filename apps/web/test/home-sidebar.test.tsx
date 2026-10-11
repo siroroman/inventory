@@ -17,7 +17,7 @@ function api() {
 }
 
 describe('home: side menu on desktop', () => {
-  it('replaces the top bar and the tabs with the five lists and the user', async () => {
+  it('replaces the top bar and the hamburger menu with the six sections and the user', async () => {
     stubWideScreen(true);
     api();
     renderApp('/');
@@ -29,10 +29,11 @@ describe('home: side menu on desktop', () => {
       'Údržba',
       'Dodavatelé',
       'Inventura',
+      'Štítky',
     ]);
     expect(within(nav).getByRole('link', { name: 'Lokality' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'Položky' })).not.toHaveAttribute('aria-current');
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Menu' })).not.toBeInTheDocument();
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
     // The one user menu is the one in the side menu, with name and role beside the avatar.
     expect(screen.getAllByRole('button', { name: /Anna Nováková/ })).toHaveLength(1);
@@ -88,22 +89,23 @@ describe('home: side menu on desktop', () => {
 });
 
 describe('home: narrow screen', () => {
-  it('keeps the top bar and the tabs, without a side menu', async () => {
+  it('keeps the top bar with the hamburger menu, without a side menu', async () => {
     stubWideScreen(false);
     api();
     renderApp('/');
 
-    expect(await screen.findByRole('tablist', { name: 'Přehled' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Menu' })).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Hlavní navigace' })).not.toBeInTheDocument();
   });
 
-  it('keeps the top bar and the tabs at tablet width, with the table', async () => {
+  it('keeps the top bar and the hamburger menu at tablet width, with the table', async () => {
     stubScreenWidth(800);
     api();
     renderApp('/');
 
-    expect(await screen.findByRole('tablist', { name: 'Přehled' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Menu' })).toBeInTheDocument();
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Hlavní navigace' })).not.toBeInTheDocument();
     expect(await screen.findByRole('table')).toBeInTheDocument();

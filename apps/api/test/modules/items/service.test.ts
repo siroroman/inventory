@@ -360,6 +360,62 @@ describe('item service', () => {
     });
   });
 
+  describe('listLabels', () => {
+    it('lists the items of a location subtree by ID, with the path of each', async () => {
+      const { service, praha, kuchyne, sklad, create } = await setup();
+      await create('Váha');
+      await create('Čistička');
+      await create('Stůl', { locationId: praha.id });
+      await create('Regál', { locationId: sklad.id });
+
+      const result = await service.listLabels(reader, { locationId: praha.id }, 1000);
+      // In the order they were numbered; Sklad Brno is outside.
+      expect(result.items.map((i) => i.name)).toEqual(['Váha', 'Čistička', 'Stůl']);
+      expect(result.total).toBe(3);
+      expect(result.items[0]?.path.map((s) => s.id)).toEqual([praha.id, kuchyne.id]);
+      expect(result.items[2]?.path.map((s) => s.name)).toEqual(['Centrála Praha']);
+      expect(result.items[0]).toMatchObject({ code: expect.stringMatching(/^INV-/) });
+      expect(result.items[0]).not.toHaveProperty('locationId');
+    });
+
+    it('lists every active item without a location filter, those without a location with an empty path', async () => {
+      const { service, sklad, create } = await setup();
+      await create('Regál', { locationId: sklad.id });
+      await create('Bez místa', { locationId: null });
+      await create('Konvektomat');
+
+      const result = await service.listLabels(reader, {}, 1000);
+      expect(result.items.map((i) => i.name)).toEqual(['Regál', 'Bez místa', 'Konvektomat']);
+      expect(result.items[1]?.path).toEqual([]);
+    });
+
+    it('narrows by the search, caps the answer at the limit and still counts everything that matched', async () => {
+      const { service, create } = await setup();
+      for (const name of ['Váha A', 'Váha B', 'Váha C', 'Pec']) await create(name);
+
+      const result = await service.listLabels(reader, { q: 'vaha' }, 2);
+      expect(result.items.map((i) => i.name)).toEqual(['Váha A', 'Váha B']);
+      expect(result.total).toBe(3);
+    });
+
+    it('leaves archived items out', async () => {
+      const { service, create } = await setup();
+      const gone = await create('Starý');
+      await create('Nový');
+      await service.archive(writer, gone.id, gone.version);
+
+      const result = await service.listLabels(reader, {}, 1000);
+      expect(result.items.map((i) => i.name)).toEqual(['Nový']);
+      expect(result.total).toBe(1);
+    });
+
+    it('answers an empty list for an empty location, and not found for an unknown one', async () => {
+      const { service, sklad } = await setup();
+      await expect(service.listLabels(reader, { locationId: sklad.id }, 1000)).resolves.toEqual({ items: [], total: 0 });
+      await expectCode(service.listLabels(reader, { locationId: randomUUID() }, 1000), 'not_found');
+    });
+  });
+
   describe('update', () => {
     it('changes only the sent fields, can clear a field, and audits the difference', async () => {
       const { store, service, rational, create } = await setup();
