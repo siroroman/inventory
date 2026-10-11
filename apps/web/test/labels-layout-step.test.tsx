@@ -208,7 +208,7 @@ describe('labels wizard: step 4, the download', () => {
     expect(options).toMatchObject({ columns: 2, rows: 5, startPosition: 4 });
     expect(options.fonts.regular).toBeInstanceOf(Uint8Array);
     expect(downloads).toHaveLength(1);
-    expect(downloads[0]!.name).toMatch(/^stitky-LOC-004-\d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(downloads[0]!.name).toMatch(/^stitky-Přízemí-\d{4}-\d{2}-\d{2}\.pdf$/);
     expect(screen.getByText('Tiskněte v měřítku 100 % (bez přizpůsobení stránce).')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Stáhnout znovu' }));
@@ -302,5 +302,18 @@ describe('labels wizard: step 4, the download', () => {
     await waitFor(() => expect(router.state.location.search.step).toBe(3));
     expect(await screen.findByLabelText('Sloupce')).toHaveValue('4');
     expect(screen.getByLabelText('Začít od pozice')).toHaveValue('7');
+  });
+});
+
+describe('pdfFileName', () => {
+  it('names the file after the location, keeps Czech letters and drops what a file name cannot hold', async () => {
+    const { pdfFileName } = await import('../src/features/labels/download.ts');
+    const day = new Date(2026, 9, 11);
+    expect(pdfFileName({ code: 'LOC-004', name: 'Centrála  Hradec Králové' }, day)).toBe(
+      'stitky-Centrála-Hradec-Králové-2026-10-11.pdf',
+    );
+    expect(pdfFileName({ code: 'LOC-004', name: 'Sklad A/B: "nový"?' }, day)).toBe('stitky-Sklad-AB-nový-2026-10-11.pdf');
+    expect(pdfFileName({ code: 'LOC-004', name: '???' }, day)).toBe('stitky-LOC-004-2026-10-11.pdf');
+    expect(pdfFileName({ code: 'LOC-004', name: 'x'.repeat(100) }, day)).toBe(`stitky-${'x'.repeat(60)}-2026-10-11.pdf`);
   });
 });

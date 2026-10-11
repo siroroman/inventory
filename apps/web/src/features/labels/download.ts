@@ -1,8 +1,27 @@
-/** `stitky-<LOC code>-<yyyy-mm-dd>.pdf`, with the date of the user's own day. */
-export function pdfFileName(locationCode: string, now: Date = new Date()): string {
+const MAX_NAME_CHARS = 60;
+
+/**
+ * The location's name as part of a file name: what file systems refuse is dropped, runs of white
+ * space become one hyphen, and Czech letters stay (every system the app runs on takes them).
+ */
+function fileNamePart(name: string): string {
+  return name
+    .normalize('NFC')
+    .replace(/[\\/:*?"<>|\p{Cc}]/gu, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, MAX_NAME_CHARS)
+    .replace(/^[-.]+|[-.]+$/g, '');
+}
+
+/**
+ * `stitky-<location name>-<yyyy-mm-dd>.pdf`, with the date of the user's own day. A name that
+ * leaves nothing (only characters a file name cannot hold) falls back to the location's ID.
+ */
+export function pdfFileName(location: { code: string; name: string }, now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  return `stitky-${locationCode}-${day}.pdf`;
+  return `stitky-${fileNamePart(location.name) || location.code}-${day}.pdf`;
 }
 
 const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent);

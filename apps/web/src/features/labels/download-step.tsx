@@ -29,7 +29,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const grid = { columns: layout.columns, rows: layout.rows };
   const sheets = pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
-  const name = pdfFileName(location.code);
+  const name = pdfFileName(location);
 
   // The PDF is made once: "Stáhnout" after "Vytisknout" (and the other way round) reuses the bytes.
   const build = async (): Promise<Uint8Array> => {
@@ -85,15 +85,18 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
         )}
       </dl>
 
-      <div className="flex flex-col gap-3 sm:max-w-sm">
-        <Button size="default" disabled={working} onClick={() => void make('save')} className="w-full">
-          {working ? <LoaderCircle aria-hidden className="animate-spin" /> : <FileDown aria-hidden />}
-          {t('labels.download.button')}
-        </Button>
-        <Button variant="outline" disabled={working} onClick={() => void make('print')} className="w-full">
-          <Printer aria-hidden />
-          {t('labels.download.print')}
-        </Button>
+      <div className="flex flex-col gap-3 sm:max-w-md">
+        {/* Side by side at every width: the two ways to get the same PDF. */}
+        <div className="flex gap-3">
+          <Button size="default" disabled={working} onClick={() => void make('save')} className="flex-1">
+            {working ? <LoaderCircle aria-hidden className="animate-spin" /> : <FileDown aria-hidden />}
+            {t('labels.download.button')}
+          </Button>
+          <Button variant="outline" disabled={working} onClick={() => void make('print')} className="flex-1">
+            <Printer aria-hidden />
+            {t('labels.download.print')}
+          </Button>
+        </div>
         <div role="status" className="text-sm">
           {working && <p>{t('labels.download.working')}</p>}
           {state.status === 'done' && (
