@@ -318,25 +318,24 @@ describe('inventory checklist', () => {
       return renderApp(url);
     }
 
-    it('runs from the Inventura tab through every level to the location, which is bold and the current page', async () => {
+    it('runs from the Inventura tab through the root of the run to the location, which is bold and the current page', async () => {
       openChecklist([row('Mixér tyčový')]);
       await screen.findByRole('heading', { name: '0.19 – Teplá kuchyně', level: 1 });
 
+      // The floor in between has no checklist in this run, so it has no crumb.
       expect(crumbs().getAllByRole('link').map((link) => link.textContent)).toEqual([
         'Inventura',
         'Centrála Praha',
-        'Přízemí výroba',
         '0.19 – Teplá kuchyně',
       ]);
       expect(href('Inventura')).toBe('/?tab=inventory');
-      // The run's root is the run: its overview. The floor has no checklist in this run: its detail.
+      // The run's root is the run: its overview.
       expect(href('Centrála Praha')).toBe(`/inventories/${runId}`);
-      expect(href('Přízemí výroba')).toBe(`/locations/${floor.id}`);
       const current = crumbs().getByRole('link', { name: '0.19 – Teplá kuchyně' });
       expect(current).toHaveAttribute('href', `/inventories/${runId}/locations/${kitchen.id}`);
       expect(current).toHaveAttribute('aria-current', 'page');
       expect(current).toHaveClass('font-bold');
-      for (const name of ['Inventura', 'Centrála Praha', 'Přízemí výroba']) {
+      for (const name of ['Inventura', 'Centrála Praha']) {
         expect(crumbs().getByRole('link', { name })).not.toHaveClass('font-bold');
         expect(crumbs().getByRole('link', { name })).not.toHaveAttribute('aria-current');
       }
@@ -365,7 +364,7 @@ describe('inventory checklist', () => {
       );
     });
 
-    it('also lists what is above the root of the run, as links to those locations, the root leading to the overview', async () => {
+    it('starts at the root of the run: what is above it, and a floor without a checklist, have no crumb', async () => {
       const sklad = ref('LOC-021', 'Sklad');
       const praha = ref('LOC-002', 'Pobočka');
       openRun(
@@ -376,17 +375,11 @@ describe('inventory checklist', () => {
       );
       expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
 
-      expect(crumbs().getAllByRole('link').map((link) => link.textContent)).toEqual([
-        'Inventura',
-        'Centrála Praha',
-        'Pobočka',
-        'Přízemí výroba',
-        'Sklad',
-      ]);
-      expect(href('Centrála Praha')).toBe(`/locations/${root.id}`);
-      expect(href('Pobočka')).toBe(`/locations/${praha.id}`);
+      expect(crumbs().getAllByRole('link').map((link) => link.textContent)).toEqual(['Inventura', 'Přízemí výroba', 'Sklad']);
       expect(href('Přízemí výroba')).toBe(`/inventories/${runId}`);
       expect(href('Sklad')).toBe(`/inventories/${runId}/locations/${sklad.id}`);
+      // Nothing in the breadcrumb leads out of the inventory.
+      for (const link of crumbs().getAllByRole('link')) expect(link.getAttribute('href')).not.toMatch(/^\/locations\//);
     });
 
     it('opens the checklist of a location on the way down when the run has one for it', async () => {

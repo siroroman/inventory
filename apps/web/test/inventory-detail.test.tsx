@@ -40,7 +40,6 @@ describe('inventory run overview', () => {
     renderApp(`/inventories/${id}`);
 
     expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Centrála Praha')).toBeInTheDocument();
     expect(screen.queryByText('Probíhá')).not.toBeInTheDocument();
     const started = screen.getByText(/^Zahájil RS · 3\. 10\. 2026 v \d{1,2}:\d{2}$/);
     expect(screen.getByText('84 / 128 zkontrolováno · 66 %')).toBeInTheDocument();
@@ -56,7 +55,7 @@ describe('inventory run overview', () => {
     expect(screen.queryByRole('link', { name: 'Zpět' })).not.toBeInTheDocument();
   });
 
-  it('has a breadcrumb: the Inventura tab, the locations above the root, and the root as the current page', async () => {
+  it('has a breadcrumb: the Inventura tab and the root as the current page, without what is above the root', async () => {
     const praha = ref('LOC-001', 'Centrála Praha');
     const root = ref('LOC-004', 'Sklad');
     signedIn(() => jsonResponse(inventory({ id, location: root, path: [praha, root] })));
@@ -64,17 +63,16 @@ describe('inventory run overview', () => {
 
     await screen.findByRole('heading', { name: 'Sklad', level: 1 });
     const crumbs = within(screen.getByRole('navigation', { name: 'Umístění' }));
-    expect(crumbs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Inventura', 'Centrála Praha', 'Sklad']);
-    // Every crumb is a link: the tab, the location above (its detail) and the root (this page).
+    // Centrála Praha is above the root and has no screen in the run, so it is no crumb.
+    expect(crumbs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Inventura', 'Sklad']);
+    // Every crumb is a link: the tab and the root (this page).
     expect(crumbs.getByRole('link', { name: 'Inventura' })).toHaveAttribute('href', '/?tab=inventory');
-    expect(crumbs.getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', `/locations/${praha.id}`);
     const current = crumbs.getByRole('link', { name: 'Sklad' });
     expect(current).toHaveAttribute('href', `/inventories/${id}`);
     expect(current).toHaveAttribute('aria-current', 'page');
     // Only the current page is bold.
     expect(current).toHaveClass('font-bold');
     expect(crumbs.getByRole('link', { name: 'Inventura' })).not.toHaveClass('font-bold');
-    expect(crumbs.getByRole('link', { name: 'Centrála Praha' })).not.toHaveClass('font-bold');
   });
 
   it('leads the Inventura crumb to the list of runs', async () => {
