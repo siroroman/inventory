@@ -52,7 +52,7 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
   const { unchecked, missing } = runFigures(inventory.counts);
   const inProgress = inventory.status === 'in_progress';
   const archived = inventory.archivedAt !== null;
-  // A finished or cancelled run can be taken back; an archived one is restored first.
+  // A finished or cancelled run (not archived) can be taken back or archived; an archived one is restored first.
   const canReopen = !inProgress && !archived;
 
   return (
@@ -76,7 +76,7 @@ export function InventoryActions({ inventory }: { inventory: InventoryDto }) {
             {t('inventory.actions.reopen')}
           </Button>
         )}
-        {!inProgress && !archived && (
+        {canReopen && (
           <Button variant="outline" disabled={change.isPending} onClick={() => setAsking('archive')}>
             <Archive aria-hidden />
             {t('inventory.actions.archive')}
