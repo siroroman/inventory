@@ -746,6 +746,7 @@
       "selectAll": "Vybrat vše",
       "selectNone": "Zrušit výběr",
       "listLabel": "Položky k označení",
+      "listToggle": "Seznam položek ({{shown}})",
       "columns": {
         "name": "Název",
         "code": "ID",

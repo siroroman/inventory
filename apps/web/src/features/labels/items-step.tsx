@@ -1,12 +1,14 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { MAX_LABELS } from '@inventory/shared';
-import { X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
+import { type MouseEvent, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { problemMessage } from '@/lib/problem';
+import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { QuickAdd } from './quick-add';
 import { type AddedRow, type ChosenLocation, type LabelRow, pathBelow, type Selection } from './selection';
@@ -77,6 +79,13 @@ function RemoveButton({ name, onClick }: { name: string; onClick: () => void }) 
   );
 }
 
+/** Toggles the row unless the click was on a control of its own or ended a text selection. */
+function toggleByRowClick(event: MouseEvent<HTMLElement>, toggle: () => void) {
+  if ((event.target as HTMLElement).closest('input, button, label, a')) return;
+  if (window.getSelection()?.toString()) return;
+  toggle();
+}
+
 function TableRows({ rows }: { rows: RowProps[] }) {
   const { t } = useTranslation();
   return (
@@ -100,10 +109,13 @@ function TableRows({ rows }: { rows: RowProps[] }) {
       </thead>
       <tbody className="divide-y">
         {rows.map(({ row, place, checked, onToggle, onRemove }) => (
-          <tr key={row.id} className="relative hover:bg-accent">
+          // A click anywhere on the row toggles it. This is a click handler and not a label stretched
+          // over the row with an absolutely positioned pseudo-element: Safari does not make a table
+          // row the containing block, so there each stretched label covered the whole page.
+          // Keyboard and screen reader users have the checkbox.
+          <tr key={row.id} onClick={(event) => toggleByRowClick(event, onToggle)} className="cursor-pointer hover:bg-accent">
             <td className="px-4">
-              {/* The label's pseudo-element covers the whole row, so a click anywhere on it toggles. */}
-              <label className="flex min-h-11 cursor-pointer items-center after:absolute after:inset-0 after:content-['']">
+              <label className="flex min-h-11 cursor-pointer items-center">
                 <input
                   type="checkbox"
                   checked={checked}
@@ -126,7 +138,7 @@ function TableRows({ rows }: { rows: RowProps[] }) {
             <td className="px-2 py-3 break-words">
               <Place place={place} />
             </td>
-            <td className="relative z-10 px-2">
+            <td className="px-2">
               {onRemove && <RemoveButton name={row.name} onClick={onRemove} />}
             </td>
           </tr>
@@ -140,6 +152,10 @@ function TableRows({ rows }: { rows: RowProps[] }) {
 export function ItemsStep({ location, listed, selection, chosen, onChange }: Props) {
   const { t } = useTranslation();
   const table = useMediaQuery(tableScreen);
+  // A long list pushes the rest of the step far down, so it starts folded; the summary above it
+  // and the buttons below it do the work for most.
+  const [open, setOpen] = useState(false);
+  const listId = useId();
 
   const items = listed.data?.items ?? [];
   const total = (listed.data?.total ?? 0) + selection.added.filter((row) => !items.some((i) => i.id === row.id)).length;
@@ -247,23 +263,47 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
               {t('labels.items.truncated', { shown: count.format(items.length), total: count.format(listed.data.total) })}
             </p>
           )}
-          {selection.added.length > 0 && (
-            <h4 className="text-sm font-semibold">{t('labels.items.addedGroup', { count: selection.added.length })}</h4>
-          )}
           {rows.length === 0 ? (
             <p className="rounded-xl border border-line bg-card px-6 py-8 text-center text-sm text-muted-foreground">
               {t('labels.items.empty')}
             </p>
-          ) : table ? (
-            <div className="overflow-hidden rounded-xl border border-line bg-card">
-              <TableRows rows={rows} />
-            </div>
           ) : (
-            <ul aria-label={t('labels.items.listLabel')} className="divide-y overflow-hidden rounded-xl border border-line bg-card">
-              {rows.map((props) => (
-                <CardRow key={props.row.id} {...props} />
-              ))}
-            </ul>
+            <div className="overflow-hidden rounded-xl border border-line bg-card">
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={listId}
+                onClick={() => setOpen(!open)}
+                className={cn(
+                  'flex min-h-11 w-full cursor-pointer items-center gap-2 bg-muted px-4 py-2.5 text-left text-[13px] font-bold text-secondary-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:px-5',
+                  open && 'border-b border-line',
+                )}
+              >
+                <span className="flex-1">{t('labels.items.listToggle', { shown: count.format(rows.length) })}</span>
+                <ChevronDown aria-hidden className={cn('size-4 shrink-0 transition-transform', !open && '-rotate-90')} />
+              </button>
+              {/* The rows are not rendered while folded: a thousand of them would only slow the page down. */}
+              <div id={listId}>
+                {open && (
+                  <>
+                    {selection.added.length > 0 && (
+                      <h4 className="border-b border-line px-4 py-2 text-sm font-semibold md:px-5">
+                        {t('labels.items.addedGroup', { count: selection.added.length })}
+                      </h4>
+                    )}
+                    {table ? (
+                      <TableRows rows={rows} />
+                    ) : (
+                      <ul aria-label={t('labels.items.listLabel')} className="divide-y">
+                        {rows.map((props) => (
+                          <CardRow key={props.row.id} {...props} />
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           )}
         </>
       )}

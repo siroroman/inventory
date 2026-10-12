@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { location, page, ref } from './fixtures.ts';
 import { jsonResponse, me, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
@@ -188,6 +188,13 @@ describe('labels wizard: step 2, the items', () => {
 
     expect(await screen.findByRole('heading', { name: 'Vyberte položky' })).toBeInTheDocument();
     expect(await screen.findByText('Vybráno 3 z 3')).toBeInTheDocument();
+    // The list starts folded and renders no rows until it is opened.
+    const toggle = screen.getByRole('button', { name: 'Seznam položek (3)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'Položky k označení' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const list = screen.getByRole('list', { name: 'Položky k označení' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(3);
@@ -197,6 +204,24 @@ describe('labels wizard: step 2, the items', () => {
     expect(rows[1]).toHaveTextContent('přímo v lokalitě');
     for (const box of within(list).getAllByRole('checkbox')) expect(box).toBeChecked();
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list', { name: 'Položky k označení' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the choices when the list is folded and opened again', async () => {
+    api();
+    stored();
+    open();
+    await screen.findByText('Vybráno 3 z 3');
+    const toggle = screen.getByRole('button', { name: 'Seznam položek (3)' });
+    await userEvent.click(toggle);
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Váha' }));
+    await userEvent.click(toggle);
+    await userEvent.click(toggle);
+    expect(screen.getByRole('checkbox', { name: 'Označit Váha' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Označit Myčka' })).toBeChecked();
   });
 
   it('unchecks one item, selects none and all, and keeps the choice for a reload', async () => {
@@ -204,6 +229,7 @@ describe('labels wizard: step 2, the items', () => {
     stored();
     open();
     await screen.findByText('Vybráno 3 z 3');
+    await userEvent.click(screen.getByRole('button', { name: 'Seznam položek (3)' }));
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Váha' }));
     expect(screen.getByText('Vybráno 2 z 3')).toBeInTheDocument();
@@ -280,6 +306,7 @@ describe('labels wizard: step 2, the items', () => {
     stored();
     open();
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Seznam položek (3)' }));
     const table = await screen.findByRole('table');
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
       'Položky k označení',
@@ -289,8 +316,50 @@ describe('labels wizard: step 2, the items', () => {
       '',
     ]);
     expect(within(table).getAllByRole('checkbox')).toHaveLength(3);
-    // The label of the checkbox spreads over the whole row in a browser (jsdom has no layout).
     await userEvent.click(within(table).getByRole('checkbox', { name: 'Označit Váha' }));
+    expect(screen.getByText('Vybráno 2 z 3')).toBeInTheDocument();
+  });
+
+  it('toggles a table row by a click anywhere on it, once, without positioned overlays', async () => {
+    stubWideScreen(true);
+    api();
+    stored();
+    open();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Seznam položek (3)' }));
+    const table = await screen.findByRole('table');
+    const row = within(table).getByRole('checkbox', { name: 'Označit Váha' }).closest('tr')!;
+    // Safari did not treat a table row as the containing block, so a label stretched over the row
+    // by an absolutely positioned pseudo-element covered the whole page: nothing of the kind may be
+    // left in the row.
+    expect(row.className).not.toContain('relative');
+    expect(row.querySelector('[class*="after:absolute"]')).toBeNull();
+
+    await userEvent.click(within(row).getByText('Váha'));
+    expect(screen.getByText('Vybráno 2 z 3')).toBeInTheDocument();
+    await userEvent.click(within(row).getByText('INV-00003'));
+    expect(screen.getByText('Vybráno 3 z 3')).toBeInTheDocument();
+    // The checkbox itself and its label toggle once, not twice.
+    await userEvent.click(within(row).getByRole('checkbox'));
+    expect(screen.getByText('Vybráno 2 z 3')).toBeInTheDocument();
+    await userEvent.click(row.querySelector('label')!);
+    expect(screen.getByText('Vybráno 3 z 3')).toBeInTheDocument();
+  });
+
+  it('does not toggle a table row when the click ended a text selection', async () => {
+    stubWideScreen(true);
+    api();
+    stored();
+    open();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Seznam položek (3)' }));
+    const row = within(await screen.findByRole('table')).getByRole('checkbox', { name: 'Označit Váha' }).closest('tr')!;
+    const selection = vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'INV-0000' } as Selection);
+    await userEvent.click(within(row).getByText('Váha'));
+    selection.mockRestore();
+    expect(screen.getByText('Vybráno 3 z 3')).toBeInTheDocument();
+
+    await userEvent.click(within(row).getByText('Váha'));
     expect(screen.getByText('Vybráno 2 z 3')).toBeInTheDocument();
   });
 
@@ -344,7 +413,6 @@ describe('labels wizard: the quick add', () => {
     await userEvent.click(within(results).getByRole('option', { name: /Notebook Dell/ }));
 
     expect(screen.getByText('Vybráno 4 z 4')).toBeInTheDocument();
-    expect(screen.getByText('Přidané ručně (1)')).toBeInTheDocument();
     expect(field).toHaveFocus();
     expect((field as HTMLInputElement).selectionStart).toBe(0);
     expect((field as HTMLInputElement).selectionEnd).toBe('notebook'.length);
@@ -353,8 +421,10 @@ describe('labels wizard: the quick add', () => {
     expect(added).toHaveTextContent('Přidáno ✓');
     expect(added).toHaveAttribute('aria-disabled', 'true');
     await userEvent.click(added);
+    expect(screen.getByText('Vybráno 4 z 4')).toBeInTheDocument();
+    // The list shows it first, under its own heading, with its whole path and a badge.
+    await userEvent.click(screen.getByRole('button', { name: 'Seznam položek (4)' }));
     expect(screen.getByText('Přidané ručně (1)')).toBeInTheDocument();
-    // The list shows it first, with its whole path and a badge.
     const row = within(screen.getByRole('list', { name: 'Položky k označení' })).getAllByRole('listitem')[0]!;
     expect(row).toHaveTextContent('Notebook Dell');
     expect(row).toHaveTextContent('Prodejna Brno › Kancelář');
@@ -393,6 +463,7 @@ describe('labels wizard: the quick add', () => {
     await userEvent.type(field, 'inv-00050{Enter}');
     await screen.findByText('Vybráno 4 z 4');
 
+    await userEvent.click(screen.getByRole('button', { name: 'Seznam položek (4)' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Notebook Dell' }));
     expect(screen.getByText('Vybráno 3 z 4')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Odebrat Notebook Dell' }));
@@ -427,6 +498,7 @@ describe('labels wizard: the limit of 1 000 labels', () => {
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeDisabled();
 
     await act(async () => {});
+    await userEvent.click(screen.getByRole('button', { name: /^Seznam položek/ }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Navíc' }));
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
   });
