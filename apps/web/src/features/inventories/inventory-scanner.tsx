@@ -1,18 +1,28 @@
 import type { InventoryDto, InventoryLocationDto } from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useCanGoBack, useRouter } from '@tanstack/react-router';
-import { CameraOff, Flashlight, FlashlightOff, X } from 'lucide-react';
+import { CameraOff, Flashlight, FlashlightOff, Volume2, VolumeX, X } from 'lucide-react';
 import { type ComponentProps, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useCanWrite } from '@/features/auth/use-can-write';
 import { useCodeReader } from '@/features/scanner/use-code-reader';
+import { useScanFeedback } from '@/features/scanner/use-scan-feedback';
 import { ApiError, isMissingRecord } from '@/lib/api';
 import { problemMessage } from '@/lib/problem';
 import { cn } from '@/lib/utils';
 import { inventoryQueryOptions, scanInventory } from './api';
 import { locationFigures, progressOf, runFigures } from './inventory-summary';
-import { announcementOf, autoCloseMs, closesItself, ScanSheet, type Sheet, sheetContent, sheetOfResult } from './scan-sheet';
+import {
+  announcementOf,
+  autoCloseMs,
+  closesItself,
+  feedbackOf,
+  ScanSheet,
+  type Sheet,
+  sheetContent,
+  sheetOfResult,
+} from './scan-sheet';
 
 const roundButton =
   'rounded-full bg-panel-foreground/15 text-panel-foreground hover:bg-panel-foreground/25 hover:text-panel-foreground';
@@ -144,12 +154,6 @@ function errorSheet(error: unknown): Sheet {
   };
 }
 
-/** A short buzz where the phone has one (not iOS): one pulse for a find, three for anything to look at. */
-function buzz(sheet: Sheet) {
-  if (!('vibrate' in navigator)) return;
-  navigator.vibrate(sheet.kind === 'found' || sheet.kind === 'elsewhere' ? 40 : [60, 40, 60]);
-}
-
 /** The camera, the sheets over it and the live regions that tell a screen reader what was read. */
 function ScannerCamera({ inventory, location }: { inventory: InventoryDto; location: InventoryLocationDto | undefined }) {
   const { t } = useTranslation();
@@ -157,12 +161,17 @@ function ScannerCamera({ inventory, location }: { inventory: InventoryDto; locat
   const [shown, setShown] = useState<{ n: number; sheet: Sheet } | null>(null);
   const count = useRef(0);
   const lastCode = useRef<string | null>(null);
+  const feedback = useScanFeedback();
+  const playFeedback = feedback.play;
 
-  const show = useCallback((sheet: Sheet) => {
-    count.current += 1;
-    setShown({ n: count.current, sheet });
-    buzz(sheet);
-  }, []);
+  const show = useCallback(
+    (sheet: Sheet) => {
+      count.current += 1;
+      setShown({ n: count.current, sheet });
+      playFeedback(feedbackOf(sheet));
+    },
+    [playFeedback],
+  );
 
   const scan = useMutation({
     mutationFn: (code: string) => scanInventory(inventory.id, { code, locationId: location?.id }),
@@ -248,19 +257,33 @@ function ScannerCamera({ inventory, location }: { inventory: InventoryDto; locat
       <video ref={reader.videoRef} playsInline muted autoPlay aria-hidden className="absolute inset-0 size-full object-cover" />
       {reader.status === 'running' ? <Viewfinder /> : state}
 
-      {/* The torch stays above the sheet, so it can be switched while a sheet is up. Without a sheet it keeps clear of the edge. */}
+      {/* The torch and the sound switch stay above the sheet, so they can be used while a sheet is up. Without a sheet it keeps clear of the edge. */}
       <div className={cn('absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-4', !sheet && 'pb-11')}>
-        {reader.status === 'running' && reader.torch.supported && (
-          <Button
-            size="icon"
-            variant="ghost"
-            className={`size-[52px] ${roundButton}`}
-            aria-label={t('inventory.scanner.torch')}
-            aria-pressed={reader.torch.on}
-            onClick={() => void reader.torch.toggle()}
-          >
-            {reader.torch.on ? <FlashlightOff aria-hidden className="size-6" /> : <Flashlight aria-hidden className="size-6" />}
-          </Button>
+        {reader.status === 'running' && (
+          <div className="flex items-center gap-4">
+            {reader.torch.supported && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className={`size-[52px] ${roundButton}`}
+                aria-label={t('inventory.scanner.torch')}
+                aria-pressed={reader.torch.on}
+                onClick={() => void reader.torch.toggle()}
+              >
+                {reader.torch.on ? <FlashlightOff aria-hidden className="size-6" /> : <Flashlight aria-hidden className="size-6" />}
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className={`size-[52px] ${roundButton}`}
+              aria-label={t('inventory.scanner.sound')}
+              aria-pressed={feedback.soundOn}
+              onClick={feedback.toggleSound}
+            >
+              {feedback.soundOn ? <Volume2 aria-hidden className="size-6" /> : <VolumeX aria-hidden className="size-6" />}
+            </Button>
+          </div>
         )}
         {sheet && (
           <ScanSheet

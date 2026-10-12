@@ -118,7 +118,36 @@ const read = (text: string) =>
 /** The scanner has loaded its run and is showing the camera. */
 const ready = () => screen.findByText('Namiřte na QR štítek položky');
 
+/** The tones the stubbed audio context was asked for, as frequencies. */
+const tones: number[] = [];
+const vibrate = vi.fn<(pattern: number | number[]) => boolean>(() => true);
+
+// jsdom has neither audio nor vibration: stand-ins that only remember what they were asked for.
+class FakeAudioContext {
+  state = 'running';
+  currentTime = 0;
+  destination = {};
+  resume = async () => {};
+  createOscillator = () => ({
+    type: 'sine',
+    frequency: {
+      set value(freq: number) {
+        tones.push(freq);
+      },
+    },
+    connect: () => {},
+    start: () => {},
+    stop: () => {},
+  });
+  createGain = () => ({ gain: { setValueAtTime: () => {}, linearRampToValueAtTime: () => {} }, connect: () => {} });
+}
+
 beforeEach(() => {
+  tones.length = 0;
+  vibrate.mockClear();
+  localStorage.clear();
+  vi.stubGlobal('AudioContext', FakeAudioContext);
+  Object.defineProperty(navigator, 'vibrate', { configurable: true, value: vibrate });
   reader.status = 'running';
   reader.torchSupported = false;
   reader.torchOn = false;
@@ -130,6 +159,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  Reflect.deleteProperty(navigator, 'vibrate');
 });
 
 describe('inventory scanner', () => {
@@ -463,6 +493,116 @@ describe('inventory scanner', () => {
       openScanner({ run: { locations: [] } });
       expect(await screen.findByText('Lokalita v inventuře není')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Zpět na přehled inventury' })).toBeInTheDocument();
+    });
+  });
+
+  describe('sound and vibration', () => {
+    it('beeps and buzzes once for a plain find', async () => {
+      openScanner();
+      await ready();
+      await read('INV-00042');
+      await screen.findByText('Nalezeno');
+      expect(tones).toEqual([880]);
+      expect(vibrate).toHaveBeenCalledExactlyOnceWith(40);
+    });
+
+    it('sounds and feels different for each result', async () => {
+      const answers: Record<string, () => Response> = {
+        'INV-1': () => jsonResponse(found({ wasMissing: true })),
+        'INV-2': () => jsonResponse(found({ misplaced: true, item: itemOf({ path: [brno, sklad] }) })),
+        'INV-3': () =>
+          jsonResponse({
+            outcome: 'already_checked',
+            item: itemOf(),
+            row: rowOf({ checkedAt: '2026-10-03T08:42:00.000Z', checkedBy: roman, method: 'scan' }),
+          }),
+        'INV-4': () => jsonResponse({ outcome: 'archived', item: itemOf() }),
+        'INV-5': () => jsonResponse({ outcome: 'unknown_code' }),
+      };
+      openScanner({
+        scan: (body) => answers[body.code as string]?.() ?? jsonResponse(found()),
+      });
+      await ready();
+
+      const heard: { tones: number[]; vibration: unknown }[] = [];
+      for (const [code, title] of [
+        ['INV-1', 'Byla nezvěstná'],
+        ['INV-2', 'Nalezeno'],
+        ['INV-3', 'Již zkontrolováno'],
+        ['INV-4', 'Archivovaná položka'],
+        ['INV-5', 'Neznámý kód'],
+      ] as const) {
+        tones.length = 0;
+        vibrate.mockClear();
+        await read(code);
+        await screen.findByRole('region', { name: title });
+        heard.push({ tones: [...tones], vibration: vibrate.mock.calls[0]?.[0] });
+      }
+      tones.length = 0;
+      vibrate.mockClear();
+      await read('https://example.com/menu');
+      await screen.findByText('Cizí kód');
+      heard.push({ tones: [...tones], vibration: vibrate.mock.calls[0]?.[0] });
+
+      expect(heard.map((h) => h.tones)).toEqual([
+        [660, 880, 1175],
+        [740, 520],
+        [587, 587],
+        [330],
+        [200, 200],
+        [300],
+      ]);
+      expect(new Set(heard.map((h) => JSON.stringify(h.vibration))).size).toBe(heard.length);
+    });
+
+    it('has a low falling sound and a long buzz for a scan that was not saved', async () => {
+      openScanner({ scan: () => problem(500, 'internal_error') });
+      await ready();
+      await read('INV-00042');
+      await screen.findByText('Sken se neuložil');
+      expect(tones).toEqual([260, 220, 180]);
+      expect(vibrate).toHaveBeenCalledExactlyOnceWith([120, 60, 120, 60, 120]);
+    });
+
+    it('can be silenced, remembers that, and still vibrates', async () => {
+      openScanner();
+      await ready();
+      const button = screen.getByRole('button', { name: 'Zvuk' });
+      expect(button).toHaveAttribute('aria-pressed', 'true');
+
+      await userEvent.click(button);
+      expect(button).toHaveAttribute('aria-pressed', 'false');
+      expect(localStorage.getItem('scanner-sound')).toBe('off');
+
+      tones.length = 0;
+      await read('INV-00042');
+      await screen.findByText('Nalezeno');
+      expect(tones).toEqual([]);
+      expect(vibrate).toHaveBeenCalledExactlyOnceWith(40);
+    });
+
+    it('starts silent when it was switched off before, and plays a sample when it is switched on', async () => {
+      localStorage.setItem('scanner-sound', 'off');
+      openScanner();
+      await ready();
+      const button = screen.getByRole('button', { name: 'Zvuk' });
+      expect(button).toHaveAttribute('aria-pressed', 'false');
+
+      await userEvent.click(button);
+      expect(button).toHaveAttribute('aria-pressed', 'true');
+      expect(localStorage.getItem('scanner-sound')).toBe('on');
+      expect(tones).toEqual([880]);
+      // The sample is for the ear only.
+      expect(vibrate).not.toHaveBeenCalled();
+    });
+
+    it('works on a phone with neither audio nor vibration', async () => {
+      vi.stubGlobal('AudioContext', undefined);
+      Reflect.deleteProperty(navigator, 'vibrate');
+      openScanner();
+      await ready();
+      await read('INV-00042');
+      expect(await screen.findByText('Nalezeno')).toBeInTheDocument();
     });
   });
 
