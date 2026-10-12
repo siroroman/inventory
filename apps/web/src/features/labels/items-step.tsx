@@ -1,14 +1,13 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { MAX_LABELS } from '@inventory/shared';
-import { ChevronDown, X } from 'lucide-react';
-import { type MouseEvent, useId, useState } from 'react';
+import { X } from 'lucide-react';
+import { type MouseEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { problemMessage } from '@/lib/problem';
-import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/lib/use-media-query';
 import { QuickAdd } from './quick-add';
 import { type AddedRow, type ChosenLocation, type LabelRow, pathBelow, type Selection } from './selection';
@@ -27,6 +26,8 @@ type Props = {
 const count = new Intl.NumberFormat('cs-CZ');
 // Tailwind's `md`: from here the rows are a table.
 const tableScreen = '(min-width: 768px)';
+/** Rows shown at first, and added by each "Zobrazit další". */
+export const ROWS_PER_PAGE = 10;
 
 type RowProps = {
   row: LabelRow;
@@ -152,10 +153,9 @@ function TableRows({ rows }: { rows: RowProps[] }) {
 export function ItemsStep({ location, listed, selection, chosen, onChange }: Props) {
   const { t } = useTranslation();
   const table = useMediaQuery(tableScreen);
-  // A long list pushes the rest of the step far down, so it starts folded; the summary above it
-  // and the buttons below it do the work for most.
-  const [open, setOpen] = useState(false);
-  const listId = useId();
+  // A long list would push the rest of the step far down, so it shows a page of rows and the
+  // button below it adds the next page; the summary above it does the work for most.
+  const [shown, setShown] = useState(ROWS_PER_PAGE);
 
   const items = listed.data?.items ?? [];
   const total = (listed.data?.total ?? 0) + selection.added.filter((row) => !items.some((i) => i.id === row.id)).length;
@@ -197,6 +197,8 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
       onToggle: () => toggleListed(row.id),
     })),
   ];
+
+  const visible = rows.slice(0, shown);
 
   return (
     <section aria-labelledby="labels-step-heading" className="flex flex-col gap-4">
@@ -269,40 +271,35 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
             </p>
           ) : (
             <div className="overflow-hidden rounded-xl border border-line bg-card">
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-controls={listId}
-                onClick={() => setOpen(!open)}
-                className={cn(
-                  'flex min-h-11 w-full cursor-pointer items-center gap-2 bg-muted px-4 py-2.5 text-left text-[13px] font-bold text-secondary-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset md:px-5',
-                  open && 'border-b border-line',
-                )}
-              >
-                <span className="flex-1">{t('labels.items.listToggle', { shown: count.format(rows.length) })}</span>
-                <ChevronDown aria-hidden className={cn('size-4 shrink-0 transition-transform', !open && '-rotate-90')} />
-              </button>
-              {/* The rows are not rendered while folded: a thousand of them would only slow the page down. */}
-              <div id={listId}>
-                {open && (
-                  <>
-                    {selection.added.length > 0 && (
-                      <h4 className="border-b border-line px-4 py-2 text-sm font-semibold md:px-5">
-                        {t('labels.items.addedGroup', { count: selection.added.length })}
-                      </h4>
-                    )}
-                    {table ? (
-                      <TableRows rows={rows} />
-                    ) : (
-                      <ul aria-label={t('labels.items.listLabel')} className="divide-y">
-                        {rows.map((props) => (
-                          <CardRow key={props.row.id} {...props} />
-                        ))}
-                      </ul>
-                    )}
-                  </>
-                )}
-              </div>
+              <p className="border-b border-line bg-muted px-4 py-2.5 text-[13px] font-bold text-secondary-foreground md:px-5">
+                {t('labels.items.listHeading', { total: count.format(rows.length) })}
+              </p>
+              {selection.added.length > 0 && (
+                <h4 className="border-b border-line px-4 py-2 text-sm font-semibold md:px-5">
+                  {t('labels.items.addedGroup', { count: selection.added.length })}
+                </h4>
+              )}
+              {table ? (
+                <TableRows rows={visible} />
+              ) : (
+                <ul aria-label={t('labels.items.listLabel')} className="divide-y">
+                  {visible.map((props) => (
+                    <CardRow key={props.row.id} {...props} />
+                  ))}
+                </ul>
+              )}
+              {rows.length > ROWS_PER_PAGE && (
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line px-4 py-2 md:px-5">
+                  <p className="text-sm text-muted-foreground">
+                    {t('labels.items.shown', { shown: count.format(visible.length), total: count.format(rows.length) })}
+                  </p>
+                  {visible.length < rows.length && (
+                    <Button variant="link" onClick={() => setShown(shown + ROWS_PER_PAGE)}>
+                      {t('labels.items.showMore')}
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>
