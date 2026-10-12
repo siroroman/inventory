@@ -498,7 +498,21 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 
 - **Full screen:** the camera with a viewfinder square, "Namiřte na QR štítek položky", close (×), a torch toggle (only where the phone supports it), the context location's name and the counter "84 / 128". Icon buttons have Czech `aria-label`s.
 - "Zadat kód ručně" (*Proposed*, not drawn): a field for typing the ID from a damaged label. It counts as a hand tick.
-- **Continuous scanning:** the camera stays on. Each result appears as a bottom sheet over it, with a short vibration where the phone supports it, and is announced to screen readers. The same code read again within 3 seconds is ignored.
+- **Continuous scanning:** the camera stays on. Each result appears as a bottom sheet over it, with its own sound and vibration (below), and is announced to screen readers. The same code read again within 3 seconds is ignored.
+- **Sound and vibration** (*Proposed* 2026-10-12): so a result can be told without looking at the phone. The contour carries the meaning: rising = good, level = neutral, falling = needs a look; the count and rhythm tell the siblings apart. Tones are synthesized in the browser (no files). Misplaced finds sound like *Nalezeno jinde*; the sheet's text is the same either way.
+
+  | Result | Sound | Vibration (ms) |
+  | --- | --- | --- |
+  | Nalezeno | one short high blip | 40 |
+  | Byla nezvěstná | three rising notes | 40 · 50 · 40 · 50 · 40 |
+  | Nalezeno jinde, Nalezeno na špatném místě | two falling notes | 60 · 60 · 60 |
+  | Již zkontrolováno | two equal short beeps | 30 · 70 · 30 |
+  | Archivovaná položka | one longer low tone | 120 |
+  | Neznámý kód | two low buzzes | 80 · 60 · 80 |
+  | Cizí kód | one very short low tick | 25 |
+  | Bez připojení | three falling low buzzes | 120 · 60 · 120 · 60 · 120 |
+
+  A speaker button beside the torch switches the sound off and on (kept on the device; switching it on plays a sample); the vibration has no switch since it makes no noise.
 - **Result sheets:**
 
   | Sheet | Shown when | Content and actions |
@@ -687,6 +701,7 @@ The endpoints are listed in §7. Scan answers (`POST /inventories/{id}/scans` wi
   - Decoding: the `BarcodeDetector` API for QR where the browser has it (Chrome on Android), otherwise a small QR-only JavaScript decoder (iOS Safari has no `BarcodeDetector`). The decoder is loaded only by the scanner screen.
   - The decoder must run from a same-origin script: the CSP allows no `blob:` workers.
   - The torch is offered only when the camera track reports it. Vibration where `navigator.vibrate` exists (not on iOS).
+  - Sound: Web Audio, one `AudioContext` for the app. Browsers keep it suspended until a user gesture, so it is woken by the tap on "Skenovat" and by the first touch or key on the scanner screen (a reload or deep link is silent until then). On iOS it follows the ring/silent switch. Every call is wrapped so a device with no audio or vibration still scans.
   - Verify in the installed PWA on an iPhone as well as in the browser.
 - **QR on labels:** generated in the browser as a module matrix by a small library and drawn as vector. This one new dependency serves the labels; the scanner's decoder is the other.
 - **Labels PDF** (*Proposed*): built in the browser (no server load; the data is already there) by a PDF library with an embedded Czech-capable font (Regular and Bold subsets, a sans such as Noto Sans or Roboto: the standard PDF fonts have no ě š č ř ž). The QR library, the PDF library and the font are loaded only when "Stáhnout PDF" is pressed (own chunk; roughly 100–150 KB per font weight). A pure function `buildLabelsPdf({ items, columns, rows, startPosition }) → Uint8Array` in `features/labels/` holds the layout and is unit-tested without a browser: the page count, the position of label n, the empty cells before `startPosition`.

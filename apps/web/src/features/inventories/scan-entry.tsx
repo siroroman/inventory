@@ -3,6 +3,7 @@ import { ScanLine } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { BottomBar } from '@/components/bottom-bar';
 import { Button } from '@/components/ui/button';
+import { browserFeedback } from '@/features/scanner/feedback';
 import { coarsePointer, useMediaQuery } from '@/lib/use-media-query';
 
 /**
@@ -29,7 +30,13 @@ export function ScanEntry({
   return (
     <BottomBar>
       <Button asChild className="w-full">
-        <Link to="/inventories/$id/scan" params={{ id: inventoryId }} search={{ locationId }}>
+        {/* The tap is the gesture that lets the scanner make sound; a scan has none of its own. */}
+        <Link
+          to="/inventories/$id/scan"
+          params={{ id: inventoryId }}
+          search={{ locationId }}
+          onClick={() => browserFeedback.unlock()}
+        >
           <ScanLine aria-hidden />
           {t('inventory.actions.scan')}
         </Link>

@@ -640,6 +640,7 @@
     "scanner": {
       "title": "Skener",
       "torch": "Baterka",
+      "sound": "Zvuk",
       "closeLabel": "Zavřít skener",
       "hint": "Namiřte na QR štítek položky",
       "counterLabel": "{{done}} z {{total}} zkontrolováno",

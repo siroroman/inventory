@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { pathLabel } from '@/features/locations/path';
+import type { FeedbackKind } from '@/features/scanner/feedback';
 import { formatTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { shortName } from './people';
@@ -44,6 +45,30 @@ export function sheetOfResult(result: ScanResultDto, code: string): Sheet {
  * take in (a warning, who checked it already), so it stays until the next scan or "Zavřít".
  */
 export const closesItself = (sheet: Sheet) => sheet.kind === 'found' && !sheet.misplaced && !sheet.wasMissing;
+
+/**
+ * The sound and vibration of a sheet. A found item that is somewhere else than it belongs sounds like
+ * one found elsewhere: both ask for a look at "Vedeno v".
+ */
+export function feedbackOf(sheet: Sheet): FeedbackKind {
+  switch (sheet.kind) {
+    case 'found':
+      if (sheet.misplaced) return 'elsewhere';
+      return sheet.wasMissing ? 'recovered' : 'found';
+    case 'elsewhere':
+      return 'elsewhere';
+    case 'already':
+      return 'already';
+    case 'archived':
+      return 'archived';
+    case 'unknown':
+      return 'unknown';
+    case 'foreign':
+      return 'foreign';
+    case 'error':
+      return 'error';
+  }
+}
 
 /** Where the scan is in the way: the sheet's colour and icon. */
 type Tone = 'success' | 'warning' | 'neutral' | 'info' | 'danger';
