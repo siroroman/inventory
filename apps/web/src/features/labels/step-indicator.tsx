@@ -34,7 +34,7 @@ export function StepIndicator({ step, reached, canContinue, onSelect }: Props) {
               <span
                 aria-hidden
                 className={cn(
-                  'flex size-7 shrink-0 items-center justify-center rounded-full border text-[13px] font-semibold',
+                  'flex size-9 shrink-0 items-center justify-center rounded-full border text-[13px] font-semibold',
                   current ? 'border-primary bg-primary text-primary-foreground' : 'text-muted-foreground',
                   done && 'border-primary text-primary',
                 )}
