@@ -43,7 +43,7 @@ describe('migrations', () => {
     );
     await pool.end();
     expect(applied.rows[0]).toEqual({ n: journal.entries.length });
-    expect(tables.rows[0]).toEqual({ n: 17 });
+    expect(tables.rows[0]).toEqual({ n: 18 });
   });
 });
 

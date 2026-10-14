@@ -106,6 +106,7 @@ Rules:
 - Cloud SQL has a private IP only, reached from Cloud Run via Direct VPC egress — never expose the DB publicly. Cloud Run's service account is scoped to the minimum: DB connect, write to one bucket, read specific secrets.
 - Files: private bucket, upload only via a signed URL for one file, type and size. Photos: max 10 MB, images only. Service record documents: max 20 MB, PDF, images, Word, Excel. The SPA resizes every picture to max 2048 px JPEG before upload, which also strips EXIF/GPS.
 - No self-registration. Only invited users can sign in; deactivating a user deletes their sessions.
+- Passwords are at least 12 characters (`MIN_PASSWORD_LENGTH` in `src/auth/auth.ts`; Better Auth checks it when a password is set, not at sign-in). In production, sign-in is limited per client IP (`SIGN_IN_RATE_LIMIT`: 20 attempts, each within 15 minutes of the last) with the counts in the `rate_limit` table, so every Cloud Run instance shares them and a deploy does not reset them. The IP is read from the right end of `X-Forwarded-For` (`trustedProxies`), so a client cannot pick its own bucket.
 
 ## Testing
 
