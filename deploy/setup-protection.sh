@@ -13,9 +13,9 @@ step "Cloud SQL $INSTANCE: deletion protection and point-in-time recovery"
 # PITR keeps the write-ahead log for 7 days (the most the Enterprise edition allows) beside the
 # nightly backups; a restore makes a new instance. gcloud asks before it patches: turning PITR on
 # restarts a running instance once, which takes the app offline for about a minute.
-read -r deletion pitr < <(gcloud sql instances describe "$INSTANCE" --project="$PROJECT_ID" \
-  --format='value(settings.deletionProtectionEnabled,settings.backupConfiguration.pointInTimeRecoveryEnabled)')
-if [[ "$deletion" == True && "$pitr" == True ]]; then
+IFS=, read -r deletion pitr log_days < <(gcloud sql instances describe "$INSTANCE" --project="$PROJECT_ID" \
+  --format='csv[no-heading](settings.deletionProtectionEnabled,settings.backupConfiguration.pointInTimeRecoveryEnabled,settings.backupConfiguration.transactionLogRetentionDays)')
+if [[ "$deletion" == True && "$pitr" == True && "$log_days" == 7 ]]; then
   echo "Already on"
 else
   gcloud sql instances patch "$INSTANCE" --project="$PROJECT_ID" \
