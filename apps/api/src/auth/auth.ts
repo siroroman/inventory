@@ -20,7 +20,8 @@ export const MIN_PASSWORD_LENGTH = 12;
 /**
  * Sign-in attempts per client IP: at most this many, each within `window` seconds of the one
  * before. Generous for an office behind one address, slow for guessing. Better Auth's own rules
- * (3 in 10 s for password changes, 100 in 10 s for the rest) cover the other paths.
+ * cover the other paths: 3 in 10 s for the other sign-ins and password or email changes, 3 in 60 s
+ * for password reset requests, 100 in 10 s for the rest.
  */
 export const SIGN_IN_RATE_LIMIT = { window: 15 * 60, max: 20 };
 
