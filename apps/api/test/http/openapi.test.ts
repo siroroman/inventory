@@ -24,7 +24,8 @@ const SOME_UUID = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
 
 async function loadDoc() {
   const { app } = createTestApp(db().app);
-  const res = await app.request('/api/v1/openapi.json');
+  const { headers } = await loginAs(app, db().app, 'read');
+  const res = await app.request('/api/v1/openapi.json', { headers });
   return { app, doc: (await res.json()) as Doc };
 }
 

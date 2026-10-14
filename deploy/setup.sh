@@ -23,12 +23,15 @@ exists gcloud artifacts repositories describe "$REPO" --project="$PROJECT_ID" --
 
 step "Cloud SQL instance $INSTANCE (takes several minutes the first time)"
 # Public IP without authorized networks: reachable only through the IAM-checked Cloud SQL
-# connector (Cloud Run, cloud-sql-proxy). Private IP + Direct VPC egress comes before real use.
+# connector (Cloud Run, cloud-sql-proxy), encrypted. Kept on purpose: with a private IP only, the
+# scripts run from a laptop (import, update, seed) would need a bastion VM to reach the database.
+# Deletion protection and point-in-time recovery from the start (setup-protection.sh checks them).
 exists gcloud sql instances describe "$INSTANCE" --project="$PROJECT_ID" ||
   gcloud sql instances create "$INSTANCE" --project="$PROJECT_ID" --region="$REGION" \
     --database-version=POSTGRES_17 --edition=enterprise --tier=db-f1-micro \
     --storage-type=SSD --storage-size=10 --availability-type=zonal \
-    --ssl-mode=ENCRYPTED_ONLY --backup-start-time=02:00
+    --ssl-mode=ENCRYPTED_ONLY --backup-start-time=02:00 \
+    --deletion-protection --enable-point-in-time-recovery --retained-transaction-log-days=7
 
 step "Database $DB_NAME"
 exists gcloud sql databases describe "$DB_NAME" --instance="$INSTANCE" --project="$PROJECT_ID" ||
@@ -111,5 +114,8 @@ grant_secret "$SECRET_MIGRATION_URL" "$MIGRATE_SA"
 
 step "File bucket"
 ./setup-storage.sh
+
+step "Data protection and build identity"
+./setup-protection.sh
 
 step "Done. Next: deploy/deploy.sh"

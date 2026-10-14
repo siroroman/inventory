@@ -4,8 +4,10 @@ A test deployment: one Cloud Run service (API + SPA from the `Dockerfile`), a Cl
 migrations, Cloud SQL for PostgreSQL 17 (smallest tier), Secret Manager, region `europe-west3`.
 Settings are in `config.sh`; the project is the one from `gcloud config`.
 
-Not production-ready yet: Cloud SQL uses a public IP without authorized networks (reachable only
-through the IAM-checked connector) instead of private IP + Direct VPC egress, and invitations and password reset do not work (their adapters are not written).
+Invitations and password reset do not work yet (their adapters are not written). Cloud SQL keeps a
+public IP without authorized networks: it is reachable only through the IAM-checked, encrypted Cloud
+SQL connector. That was chosen over a private IP only, which would need a bastion VM for the scripts
+run from a laptop (import, update, seed).
 
 ## Prerequisites
 
@@ -28,6 +30,41 @@ links through IAM (`roles/iam.serviceAccountTokenCreator` on itself), so there i
 project set up before the bucket existed needs `deploy/setup-storage.sh` (only `gcloud`; `setup.sh`
 calls it too, and both skip what exists) run before the first deploy that sets `STORAGE_BUCKET`;
 until then uploads fail with a 500 (`signBlob` denied).
+
+`deploy/setup-protection.sh` (only `gcloud`; `setup.sh` calls it, a project set up before it existed
+needs it run once) turns on deletion protection and point-in-time recovery for Cloud SQL: 7 days of
+write-ahead log beside the nightly backups, so a mistake can be undone to the minute (a restore makes
+a new instance). Turning PITR on restarts a running instance once, about a minute offline; gcloud
+asks first. It also takes the Editor role from the Compute Engine default account, which Cloud Build
+runs the builds of `deploy.sh` as, and leaves it the builder role. If `deploy.sh` then fails to
+build, the build account is missing a permission: give it back with
+`gcloud projects add-iam-policy-binding <project> --member=serviceAccount:<number>-compute@developer.gserviceaccount.com --role=roles/editor`.
+
+## Accounts that control production
+
+The Google account that owns the project and every GitHub account that can push to `main` control
+production: the database, its backups and the secrets, and a push to `main` deploys once CI is green.
+Turn on 2-Step Verification on both, with a passkey or a security key rather than SMS.
+
+`main` is not protected: GitHub offers branch protection for private repositories on a paid plan
+only. With one, require a pull request and the four CI checks, for admins too:
+
+```
+gh api -X PUT repos/siroroman/inventory/branches/main/protection --input - <<'JSON'
+{
+  "required_status_checks": {
+    "strict": true,
+    "checks": [{ "context": "Lint, typecheck, test" }, { "context": "Dependency audit" },
+               { "context": "Secret scan" }, { "context": "Semgrep" }]
+  },
+  "enforce_admins": true,
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+JSON
+```
 
 Then let GitHub Actions deploy (needs `gh` signed in as a repository admin):
 
@@ -127,4 +164,7 @@ billed at the lower idle rate, a few dollars a month (check the current Cloud Ru
 scale-to-zero, set `--min-instances=0` there or run
 `gcloud run services update inventory --region=europe-west3 --min-instances=0`.
 To stop paying for the database: `gcloud sql instances patch inventory-db --activation-policy=NEVER`
-(and `ALWAYS` to start it again). Deleting the project removes everything.
+(and `ALWAYS` to start it again). Point-in-time recovery adds a little backup storage for the
+write-ahead log. Deletion protection must be turned off first
+(`gcloud sql instances patch inventory-db --no-deletion-protection`) before the instance or the
+project can be deleted; deleting the project removes everything.

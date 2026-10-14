@@ -7,7 +7,7 @@ const READ_WRITE = ['INSERT', 'SELECT', 'UPDATE'];
 const READ_WRITE_DELETE = ['DELETE', 'INSERT', 'SELECT', 'UPDATE'];
 
 // Every table in public must appear here. Records are archived, never deleted; child rows, auth
-// sessions and verification tokens may be deleted; the audit log is insert-only.
+// sessions, verification tokens and rate-limit counts may be deleted; the audit log is insert-only.
 const EXPECTED_GRANTS: Record<string, string[]> = {
   account: READ_WRITE_DELETE,
   audit_log: ['INSERT', 'SELECT'],
@@ -20,6 +20,7 @@ const EXPECTED_GRANTS: Record<string, string[]> = {
   locations: READ_WRITE,
   manufacturer_service_providers: READ_WRITE_DELETE,
   manufacturers: READ_WRITE,
+  rate_limit: READ_WRITE_DELETE,
   service_providers: READ_WRITE,
   service_record_documents: READ_WRITE_DELETE,
   service_records: READ_WRITE,

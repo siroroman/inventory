@@ -18,6 +18,7 @@ import {
   loginAs,
   setActive,
   signIn,
+  TEST_PASSWORD,
 } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { expectProblem } from '../helpers/http.ts';
@@ -168,6 +169,21 @@ describe('sign-in', () => {
     });
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(await db().app.select().from(user).where(eq(user.email, 'stranger@example.com'))).toHaveLength(0);
+  });
+
+  it('refuses a new password shorter than 12 characters', async () => {
+    const { app } = createTestApp(db().app);
+    const { headers } = await loginAs(app, db().app, 'read');
+    const change = (newPassword: string) =>
+      app.request('/api/auth/change-password', {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'application/json', origin: BASE_URL },
+        body: JSON.stringify({ currentPassword: TEST_PASSWORD, newPassword }),
+      });
+    const short = await change('eleven-char');
+    expect(short.status).toBe(400);
+    expect(await short.json()).toMatchObject({ code: 'PASSWORD_TOO_SHORT' });
+    expect((await change('twelve-chars')).status).toBe(200);
   });
 
   it('turns off sign-up for Google, so an uninvited account is rejected', () => {
