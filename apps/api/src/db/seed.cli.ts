@@ -1,4 +1,5 @@
 // Entry point for `pnpm db:seed`: fills an empty local database with sample data. Never in production.
+import { MIN_PASSWORD_LENGTH } from '../auth/auth.ts';
 import { createDb } from './client.ts';
 import { seed, SeedRefusedError } from './seed/seed.ts';
 
@@ -10,6 +11,11 @@ const url = process.env.DATABASE_URL;
 const password = process.env.SEED_USER_PASSWORD;
 if (!url || !password) {
   console.error('DATABASE_URL and SEED_USER_PASSWORD must be set (see .env.example)');
+  process.exit(1);
+}
+// The hash is written directly, so Better Auth's own length check never sees this password.
+if (password.length < MIN_PASSWORD_LENGTH) {
+  console.error(`SEED_USER_PASSWORD must have at least ${MIN_PASSWORD_LENGTH} characters`);
   process.exit(1);
 }
 
