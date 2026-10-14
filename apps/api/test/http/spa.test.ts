@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { brotliCompressSync, brotliDecompressSync, gzipSync } from 'node:zlib';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
@@ -13,6 +14,11 @@ mkdirSync(join(root, 'assets'));
 writeFileSync(join(root, 'index.html'), '<!doctype html><title>SPA</title>');
 writeFileSync(join(root, 'assets', 'index-abc123.js'), 'console.log(1)');
 writeFileSync(join(root, 'favicon.svg'), '<svg/>');
+// What precompress.mjs leaves next to a text file.
+const bundle = `console.log(${JSON.stringify('x'.repeat(2000))})`;
+writeFileSync(join(root, 'assets', 'big-abc123.js'), bundle);
+writeFileSync(join(root, 'assets', 'big-abc123.js.br'), brotliCompressSync(bundle));
+writeFileSync(join(root, 'assets', 'big-abc123.js.gz'), gzipSync(bundle));
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 const setup = (options: { staticRoot?: string } = { staticRoot: root }) => createTestApp(db().app, options).app;
@@ -42,6 +48,23 @@ describe('serving the SPA', () => {
     const icon = await setup().request('/favicon.svg');
     expect(icon.status).toBe(200);
     expect(icon.headers.get('cache-control')).toBe('no-cache');
+  });
+
+  it('serves the precompressed copy the browser accepts, with the right headers', async () => {
+    const br = await setup().request('/assets/big-abc123.js', { headers: { 'accept-encoding': 'gzip, br' } });
+    expect(br.status).toBe(200);
+    expect(br.headers.get('content-encoding')).toBe('br');
+    expect(br.headers.get('vary')).toContain('Accept-Encoding');
+    expect(br.headers.get('content-type')).toMatch(/javascript/);
+    expect(br.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(brotliDecompressSync(Buffer.from(await br.arrayBuffer())).toString()).toBe(bundle);
+
+    const gz = await setup().request('/assets/big-abc123.js', { headers: { 'accept-encoding': 'gzip' } });
+    expect(gz.headers.get('content-encoding')).toBe('gzip');
+
+    const plain = await setup().request('/assets/big-abc123.js');
+    expect(plain.headers.get('content-encoding')).toBeNull();
+    expect(await plain.text()).toBe(bundle);
   });
 
   it('answers 404 for a missing asset instead of the page', async () => {
