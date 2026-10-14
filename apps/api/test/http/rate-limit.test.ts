@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SIGN_IN_RATE_LIMIT } from '../../src/auth/auth.ts';
+import { rateLimit } from '../../src/db/schema/index.ts';
 import { BASE_URL, createTestApp, insertUserWithPassword, TEST_PASSWORD } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 
@@ -49,6 +50,10 @@ describe('sign-in rate limit', () => {
     const send = (i: number) => signInFrom(instances[i % 2]!.app, '203.0.113.7', email);
     expect(await attempts(SIGN_IN_RATE_LIMIT.max, send)).toEqual(allowed);
     expect((await send(1)).status).toBe(429);
+    // In the table, not in memory: Better Auth's memory store is shared by every instance in one process too.
+    expect(await db().app.select({ key: rateLimit.key, count: rateLimit.count }).from(rateLimit)).toEqual([
+      { key: '203.0.113.7|/sign-in/email', count: SIGN_IN_RATE_LIMIT.max },
+    ]);
   });
 
   it('is off outside production', async () => {
