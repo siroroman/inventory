@@ -67,6 +67,18 @@ describe('serving the SPA', () => {
     expect(await plain.text()).toBe(bundle);
   });
 
+  it('answers plainly when the browser accepts br but no copy exists, also for deep links', async () => {
+    const icon = await setup().request('/favicon.svg', { headers: { 'accept-encoding': 'br' } });
+    expect(icon.status).toBe(200);
+    expect(icon.headers.get('content-encoding')).toBeNull();
+    expect(await icon.text()).toBe('<svg/>');
+
+    const page = await setup().request('/locations/abc', { headers: { 'accept-encoding': 'gzip, br' } });
+    expect(page.status).toBe(200);
+    expect(page.headers.get('content-encoding')).toBeNull();
+    expect(await page.text()).toContain('<title>SPA</title>');
+  });
+
   it('answers 404 for a missing asset instead of the page', async () => {
     const res = await setup().request('/assets/index-gone.js');
     expect(res.status).toBe(404);
