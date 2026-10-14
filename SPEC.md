@@ -288,7 +288,7 @@ Sources: [Cloud SQL pricing breakdown, May 2026](https://securityboulevard.com/2
 
 ## 7. API design
 
-REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/v1/openapi.json`. Rules that apply to every endpoint:
+REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/v1/openapi.json` (for signed-in users only). Rules that apply to every endpoint:
 
 - Dates in ISO 8601 (`2026-09-27`). Errors in RFC 9457 (`problem+json`) with a machine-readable `code`; the FE picks the Czech text based on the code.
 - Lists: `?q=` for search, `?limit=50&cursor=` for pagination, filters as query parameters.

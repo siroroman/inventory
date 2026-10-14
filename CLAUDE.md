@@ -60,7 +60,7 @@ Rules:
 
 ## API conventions
 
-- REST under `/api/v1`, JSON, OpenAPI description served at `/api/v1/openapi.json`.
+- REST under `/api/v1`, JSON, OpenAPI description served at `/api/v1/openapi.json` to signed-in users only (it maps every endpoint).
 - Dates in ISO 8601. Errors are RFC 9457 (`problem+json`) with a machine-readable `code`; the SPA maps the code to Czech text, never hardcodes English error strings.
 - Lists: `?q=` for search, `?archived=true` (locations, items, service records and service providers) for the archived records instead of the active ones, `?limit=50&cursor=` for pagination (default page 50; the SPA lists ask for 20, `listPageSize` in `src/lib/query.ts`). Inventory runs are listed with `?state=open|closed` instead (in progress, or finished and cancelled), newest first by start or end.
 - Updates go through `PATCH` with a `version` field; a stale version returns 409.

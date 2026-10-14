@@ -78,9 +78,17 @@ describe('caching', () => {
 });
 
 describe('GET /api/v1/openapi.json', () => {
-  it('describes the API as OpenAPI 3.1', async () => {
+  it('is 401 without a session', async () => {
     const { app } = setup();
     const res = await app.request('/api/v1/openapi.json');
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({ code: 'unauthenticated' });
+  });
+
+  it('describes the API as OpenAPI 3.1 to a signed-in user', async () => {
+    const { app } = setup();
+    const { headers } = await loginAs(app, db().app, 'read');
+    const res = await app.request('/api/v1/openapi.json', { headers });
     expect(res.status).toBe(200);
     const doc = (await res.json()) as { openapi: string; paths: Record<string, unknown> };
     expect(doc.openapi).toBe('3.1.0');

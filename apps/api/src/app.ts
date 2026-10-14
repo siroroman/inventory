@@ -29,8 +29,9 @@ const MAX_BODY_BYTES = 1024 * 1024;
 /**
  * The only /api/v1 paths that work without signing in. Everything else is authenticated by
  * default, including paths that do not exist, so a new route cannot be left open by accident.
+ * The OpenAPI description is not public: it maps every endpoint, the admin ones included.
  */
-export const publicPaths: ReadonlySet<string> = new Set(['/api/v1/health', '/api/v1/openapi.json']);
+export const publicPaths: ReadonlySet<string> = new Set(['/api/v1/health']);
 
 export type AppDeps = {
   auth: Auth;
