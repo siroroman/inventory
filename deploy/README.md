@@ -121,6 +121,10 @@ through `deploy/db-proxy.sh` (connected to the `postgres` database), then create
 
 ## Cost
 
-Cloud SQL `db-f1-micro` is about $10/month; the rest stays within the free tiers at test traffic.
+Cloud SQL `db-f1-micro` is about $10/month. The service keeps one instance warm (`--min-instances=1` in
+`deploy/release.sh`), so nobody waits 5-8 s for a cold start; an idle instance of 1 vCPU / 512 MiB is
+billed at the lower idle rate, a few dollars a month (check the current Cloud Run price list). To go back to
+scale-to-zero, set `--min-instances=0` there or run
+`gcloud run services update inventory --region=europe-west3 --min-instances=0`.
 To stop paying for the database: `gcloud sql instances patch inventory-db --activation-policy=NEVER`
 (and `ALWAYS` to start it again). Deleting the project removes everything.

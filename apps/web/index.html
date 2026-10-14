@@ -9,6 +9,15 @@
     <title>Správa majetku</title>
   </head>
   <body>
+    <!-- Shown until the router's first load is through (lib/boot-shell.ts removes it); styled in index.css. -->
+    <div id="boot" aria-hidden="true">
+      <div class="boot-bar"><img class="boot-logo" src="/favicon.svg" alt="" /></div>
+      <div class="boot-body">
+        <div class="boot-line boot-short"></div>
+        <div class="boot-line boot-medium"></div>
+        <div class="boot-line boot-block"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -10,10 +10,14 @@ const REVALIDATE = 'no-cache';
  * Serves the built SPA from `root` (apps/web/dist) for every GET or HEAD outside /api. A path
  * that is not a file gets index.html, so deep links like /locations/<id> load the app and its
  * router takes over. /api paths are never answered with the SPA: an unknown one stays a 404.
+ *
+ * Text files are answered from the `.br` / `.gz` copies that `apps/web/scripts/precompress.mjs`
+ * leaves next to them, when the browser accepts that encoding (a third of the bytes; Cloud Run does
+ * not compress).
  */
 export function serveSpa(root: string): Handler {
-  const file = serveStatic({ root });
-  const index = serveStatic({ root, path: 'index.html' });
+  const file = serveStatic({ root, precompressed: true });
+  const index = serveStatic({ root, path: 'index.html', precompressed: true });
   const miss = async () => {};
 
   return async (c, next) => {
