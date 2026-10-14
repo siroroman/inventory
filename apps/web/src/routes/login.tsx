@@ -10,8 +10,10 @@ export const Route = createFileRoute('/login')({
   // `redirect` is where to go after signing in; a value that is not a string is ignored.
   validateSearch: z.object({ redirect: z.string().optional().catch(undefined) }),
   // Someone who is already signed in has no business here. If the check fails for any reason the
-  // form is shown: signing in is what fixes it.
-  beforeLoad: async ({ context, search }) => {
+  // form is shown: signing in is what fixes it. Sent here by the route guard, the session was just
+  // found missing, so there is nothing to ask again (one request less before the form shows).
+  beforeLoad: async ({ context, search, location }) => {
+    if ((location.state as { anonymous?: boolean }).anonymous) return;
     const user = await currentUser(context.queryClient).catch(() => undefined);
     if (user) throw redirect({ href: safeRedirect(search.redirect) });
   },

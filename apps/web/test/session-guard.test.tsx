@@ -44,8 +44,8 @@ describe('route guard', () => {
     const calls = stubApi({ 'GET /api/v1/me': unauthenticated });
     renderApp('/');
     await screen.findByRole('button', { name: 'Přihlásit se' });
-    // The guard and then the login page each ask; no loop.
-    expect(calls.filter((call) => call.url.endsWith('/api/v1/me'))).toHaveLength(2);
+    // The guard asks; the login page it redirects to trusts that answer instead of asking again.
+    expect(calls.filter((call) => call.url.endsWith('/api/v1/me'))).toHaveLength(1);
   });
 
   it('shows the screen to a signed-in user', async () => {
