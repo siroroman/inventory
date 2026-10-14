@@ -139,7 +139,10 @@
  * no inline styles (the CSP forbids them).
  */
 #boot {
-  min-height: 100dvh;
+  /* Over #root, which React fills underneath: no second screen's worth of page to scroll. */
+  position: fixed;
+  inset: 0;
+  z-index: 50;
   background: Canvas;
   color: CanvasText;
 }

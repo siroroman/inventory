@@ -36,4 +36,8 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: AppRouter;
   }
+  /** Set by the route guard's redirect to /login: the session was just found missing. */
+  interface HistoryState {
+    anonymous?: boolean;
+  }
 }

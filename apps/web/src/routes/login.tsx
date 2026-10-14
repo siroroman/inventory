@@ -13,7 +13,7 @@ export const Route = createFileRoute('/login')({
   // form is shown: signing in is what fixes it. Sent here by the route guard, the session was just
   // found missing, so there is nothing to ask again (one request less before the form shows).
   beforeLoad: async ({ context, search, location }) => {
-    if ((location.state as { anonymous?: boolean }).anonymous) return;
+    if (location.state.anonymous) return;
     const user = await currentUser(context.queryClient).catch(() => undefined);
     if (user) throw redirect({ href: safeRedirect(search.redirect) });
   },

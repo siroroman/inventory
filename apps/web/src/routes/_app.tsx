@@ -1,4 +1,4 @@
-import { createFileRoute, type HistoryState, redirect } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { AppShell } from '@/components/app-shell';
 import { currentUser } from '@/features/auth/api';
 import { ApiError } from '@/lib/api';
@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app')({
       await currentUser(context.queryClient);
     } catch (error) {
       if (error instanceof ApiError && error.code === 'unauthenticated') {
-        throw redirect({ to: '/login', search: { redirect: location.href }, state: { anonymous: true } as HistoryState });
+        throw redirect({ to: '/login', search: { redirect: location.href }, state: { anonymous: true } });
       }
       throw error;
     }
