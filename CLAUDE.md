@@ -103,7 +103,7 @@ Rules:
 - Secrets only on the API, never in the SPA, never in git. Use Secret Manager in production and an untracked `.env` locally.
 - Session cookie: HTTP-only, Secure, SameSite=Lax. SPA and API share one domain, so no CORS.
 - Security headers set by Hono middleware: CSP, HSTS, X-Content-Type-Options, Referrer-Policy.
-- Cloud SQL has a private IP only, reached from Cloud Run via Direct VPC egress — never expose the DB publicly. Cloud Run's service account is scoped to the minimum: DB connect, write to one bucket, read specific secrets.
+- Cloud SQL keeps a public IP with no authorized networks: reachable only through the IAM-checked, encrypted Cloud SQL connector (Cloud Run, `cloud-sql-proxy`). Never add an authorized network. A private IP only was declined (2026-10): the laptop scripts (import, update, seed) would need a bastion VM. The instance has deletion protection and point-in-time recovery (`deploy/setup-protection.sh`). Cloud Run's service account is scoped to the minimum: DB connect, write to one bucket, read specific secrets.
 - Files: private bucket, upload only via a signed URL for one file, type and size. Photos: max 10 MB, images only. Service record documents: max 20 MB, PDF, images, Word, Excel. The SPA resizes every picture to max 2048 px JPEG before upload, which also strips EXIF/GPS.
 - No self-registration. Only invited users can sign in; deactivating a user deletes their sessions.
 - Passwords are at least 12 characters (`MIN_PASSWORD_LENGTH` in `src/auth/auth.ts`; Better Auth checks it when a password is set, not at sign-in). In production, sign-in is limited per client IP (`SIGN_IN_RATE_LIMIT`: 20 attempts, each within 15 minutes of the last) with the counts in the `rate_limit` table, so every Cloud Run instance shares them and a deploy does not reset them. The IP is read from the right end of `X-Forwarded-For` (`trustedProxies`), so a client cannot pick its own bucket.
@@ -198,6 +198,7 @@ pnpm --filter api auth:generate     # regenerate Better Auth tables after auth c
 docker build -t inventory .         # the production image (serves /api and the SPA on :8080)
 deploy/setup.sh                     # one-time Google Cloud setup (see deploy/README.md)
 deploy/setup-github.sh              # one-time: let GitHub Actions deploy main (see deploy/README.md)
+deploy/setup-protection.sh          # one-time: Cloud SQL deletion protection + PITR (restarts it once), no Editor role for the build account
 deploy/deploy.sh                    # build, migrate and deploy the committed HEAD to Cloud Run
 deploy/import.sh <locations.csv> <items.csv>   # import the real inventory into the empty Cloud SQL DB (see deploy/README.md)
 deploy/update.sh <accounting.csv> <decisions.json> <out-dir> [--apply <fingerprint>]   # dry run, then apply, of the accounting update (see deploy/README.md)

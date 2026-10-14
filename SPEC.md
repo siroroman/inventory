@@ -360,7 +360,7 @@ Security rests on three rules: access only for invitees, permissions enforced so
 - Every endpoint checks session and role in both middleware and the service layer. Hiding a button in the SPA is not protection.
 - Session cookie is HTTP-only, Secure, SameSite=Lax. The SPA and API share one domain, and Better Auth accepts requests only from it.
 - No secret ever reaches the SPA. Only the API holds keys, kept in Secret Manager.
-- Cloud SQL with a private IP; Cloud Run reaches it via Direct VPC egress. The DB is not reachable from the internet, and there's no public IPv4 fee.
+- Cloud SQL keeps a public IP without authorized networks, so it is reachable only through the IAM-checked, encrypted Cloud SQL connector (Cloud Run and `cloud-sql-proxy`). A private IP only (Direct VPC egress) was declined: the scripts run from a laptop would need a bastion VM. The instance has deletion protection and point-in-time recovery.
 - Cloud Run runs under its own service account with minimal permissions: connect to the DB, write to one bucket, read specific secrets.
 - The bucket is private. Uploads only via a signed URL scoped to one file, type and size: photos max 10 MB, images only; service record documents max 20 MB, PDF, images, Word and Excel. The SPA resizes every picture to max 2048 px before upload, which also strips EXIF/GPS location.
 - Security headers set by Hono middleware: CSP, HSTS, X-Content-Type-Options, Referrer-Policy.
