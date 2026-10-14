@@ -29,7 +29,7 @@ gcloud run deploy "$SERVICE" --project="$PROJECT_ID" --region="$REGION" \
   --add-cloudsql-instances="$SQL_CONNECTION" \
   --set-secrets="DATABASE_URL=${SECRET_DATABASE_URL}:latest,BETTER_AUTH_SECRET=${SECRET_AUTH}:latest" \
   --set-env-vars="BETTER_AUTH_URL=${app_url},STORAGE_BUCKET=${BUCKET}" \
-  --min-instances=0 --max-instances=2 --memory=512Mi --cpu=1 \
+  --min-instances=1 --max-instances=2 --memory=512Mi --cpu=1 \
   "$@"
 
 printf '\n==> Live at %s\n' "$app_url"
