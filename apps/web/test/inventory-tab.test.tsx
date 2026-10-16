@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { inventoryEntry, page, person, ref } from './fixtures.ts';
 import { jsonResponse, me, openSection, renderApp, stubApi, stubWideScreen } from './helpers.tsx';
 
@@ -146,21 +146,39 @@ describe('home: inventory tab', () => {
     expect(within(rows[1]!).getByRole('link', { name: 'Centrála Praha' })).toHaveAttribute('href', `/inventories/${done.id}`);
   });
 
-  it('makes the whole row of an ended run a link in the table, not only its name', async () => {
+  it('makes the whole row of an ended run follow its link in the table, without positioned overlays', async () => {
     stubWideScreen(true);
     const done = ended();
     api({ closed: () => page([done], { total: 1 }) });
-    renderApp('/?tab=inventory');
+    const { router } = renderApp('/?tab=inventory');
 
     const table = await screen.findByRole('table');
     const row = within(table).getAllByRole('row')[1]!;
-    // One real link, stretched over the row (a pseudo-element, so a click on any cell follows it).
+    // One real link. Safari does not treat a table row as the containing block, so a link stretched
+    // over it with an absolutely positioned pseudo-element covered the whole page (and the
+    // "Zobrazit archivované" checkbox with it): nothing of the kind may be left in the row.
     const link = within(row).getByRole('link', { name: 'Centrála Praha' });
     expect(within(row).getAllByRole('link')).toHaveLength(1);
     expect(link).toHaveAttribute('href', `/inventories/${done.id}`);
     expect(link).toHaveAttribute('data-row-link');
-    expect(link).toHaveClass('after:absolute', 'after:inset-0');
-    expect(row).toHaveClass('relative');
+    expect(row.className).not.toContain('relative');
+    expect(row.querySelector('[class*="after:absolute"]')).toBeNull();
+
+    // A click on a cell other than the name follows the link.
+    await userEvent.click(row.querySelectorAll('td')[2]!);
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/inventories/${done.id}`));
+  });
+
+  it('does not follow the row link when the click ended a text selection', async () => {
+    stubWideScreen(true);
+    api({ closed: () => page([ended()], { total: 1 }) });
+    const { router } = renderApp('/?tab=inventory');
+
+    const row = within(await screen.findByRole('table')).getAllByRole('row')[1]!;
+    const selection = vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'Praha' } as Selection);
+    await userEvent.click(row.querySelectorAll('td')[2]!);
+    selection.mockRestore();
+    expect(router.state.location.pathname).toBe('/');
   });
 
   it('keeps the runs in progress as cards on a wide screen', async () => {
