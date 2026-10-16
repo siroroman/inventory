@@ -1,5 +1,5 @@
 import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorState } from '@/components/error-state';
 import { Button } from '@/components/ui/button';
@@ -51,11 +51,17 @@ export const nestedNameColumnWidth = 'w-80';
 export const codeColumnWidth = 'w-44';
 
 /**
- * Makes a link of a table cell cover its whole row: put these classes and `data-row-link` on the
- * `<a>` of the row's primary cell. The row lights up on hover, and a click anywhere on it follows
- * the link, which stays the one real link (keyboard, screen reader, open in a new tab).
+ * Makes a table row follow the link of its primary cell: put `data-row-link` on that `<a>`. The row
+ * lights up on hover and a click anywhere on it follows the link, which stays the one real link
+ * (keyboard, screen reader, open in a new tab). This is a click handler and not a link stretched
+ * over the row by an absolutely positioned pseudo-element: Safari does not make a table row the
+ * containing block, so there the stretched link covered the whole page and swallowed every click.
  */
-export const rowLinkClass = "after:absolute after:inset-0 after:content-['']";
+function followRowLink(event: MouseEvent<HTMLElement>) {
+  if ((event.target as HTMLElement).closest('a, button, input, label')) return;
+  if (window.getSelection()?.toString()) return;
+  event.currentTarget.querySelector<HTMLElement>('a[data-row-link]')?.click();
+}
 
 // Tailwind's `md` breakpoint.
 const wideScreen = '(min-width: 768px)';
@@ -131,7 +137,11 @@ export function PagedList<T extends { id: string }>({
           </thead>
           <tbody className="divide-y divide-line">
             {items.map((item) => (
-              <tr key={item.id} className="relative divide-x divide-line has-[[data-row-link]]:hover:bg-accent">
+              <tr
+                key={item.id}
+                onClick={followRowLink}
+                className="divide-x divide-line has-[[data-row-link]]:cursor-pointer has-[[data-row-link]]:hover:bg-accent"
+              >
                 {columns.map((column) => (
                   <td
                     key={column.header}

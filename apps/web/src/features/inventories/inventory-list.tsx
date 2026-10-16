@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
 import { AvatarStack } from '@/components/avatar';
 import { ListFrame, ListToolbar } from '@/components/list-toolbar';
-import { type Column, EmptyState, PagedList, pagedTotal, rowLinkClass } from '@/components/paged-list';
+import { type Column, EmptyState, PagedList, pagedTotal } from '@/components/paged-list';
 import { sectionTitleClass } from '@/components/section';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -164,14 +164,14 @@ export function InventoryPanel({
       header: t('home.inventory.columns.location'),
       primary: true,
       // No Archivováno badge in the table: its name column is narrow, and the list is headed
-      // "Archivované" anyway. The cards, which have the room, carry it. The link covers the row.
+      // "Archivované" anyway. The cards, which have the room, carry it. A click on the row follows the link.
       cell: (run) => (
         <Link
           to="/inventories/$id"
           params={{ id: run.id }}
           title={pathLabel(run.path)}
           data-row-link
-          className={`hover:underline ${rowLinkClass}`}
+          className="hover:underline"
         >
           {run.location.name}
         </Link>
