@@ -127,7 +127,7 @@
     "suppliers": {
       "tab": "Dodavatelé",
       "searchLabel": "Hledat dodavatele",
-      "searchPlaceholder": "Hledat podle názvu, ID, telefonu, značky…",
+      "searchPlaceholder": "Hledat podle názvu, ID, telefonu, výrobce…",
       "emptyTitle": "Zatím žádný dodavatel",
       "emptyHint": "Servisní dodavatelé se tu zobrazí, jakmile je někdo přidá.",
       "archivedEmptyTitle": "Žádní archivovaní dodavatelé",
@@ -135,7 +135,7 @@
         "name": "Název",
         "code": "ID",
         "phone": "Telefon",
-        "brands": "Značky"
+        "brands": "Výrobci"
       },
       "add": "Přidat dodavatele"
     },
@@ -455,12 +455,12 @@
       "note": "Poznámka"
     },
     "brands": {
-      "title": "Značky, které servisuje",
-      "empty": "Dodavatel zatím neservisuje žádnou značku.",
+      "title": "Servisovaní výrobci",
+      "empty": "Dodavatel zatím neservisuje žádného výrobce.",
       "priority": "Pořadí {{priority}}"
     },
     "archiveTitle": "Archivovat dodavatele?",
-    "archiveHint": "Dodavatel zmizí ze seznamu, ale zůstane v pořadí dodavatelů u značek, označený jako archivovaný. Archivaci můžete vrátit.",
+    "archiveHint": "Dodavatel zmizí ze seznamu, ale zůstane v pořadí dodavatelů u výrobců, označený jako archivovaný. Archivaci můžete vrátit.",
     "notFoundTitle": "Dodavatel nenalezen",
     "notFoundHint": "Dodavatel neexistuje nebo byl odstraněn."
   },
@@ -473,18 +473,18 @@
       "phone": "Telefon",
       "email": "E-mail",
       "web": "Web",
-      "brands": "Značky, které servisuje",
+      "brands": "Servisovaní výrobci",
       "note": "Poznámka"
     },
     "namePlaceholder": "Např. Servis Novák s.r.o.",
     "phonePlaceholder": "+420",
     "webPlaceholder": "https://",
     "notePlaceholder": "Volitelná poznámka",
-    "brandPlaceholder": "Přidat značku…",
-    "noBrands": "Zatím žádná značka. Napište název a vytvořte ji.",
-    "createBrand": "Vytvořit značku „{{name}}“",
-    "removeBrand": "Odebrat značku {{name}}",
-    "brandsHint": "Pořadí dodavatelů u značky se nastavuje v detailu výrobce.",
+    "brandPlaceholder": "Přidat výrobce…",
+    "noBrands": "Zatím žádný výrobce. Napište název a vytvořte ho.",
+    "createBrand": "Vytvořit výrobce „{{name}}“",
+    "removeBrand": "Odebrat výrobce {{name}}",
+    "brandsHint": "Pořadí dodavatelů u výrobce se nastavuje v detailu výrobce.",
     "errors": {
       "required": "Vyplňte toto pole.",
       "tooLong": "Text je příliš dlouhý.",
@@ -503,8 +503,8 @@
     "providers": {
       "title": "Servis zajišťují",
       "hint": "Kontaktujte dodavatele v tomto pořadí. Pokud servis nezajistí, pokračujte dalším.",
-      "empty": "Tuto značku zatím neservisuje žádný dodavatel.",
-      "emptyHint": "Dodavatele ke značce přidáte v jeho formuláři, v části „Značky, které servisuje“."
+      "empty": "Tohoto výrobce zatím neservisuje žádný dodavatel.",
+      "emptyHint": "Dodavatele k výrobci přidáte v jeho formuláři, v části „Servisovaní výrobci“."
     },
     "drag": {
       "handle": "Přesunout: {{name}}",
