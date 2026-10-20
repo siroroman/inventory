@@ -504,7 +504,7 @@
       "title": "Servis zajišťují",
       "hint": "Kontaktujte dodavatele v tomto pořadí. Pokud servis nezajistí, pokračujte dalším.",
       "empty": "Tohoto výrobce zatím neservisuje žádný dodavatel.",
-      "emptyHint": "Dodavatele k výrobci přidáte v jeho formuláři, v části „Servisovaní výrobci“."
+      "emptyHint": "Dodavatele k výrobci přidáte ve formuláři dodavatele, v části „Servisovaní výrobci“."
     },
     "drag": {
       "handle": "Přesunout: {{name}}",

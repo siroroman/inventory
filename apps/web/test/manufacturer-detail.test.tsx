@@ -69,7 +69,7 @@ describe('manufacturer detail', () => {
     api({ [`GET /api/v1/manufacturers/${id}`]: () => jsonResponse(manufacturerDetail({ id })) });
     renderApp(`/manufacturers/${id}`);
     expect(await screen.findByText('Tohoto výrobce zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
-    expect(screen.getByText(/Dodavatele k výrobci přidáte v jeho formuláři/)).toBeInTheDocument();
+    expect(screen.getByText(/Dodavatele k výrobci přidáte ve formuláři dodavatele/)).toBeInTheDocument();
   });
 
   it('keeps that hint from a reader', async () => {
