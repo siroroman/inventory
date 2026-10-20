@@ -68,15 +68,15 @@ describe('manufacturer detail', () => {
   it('says no supplier services the brand, and tells a writer where to add one', async () => {
     api({ [`GET /api/v1/manufacturers/${id}`]: () => jsonResponse(manufacturerDetail({ id })) });
     renderApp(`/manufacturers/${id}`);
-    expect(await screen.findByText('Tuto značku zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
-    expect(screen.getByText(/Dodavatele ke značce přidáte v jeho formuláři/)).toBeInTheDocument();
+    expect(await screen.findByText('Tohoto výrobce zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
+    expect(screen.getByText(/Dodavatele k výrobci přidáte ve formuláři dodavatele/)).toBeInTheDocument();
   });
 
   it('keeps that hint from a reader', async () => {
     api({ [`GET /api/v1/manufacturers/${id}`]: () => jsonResponse(manufacturerDetail({ id })) }, 'read');
     renderApp(`/manufacturers/${id}`);
-    expect(await screen.findByText('Tuto značku zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
-    expect(screen.queryByText(/Dodavatele ke značce přidáte/)).not.toBeInTheDocument();
+    expect(await screen.findByText('Tohoto výrobce zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
+    expect(screen.queryByText(/Dodavatele k výrobci přidáte/)).not.toBeInTheDocument();
   });
 
   it('leaves out the note section when there is no note', async () => {

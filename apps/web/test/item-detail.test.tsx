@@ -240,7 +240,7 @@ describe('item detail: the brand and its suppliers', () => {
   it('says so when no supplier services the brand', async () => {
     signedIn(() => jsonResponse(detail()));
     renderApp(`/items/${id}`);
-    expect(await screen.findByText('Tuto značku zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
+    expect(await screen.findByText('Tohoto výrobce zatím neservisuje žádný dodavatel.')).toBeInTheDocument();
   });
 
   it('shows no suppliers section for an item without a manufacturer', async () => {

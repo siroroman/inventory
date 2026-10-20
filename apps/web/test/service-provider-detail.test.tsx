@@ -72,7 +72,7 @@ describe('service provider detail', () => {
     );
     renderApp(`/service-providers/${id}`);
 
-    const section = (await screen.findByRole('heading', { name: 'Značky, které servisuje' })).closest('section')!;
+    const section = (await screen.findByRole('heading', { name: 'Servisovaní výrobci' })).closest('section')!;
     const rows = within(section).getAllByRole('listitem');
     expect(rows).toHaveLength(2);
     expect(within(rows[0]!).getByRole('link', { name: 'Daikin' })).toHaveAttribute('href', expect.stringMatching(/^\/manufacturers\//));
@@ -85,7 +85,7 @@ describe('service provider detail', () => {
   it('says so when it services no brand', async () => {
     signedIn(() => jsonResponse(providerDetail({ id, manufacturers: [] })));
     renderApp(`/service-providers/${id}`);
-    expect(await screen.findByText('Dodavatel zatím neservisuje žádnou značku.')).toBeInTheDocument();
+    expect(await screen.findByText('Dodavatel zatím neservisuje žádného výrobce.')).toBeInTheDocument();
   });
 
   it('asks first, then archives with the current version and shows the supplier archived', async () => {

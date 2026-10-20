@@ -48,7 +48,7 @@ describe('home: suppliers tab', () => {
     renderApp('/?tab=suppliers');
 
     const table = await screen.findByRole('table');
-    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Název', 'ID', 'Telefon', 'Značky']);
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Název', 'ID', 'Telefon', 'Výrobci']);
     const rows = within(table).getAllByRole('row');
     expect(within(rows[1]!).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Servis Novák s.r.o.', 'SUP-001', '+420 601 123 456', 'Daikin, La Marzocco']);
     expect(within(rows[2]!).getAllByRole('cell').map((c) => c.textContent)).toEqual(['AquaTech servis', 'SUP-002', '—', '—']);
@@ -74,7 +74,7 @@ describe('home: suppliers tab', () => {
     await screen.findByText('Zatím žádný dodavatel');
 
     const box = screen.getByRole('searchbox', { name: 'Hledat dodavatele' });
-    expect(box).toHaveAttribute('placeholder', 'Hledat podle názvu, ID, telefonu, značky…');
+    expect(box).toHaveAttribute('placeholder', 'Hledat podle názvu, ID, telefonu, výrobce…');
     await userEvent.type(box, 'novak');
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'suppliers', q: 'novak' }));
     await screen.findByText('Nic jsme nenašli');

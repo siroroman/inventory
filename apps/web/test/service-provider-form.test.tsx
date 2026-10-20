@@ -45,9 +45,9 @@ describe('new supplier', () => {
     await user.type(screen.getByLabelText('Telefon'), '+420 601 123 456');
     await user.type(screen.getByLabelText('E-mail'), 'servis@novak-sro.cz');
     await user.type(screen.getByLabelText('Web'), 'www.novak-servis.cz');
-    await user.click(screen.getByPlaceholderText('Přidat značku…'));
+    await user.click(screen.getByPlaceholderText('Přidat výrobce…'));
     await user.click(await screen.findByRole('button', { name: 'La Marzocco' }));
-    await user.click(screen.getByPlaceholderText('Přidat značku…'));
+    await user.click(screen.getByPlaceholderText('Přidat výrobce…'));
     await user.click(await screen.findByRole('button', { name: 'Daikin' }));
     await user.type(screen.getByLabelText('Poznámka'), 'Do 24 hodin');
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
@@ -127,17 +127,17 @@ describe('new supplier', () => {
     const user = userEvent.setup();
     renderApp('/service-providers/new');
 
-    await user.click(await screen.findByPlaceholderText('Přidat značku…'));
+    await user.click(await screen.findByPlaceholderText('Přidat výrobce…'));
     await user.click(await screen.findByRole('button', { name: 'La Marzocco' }));
-    const chosen = screen.getByRole('list', { name: 'Značky, které servisuje' });
+    const chosen = screen.getByRole('list', { name: 'Servisovaní výrobci' });
     expect(within(chosen).getByText('La Marzocco')).toBeInTheDocument();
 
-    await user.click(screen.getByPlaceholderText('Přidat značku…'));
+    await user.click(screen.getByPlaceholderText('Přidat výrobce…'));
     const results = await screen.findByRole('list', { name: /Výsledky/ });
     expect(within(results).getAllByRole('button').map((b) => b.textContent)).toEqual(['Daikin']);
 
-    await user.click(screen.getByRole('button', { name: 'Odebrat značku La Marzocco' }));
-    expect(screen.queryByRole('list', { name: 'Značky, které servisuje' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Odebrat výrobce La Marzocco' }));
+    expect(screen.queryByRole('list', { name: 'Servisovaní výrobci' })).not.toBeInTheDocument();
   });
 
   it('does not offer to create a brand that is already chosen, and asks for more to fill the page', async () => {
@@ -150,14 +150,14 @@ describe('new supplier', () => {
     const user = userEvent.setup();
     renderApp('/service-providers/new');
 
-    await user.click(await screen.findByPlaceholderText('Přidat značku…'));
+    await user.click(await screen.findByPlaceholderText('Přidat výrobce…'));
     await user.click(await screen.findByRole('button', { name: 'Daikin' }));
-    await user.type(screen.getByPlaceholderText('Přidat značku…'), 'daikin');
+    await user.type(screen.getByPlaceholderText('Přidat výrobce…'), 'daikin');
     await waitFor(() =>
       expect(calls.some((c) => new URL(c.url).searchParams.get('q') === 'daikin')).toBe(true),
     );
-    expect(await screen.findByText('Zatím žádná značka. Napište název a vytvořte ji.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Vytvořit značku/ })).not.toBeInTheDocument();
+    expect(await screen.findByText('Zatím žádný výrobce. Napište název a vytvořte ho.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Vytvořit výrobce/ })).not.toBeInTheDocument();
     const last = calls.filter((c) => new URL(c.url).pathname === '/api/v1/manufacturers').at(-1)!;
     expect(new URL(last.url).searchParams.get('limit')).toBe('21');
   });
@@ -174,9 +174,9 @@ describe('new supplier', () => {
     renderApp('/service-providers/new');
 
     await user.type(await screen.findByLabelText('Název'), 'Servis');
-    await user.type(screen.getByPlaceholderText('Přidat značku…'), 'Winterhalter');
-    await user.click(await screen.findByRole('button', { name: 'Vytvořit značku „Winterhalter“' }));
-    expect(within(screen.getByRole('list', { name: 'Značky, které servisuje' })).getByText('Winterhalter')).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText('Přidat výrobce…'), 'Winterhalter');
+    await user.click(await screen.findByRole('button', { name: 'Vytvořit výrobce „Winterhalter“' }));
+    expect(within(screen.getByRole('list', { name: 'Servisovaní výrobci' })).getByText('Winterhalter')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
     await screen.findByRole('heading', { name: 'Servis', level: 1 });
     expect(await bodyOf(calls, 'POST', '/api/v1/service-providers')).toMatchObject({ manufacturerIds: [marzoccoId] });
@@ -240,7 +240,7 @@ describe('edit supplier', () => {
     expect(await screen.findByRole('heading', { name: 'Upravit dodavatele', level: 1 })).toBeInTheDocument();
     expect(screen.getByLabelText('Název')).toHaveValue('Servis Novák s.r.o.');
     expect(screen.getByLabelText('Web')).toHaveValue('https://www.novak-servis.cz');
-    expect(within(screen.getByRole('list', { name: 'Značky, které servisuje' })).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(screen.getByRole('list', { name: 'Servisovaní výrobci' })).getAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Uložit' })).toBeDisabled();
 
     await user.clear(screen.getByLabelText('Telefon'));
@@ -259,7 +259,7 @@ describe('edit supplier', () => {
     const user = userEvent.setup();
     renderApp(`/service-providers/${id}/edit`);
 
-    await user.click(await screen.findByRole('button', { name: 'Odebrat značku La Marzocco' }));
+    await user.click(await screen.findByRole('button', { name: 'Odebrat výrobce La Marzocco' }));
     await user.clear(screen.getByLabelText('Kontaktní osoba'));
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
 
@@ -276,8 +276,8 @@ describe('edit supplier', () => {
     const user = userEvent.setup();
     renderApp(`/service-providers/${id}/edit`);
 
-    await user.click(await screen.findByRole('button', { name: 'Odebrat značku La Marzocco' }));
-    await user.click(screen.getByPlaceholderText('Přidat značku…'));
+    await user.click(await screen.findByRole('button', { name: 'Odebrat výrobce La Marzocco' }));
+    await user.click(screen.getByPlaceholderText('Přidat výrobce…'));
     await user.click(await screen.findByRole('button', { name: 'La Marzocco' }));
     await user.type(screen.getByLabelText('Poznámka'), ' ');
     await user.click(screen.getByRole('button', { name: 'Uložit' }));
