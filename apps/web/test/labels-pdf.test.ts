@@ -32,7 +32,9 @@ function textPositions(content: string) {
   return [...content.matchAll(/1 0 0 1 ([\d.]+) ([\d.]+) Tm/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
 }
 
-async function build(options: Partial<Parameters<typeof buildLabelsPdf>[0]> = {}) {
+type SheetOptions = { items: LabelItem[]; columns: number; rows: number; startPosition: number };
+
+async function build(options: Partial<SheetOptions> = {}) {
   const bytes = await buildLabelsPdf({ items: items(4), columns: 3, rows: 8, startPosition: 1, fonts, ...options });
   const doc = await PDFDocument.load(bytes);
   return { bytes, doc, pages: doc.getPages() };
@@ -109,6 +111,45 @@ describe('buildLabelsPdf', () => {
   it('makes sheets of the extremes: 6 x 16 and 1 x 1', async () => {
     expect((await build({ items: items(97), columns: 6, rows: 16 })).pages).toHaveLength(2);
     expect((await build({ items: items(3), columns: 1, rows: 1 })).pages).toHaveLength(3);
+  });
+});
+
+describe('buildLabelsPdf for a label printer', () => {
+  const tape = { format: 'tape', width: 50, height: 24 } as const;
+  const buildTape = async (options: { items?: LabelItem[]; width?: number; height?: number } = {}) => {
+    const bytes = await buildLabelsPdf({ items: items(3), fonts, ...tape, ...options });
+    const doc = await PDFDocument.load(bytes);
+    return { doc, pages: doc.getPages() };
+  };
+
+  it('makes one page of the label size for every label', async () => {
+    const { pages } = await buildTape({ items: items(3) });
+    expect(pages).toHaveLength(3);
+    for (const page of pages) {
+      expect(page.getWidth()).toBeCloseTo(50 * MM, 1);
+      expect(page.getHeight()).toBeCloseTo(24 * MM, 1);
+    }
+  });
+
+  it('draws the label from the corner of its page: one QR path, the ID and the name', async () => {
+    const size = { width: 50, height: 24 };
+    const layout = labelLayout(size);
+    const { doc, pages } = await buildTape({ items: items(1) });
+    const content = contentOf(doc, pages[0]!);
+    expect(content.match(/\bf\*?\s/g)).toHaveLength(1);
+    const positions = textPositions(content);
+    expect(positions.length).toBeGreaterThanOrEqual(2);
+    expect(positions[0]!.x).toBeCloseTo(layout.text.x * MM, 1);
+    // Every line sits inside the page.
+    expect(positions.every((p) => p.y > 0 && p.y < 24 * MM)).toBe(true);
+  });
+
+  it('refuses a size outside 10 to 100 mm and an empty list', async () => {
+    await expect(buildTape({ width: 9 })).rejects.toThrow(RangeError);
+    await expect(buildTape({ height: 101 })).rejects.toThrow(RangeError);
+    await expect(buildTape({ width: Number.NaN })).rejects.toThrow(RangeError);
+    await expect(buildTape({ items: [] })).rejects.toThrow(RangeError);
+    expect((await buildTape({ width: 10, height: 100 })).pages).toHaveLength(3);
   });
 });
 

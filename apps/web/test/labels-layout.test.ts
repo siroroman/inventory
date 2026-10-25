@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
   cellOrigin,
+  DEFAULT_TAPE,
   emptyOnLastPage,
   isQrTooSmall,
+  isTapeQrTooSmall,
   isValidStartPosition,
+  isValidTapeSize,
   labelLayout,
   labelSize,
+  MAX_LABEL_MM,
+  MIN_LABEL_MM,
   pageCount,
   placement,
   qrSide,
+  qrSideOf,
   slotsPerPage,
 } from '../src/features/labels/layout.ts';
 
@@ -98,5 +104,26 @@ describe('label layout', () => {
     expect(isQrTooSmall({ columns: 5, rows: 14 })).toBe(true);
     expect(isQrTooSmall({ columns: 6, rows: 16 })).toBe(true);
     expect(isQrTooSmall({ columns: 1, rows: 1 })).toBe(false);
+  });
+});
+
+describe('label printer sizes', () => {
+  it('fits a QR code of 18 mm on the default 50 x 24 mm label of a 24 mm tape', () => {
+    expect(DEFAULT_TAPE).toEqual({ width: 50, height: 24 });
+    expect(qrSideOf(DEFAULT_TAPE)).toBe(18);
+    expect(isTapeQrTooSmall(DEFAULT_TAPE)).toBe(false);
+  });
+
+  it('warns when the tape is too narrow for a readable QR code', () => {
+    // A 12 mm tape leaves 6 mm for the code.
+    expect(isTapeQrTooSmall({ width: 40, height: 12 })).toBe(true);
+    expect(isTapeQrTooSmall({ width: 40, height: 21 })).toBe(false);
+  });
+
+  it('accepts sides from 10 to 100 mm only', () => {
+    expect(isValidTapeSize({ width: MIN_LABEL_MM, height: MAX_LABEL_MM })).toBe(true);
+    expect(isValidTapeSize({ width: 9.9, height: 24 })).toBe(false);
+    expect(isValidTapeSize({ width: 50, height: 100.1 })).toBe(false);
+    expect(isValidTapeSize({ width: Number.NaN, height: 24 })).toBe(false);
   });
 });
