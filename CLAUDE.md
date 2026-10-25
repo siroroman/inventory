@@ -222,6 +222,7 @@ Actions are pinned to commit SHAs and scanner images to versions; update them de
 ## Working agreement
 
 - Work in small steps, one module or screen at a time: schema, repository, service with tests, routes with tests, then the UI.
+- `/dev <request>` (`.claude/skills/dev/`) runs a feature or bug fix end to end: branch off `main`, plan on Opus, build on Sonnet, full check, `/review high --fix`, PR.
 - Before larger changes to the data model or architecture, propose the change first.
 - Do not add dependencies without a reason. Keep it simple; this is a small internal app.
 - Out of scope for v1 (but keep the design ready for it): QR inventory scanning, e-mail reminders for service and warranty, offline mode, import/export. Do not build these unless asked.
