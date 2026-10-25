@@ -1,5 +1,5 @@
 import { FileDown, LoaderCircle, Printer, Share2 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { coarsePointer, useMediaQuery } from '@/lib/use-media-query';
@@ -30,7 +30,10 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const tape = layout.format === 'tape';
   // On a phone the label printer's app takes the PDF from the share sheet; on a computer it is printed.
   const phone = useMediaQuery(coarsePointer);
-  const share = tape && phone && canSharePdf();
+  const canShare = useMemo(canSharePdf, []);
+  const share = tape && phone && canShare;
+  // The bytes survive a failed share, so the next tap (a fresh user gesture) can share at once.
+  const built = useRef<Uint8Array | null>(null);
   const grid = { columns: layout.columns, rows: layout.rows };
   const sheets = pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
@@ -38,12 +41,12 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
 
   // The PDF is made once: "Stáhnout" after "Vytisknout" (and the other way round) reuses the bytes.
   const build = async (): Promise<Uint8Array> => {
-    if (state.status === 'done') return state.bytes;
+    if (built.current) return built.current;
     // The PDF library, the QR library and the fonts are a chunk of their own.
     const [{ buildLabelsPdf }, { loadLabelFonts }] = await Promise.all([import('./build-pdf'), import('./fonts')]);
     const labels = items.map(({ code, name: itemName }) => ({ code, name: itemName }));
     const fonts = await loadLabelFonts();
-    return tape
+    const bytes = await (tape
       ? buildLabelsPdf({ items: labels, fonts, format: 'tape', width: layout.width, height: layout.height })
       : buildLabelsPdf({
           items: labels,
@@ -51,7 +54,9 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
           columns: layout.columns,
           rows: layout.rows,
           startPosition: layout.startPosition,
-        });
+        }));
+    built.current = bytes;
+    return bytes;
   };
 
   const make = async (action: Action) => {

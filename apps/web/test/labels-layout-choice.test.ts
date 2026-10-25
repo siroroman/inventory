@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultLayout, loadLayout, saveLayout } from '../src/features/labels/layout-choice.ts';
 
 beforeEach(() => {
@@ -43,5 +43,16 @@ describe('the remembered label layout', () => {
     expect(loadLayout()).toEqual(defaultLayout);
     localStorage.setItem('labels-layout', '"tape"');
     expect(loadLayout()).toEqual(defaultLayout);
+  });
+
+  it('falls back to the default when the browser blocks storage altogether', () => {
+    const blocked = () => {
+      throw new DOMException('blocked', 'SecurityError');
+    };
+    vi.spyOn(window, 'localStorage', 'get').mockImplementation(blocked);
+    vi.spyOn(window, 'sessionStorage', 'get').mockImplementation(blocked);
+    expect(loadLayout()).toEqual(defaultLayout);
+    expect(() => saveLayout(defaultLayout)).not.toThrow();
+    vi.restoreAllMocks();
   });
 });

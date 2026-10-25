@@ -45,9 +45,10 @@ export const clamp = (value: number, min: number, max: number) => Math.min(max, 
 const SETTINGS_KEY = 'labels-layout';
 const START_KEY = 'labels-start';
 
-const read = (storage: Storage, key: string): unknown => {
+// The storage comes as a getter: merely naming `localStorage` throws when site data is blocked.
+const read = (storage: () => Storage, key: string): unknown => {
   try {
-    return JSON.parse(storage.getItem(key) ?? 'null');
+    return JSON.parse(storage().getItem(key) ?? 'null');
   } catch {
     return null;
   }
@@ -55,7 +56,7 @@ const read = (storage: Storage, key: string): unknown => {
 
 /** What the device remembers of the layout; anything that does not look right is the default. */
 export function loadLayout(): LayoutChoice {
-  const stored = read(localStorage, SETTINGS_KEY) as Partial<LayoutChoice> | null;
+  const stored = read(() => localStorage, SETTINGS_KEY) as Partial<LayoutChoice> | null;
   if (!stored || typeof stored !== 'object') return defaultLayout;
 
   const columns = whole(stored.columns, MIN_COLUMNS, MAX_COLUMNS) ? stored.columns : defaultLayout.columns;
@@ -63,7 +64,7 @@ export function loadLayout(): LayoutChoice {
   const tape = { width: Number(stored.width), height: Number(stored.height) };
   const size = isValidTapeSize(tape) ? tape : DEFAULT_TAPE;
 
-  const start = read(sessionStorage, START_KEY);
+  const start = read(() => sessionStorage, START_KEY);
   const startPosition = typeof start === 'number' && isValidStartPosition({ columns, rows }, start) ? start : 1;
   return { format: stored.format === 'tape' ? 'tape' : 'sheet', columns, rows, startPosition, ...size };
 }
