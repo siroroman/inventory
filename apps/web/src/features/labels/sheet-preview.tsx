@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MM_PER_PT } from './fit-text';
-import { PREVIEW_FONT } from './fonts';
+import { LabelGraphic } from './label-graphic';
 import { planLabel } from './label-plan';
 import {
   cellOrigin,
@@ -11,11 +10,10 @@ import {
   PAGE_MARGIN_MM,
   PAGE_WIDTH_MM,
   placement,
-  QUIET_MODULES,
   slotsPerPage,
 } from './layout';
 import { previewMeasure } from './preview-measure';
-import { qrModules, qrPath } from './qr';
+import { qrModules } from './qr';
 import { cn } from '@/lib/utils';
 import type { LabelRow } from './selection';
 
@@ -108,31 +106,9 @@ export function SheetPreview({ items, grid, startPosition, page, fontsReady, cla
       })}
       {labels.map(({ row, at, plan, modules }) => {
         const origin = cellOrigin(grid, at.row, at.column);
-        const module = plan.qr.width / (modules.length + 2 * QUIET_MODULES);
         return (
           <g key={row.id} data-label={row.code} transform={`translate(${origin.x} ${origin.y})`}>
-            <rect width={size.width} height={size.height} fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="0.15" />
-            {plan.qr.width > 0 && (
-              <path
-                d={qrPath(modules, 1)}
-                fill="currentColor"
-                transform={`translate(${plan.qr.x + QUIET_MODULES * module} ${plan.qr.y + QUIET_MODULES * module}) scale(${module})`}
-              />
-            )}
-            {plan.lines.map((line, index) => (
-              <text
-                // biome-ignore lint/suspicious/noArrayIndexKey: lines are positional and never reordered
-                key={index}
-                x={line.x}
-                y={line.baseline}
-                fontSize={line.size * MM_PER_PT}
-                fontWeight={line.bold ? 700 : 400}
-                fontFamily={`${PREVIEW_FONT}, Roboto, sans-serif`}
-                fill="currentColor"
-              >
-                {line.text}
-              </text>
-            ))}
+            <LabelGraphic plan={plan} modules={modules} size={size} />
           </g>
         );
       })}

@@ -776,7 +776,15 @@
     },
     "layout": {
       "heading": "Rozložení",
-      "format": "A4 na výšku · 210 × 297 mm",
+      "formatLegend": "Formát",
+      "format_sheet": "A4 tiskárna",
+      "format_tape": "Štítkovač",
+      "formatInfo_sheet": "Archy samolepicích štítků na A4 na výšku · 210 × 297 mm.",
+      "formatInfo_tape": "Bluetooth štítkovač (např. Brother P-touch): každý štítek je jedna stránka PDF.",
+      "tapeWidth": "Šířka (mm)",
+      "tapeHeight": "Výška (mm)",
+      "tapeHint": "Výška je šířka pásky, šířka je délka štítku.",
+      "eachOnPage": "každý na vlastní stránce PDF",
       "columns": "Sloupce",
       "rows": "Řádky",
       "range": "{{min}} až {{max}}",
@@ -804,7 +812,12 @@
       "fullscreenHint": "Celý list tak, jak se vytiskne. Náhled zavřete tlačítkem Zavřít nebo klávesou Escape.",
       "previousSheet": "Předchozí list",
       "nextSheet": "Další list",
-      "sheetOf": "List {{page}} z {{total}}"
+      "sheetOf": "List {{page}} z {{total}}",
+      "tapePreviewLabel": "Náhled štítku {{number}}",
+      "fullscreenHintTape": "Štítek tak, jak se vytiskne. Náhled zavřete tlačítkem Zavřít nebo klávesou Escape.",
+      "previousLabel": "Předchozí štítek",
+      "nextLabel": "Další štítek",
+      "labelOf": "Štítek {{page}} z {{total}}"
     },
     "download": {
       "heading": "Stažení",
@@ -812,6 +825,8 @@
       "labels": "Štítky",
       "sheet": "Rozložení",
       "grid": "{{columns}} × {{rows}} · A4",
+      "tape": "Štítkovač · {{width}} × {{height}} mm",
+      "pages": "Stran PDF",
       "sheets": "Listy",
       "start": "Začátek",
       "startPosition": "od pozice {{position}}",
@@ -821,6 +836,7 @@
       "failed": "PDF se nepodařilo vytvořit.",
       "retry": "Zkusit znovu",
       "tip": "Tiskněte v měřítku 100 % (bez přizpůsobení stránce).",
+      "tipTape": "PDF otevřete v aplikaci štítkovače (např. Brother iPrint&Label) a vytiskněte v měřítku 100 %.",
       "restart": "Vytvořit nové štítky"
     }
   }

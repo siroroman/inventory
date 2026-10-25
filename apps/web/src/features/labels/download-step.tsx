@@ -26,6 +26,7 @@ type State =
 export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const { t } = useTranslation();
   const [state, setState] = useState<State>({ status: 'idle' });
+  const tape = layout.format === 'tape';
   const grid = { columns: layout.columns, rows: layout.rows };
   const sheets = pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
@@ -36,13 +37,17 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
     if (state.status === 'done') return state.bytes;
     // The PDF library, the QR library and the fonts are a chunk of their own.
     const [{ buildLabelsPdf }, { loadLabelFonts }] = await Promise.all([import('./build-pdf'), import('./fonts')]);
-    return buildLabelsPdf({
-      items: items.map(({ code, name: itemName }) => ({ code, name: itemName })),
-      columns: layout.columns,
-      rows: layout.rows,
-      startPosition: layout.startPosition,
-      fonts: await loadLabelFonts(),
-    });
+    const labels = items.map(({ code, name: itemName }) => ({ code, name: itemName }));
+    const fonts = await loadLabelFonts();
+    return tape
+      ? buildLabelsPdf({ items: labels, fonts, format: 'tape', width: layout.width, height: layout.height })
+      : buildLabelsPdf({
+          items: labels,
+          fonts,
+          columns: layout.columns,
+          rows: layout.rows,
+          startPosition: layout.startPosition,
+        });
   };
 
   const make = async (action: Action) => {
@@ -70,17 +75,28 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
         <dd className="font-medium break-words">{location.name}</dd>
         <dt className="text-muted-foreground">{t('labels.download.labels')}</dt>
         <dd className="font-medium">{t('labels.layout.labelCount', { count: items.length })}</dd>
-        <dt className="text-muted-foreground">{t('labels.download.sheet')}</dt>
-        <dd className="font-medium">{t('labels.download.grid', { columns: layout.columns, rows: layout.rows })}</dd>
-        <dt className="text-muted-foreground">{t('labels.download.sheets')}</dt>
-        <dd className="font-medium">
-          {t('labels.layout.sheetCount', { count: sheets })}
-          {empty > 0 && <span className="text-muted-foreground"> · {t('labels.layout.emptyOnLast', { count: empty })}</span>}
-        </dd>
-        {layout.startPosition > 1 && (
+        {tape ? (
           <>
-            <dt className="text-muted-foreground">{t('labels.download.start')}</dt>
-            <dd className="font-medium">{t('labels.download.startPosition', { position: layout.startPosition })}</dd>
+            <dt className="text-muted-foreground">{t('labels.download.sheet')}</dt>
+            <dd className="font-medium">{t('labels.download.tape', { width: layout.width, height: layout.height })}</dd>
+            <dt className="text-muted-foreground">{t('labels.download.pages')}</dt>
+            <dd className="font-medium">{items.length}</dd>
+          </>
+        ) : (
+          <>
+            <dt className="text-muted-foreground">{t('labels.download.sheet')}</dt>
+            <dd className="font-medium">{t('labels.download.grid', { columns: layout.columns, rows: layout.rows })}</dd>
+            <dt className="text-muted-foreground">{t('labels.download.sheets')}</dt>
+            <dd className="font-medium">
+              {t('labels.layout.sheetCount', { count: sheets })}
+              {empty > 0 && <span className="text-muted-foreground"> · {t('labels.layout.emptyOnLast', { count: empty })}</span>}
+            </dd>
+            {layout.startPosition > 1 && (
+              <>
+                <dt className="text-muted-foreground">{t('labels.download.start')}</dt>
+                <dd className="font-medium">{t('labels.download.startPosition', { position: layout.startPosition })}</dd>
+              </>
+            )}
           </>
         )}
       </dl>
@@ -108,7 +124,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
             </Button>
           </p>
         )}
-        <p className="text-sm text-muted-foreground">{t('labels.download.tip')}</p>
+        <p className="text-sm text-muted-foreground">{t(tape ? 'labels.download.tipTape' : 'labels.download.tip')}</p>
       </div>
 
       {state.status === 'done' && (

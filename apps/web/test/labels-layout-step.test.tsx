@@ -71,7 +71,9 @@ describe('labels wizard: step 3, the layout', () => {
     open(3);
 
     expect(await screen.findByRole('heading', { name: 'Rozložení' })).toBeInTheDocument();
-    expect(screen.getByText('A4 na výšku · 210 × 297 mm')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'A4 tiskárna' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Štítkovač' })).not.toBeChecked();
+    expect(screen.getByText(/A4 na výšku · 210 × 297 mm/)).toBeInTheDocument();
     expect(screen.getByLabelText('Sloupce')).toHaveValue('3');
     expect(screen.getByLabelText('Řádky')).toHaveValue('8');
     expect(screen.getByText('Štítek 66,7 × 35,9 mm')).toBeInTheDocument();
@@ -118,6 +120,75 @@ describe('labels wizard: step 3, the layout', () => {
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Ubrat: Řádky' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('switches to a label printer: size of one label, a preview of each label, no sheet or start place', async () => {
+    api();
+    remember();
+    open(3);
+    await screen.findByText('Štítek 66,7 × 35,9 mm');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
+    expect(screen.getByLabelText('Šířka (mm)')).toHaveValue('50');
+    expect(screen.getByLabelText('Výška (mm)')).toHaveValue('24');
+    expect(screen.getByText('Štítek 50 × 24 mm')).toBeInTheDocument();
+    expect(screen.getByText('Výška je šířka pásky, šířka je délka štítku.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sloupce')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Začít od pozice')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Okraj stránky/)).not.toBeInTheDocument();
+    expect(screen.getByText('3 štítky · každý na vlastní stránce PDF')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // One label at a time, in its real proportions, through all the labels.
+    const label = screen.getByRole('img', { name: 'Náhled štítku 1' });
+    expect(label).toHaveAttribute('viewBox', '0 0 50 24');
+    expect(label).toHaveTextContent('INV-00001');
+    expect(label.querySelector('path')).not.toBeNull();
+    expect(screen.getByText('Štítek 1 z 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Předchozí štítek' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Další štítek' }));
+    expect(screen.getByRole('img', { name: 'Náhled štítku 2' })).toHaveTextContent('Položka 2');
+    expect(screen.getByText('Štítek 2 z 3')).toBeInTheDocument();
+
+    expect(storedLayout()).toMatchObject({ format: 'tape', width: 50, height: 24 });
+  });
+
+  it('keeps the label size and the grid when the format is switched back and forth', async () => {
+    api();
+    remember();
+    open(3);
+    await screen.findByText('Štítek 66,7 × 35,9 mm');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Přidat: Sloupce' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
+    const width = screen.getByLabelText('Šířka (mm)');
+    await userEvent.clear(width);
+    await userEvent.type(width, '40{Enter}');
+    expect(screen.getByText('Štítek 40 × 24 mm')).toBeInTheDocument();
+
+    // Typing outside 10 to 100 mm is brought to the nearest allowed size.
+    const height = screen.getByLabelText('Výška (mm)');
+    await userEvent.clear(height);
+    await userEvent.type(height, '5');
+    await userEvent.tab();
+    expect(height).toHaveValue('10');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'A4 tiskárna' }));
+    expect(screen.getByLabelText('Sloupce')).toHaveValue('4');
+    await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
+    expect(screen.getByLabelText('Šířka (mm)')).toHaveValue('40');
+  });
+
+  it('warns, without blocking, when the label of a narrow tape would hold only a small QR code', async () => {
+    api();
+    remember({}, { format: 'tape', width: 40, height: 12 });
+    open(3);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Štítky jsou příliš malé, QR kód by se špatně četl.');
+    expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Přidat: Výška (mm)' }));
+    for (let i = 0; i < 8; i++) await userEvent.click(screen.getByRole('button', { name: 'Přidat: Výška (mm)' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -222,6 +293,28 @@ describe('labels wizard: step 4, the download', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
     expect(downloads).toHaveLength(2);
     expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('makes a PDF of one label per page for a label printer, and summarises it without a sheet', async () => {
+    const items = api();
+    remember({ excluded: [items[1]!.id] }, { format: 'tape', width: 40, height: 20, columns: 2, rows: 5 });
+    open(4);
+
+    expect(await screen.findByRole('heading', { name: 'Stažení' })).toBeInTheDocument();
+    expect(screen.getByText('Štítkovač · 40 × 20 mm')).toBeInTheDocument();
+    expect(screen.getByText('Stran PDF')).toBeInTheDocument();
+    expect(screen.queryByText('Listy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Začátek')).not.toBeInTheDocument();
+    expect(screen.getByText(/aplikaci štítkovače/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
+
+    const options = build.buildLabelsPdf.mock.calls[0]![0];
+    expect(options).toMatchObject({ format: 'tape', width: 40, height: 20 });
+    expect(options).not.toHaveProperty('columns');
+    expect(options.items).toHaveLength(2);
+    expect(downloads).toHaveLength(1);
   });
 
   it('shows the work in progress, and an error with a retry', async () => {
