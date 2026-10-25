@@ -40,13 +40,21 @@ const remember = (selection: Record<string, unknown> = {}, layout?: Record<strin
     'labels-wizard',
     JSON.stringify({ location: LOCATION, excluded: [], added: [], ...selection }),
   );
-  if (layout) sessionStorage.setItem('labels-layout', JSON.stringify(layout));
+  if (layout) {
+    // The device keeps the format and the grid; the place on the sheet lasts for the tab.
+    const { startPosition, ...settings } = layout;
+    localStorage.setItem('labels-layout', JSON.stringify(settings));
+    if (startPosition !== undefined) sessionStorage.setItem('labels-start', JSON.stringify(startPosition));
+  }
 };
+const storedLayout = () => JSON.parse(localStorage.getItem('labels-layout')!);
+const storedStart = () => JSON.parse(sessionStorage.getItem('labels-start')!);
 const open = (step: number) => renderApp(`/?tab=labels&step=${step}&locationId=${LOCATION.id}`);
 
 const downloads: { name: string; href: string }[] = [];
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   build.buildLabelsPdf.mockReset().mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
   downloads.length = 0;
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:labels', revokeObjectURL: () => {} }));
@@ -92,7 +100,7 @@ describe('labels wizard: step 3, the layout', () => {
     await userEvent.type(rows, '10{Enter}');
     expect(rows).toHaveValue('10');
     expect(screen.getByText('Štítek 50,0 × 28,7 mm')).toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('labels-layout')!)).toMatchObject({ columns: 4, rows: 10 });
+    expect(storedLayout()).toMatchObject({ columns: 4, rows: 10 });
 
     // A number out of range is brought to the nearest allowed one.
     await userEvent.clear(rows);
@@ -131,7 +139,7 @@ describe('labels wizard: step 3, the layout', () => {
     const sheet = screen.getByRole('img', { name: 'Náhled listu 1' });
     expect(sheet.querySelectorAll('[data-used]')).toHaveLength(4);
     expect(screen.getByText(/na posledním listu zůstane 17 míst prázdných/)).toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('labels-layout')!).startPosition).toBe(5);
+    expect(storedStart()).toBe(5);
 
     await userEvent.click(screen.getByRole('button', { name: 'Přidat: Řádky' }));
     expect(screen.getByLabelText('Začít od pozice')).toHaveValue('1');
@@ -290,7 +298,8 @@ describe('labels wizard: step 4, the download', () => {
     expect(await screen.findByRole('heading', { name: 'Vyberte lokalitu' })).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'labels' }));
     expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).location).toBeNull();
-    expect(JSON.parse(sessionStorage.getItem('labels-layout')!)).toEqual({ columns: 4, rows: 6, startPosition: 1 });
+    expect(storedLayout()).toMatchObject({ columns: 4, rows: 6 });
+    expect(storedStart()).toBe(1);
   });
 
   it('goes back to the layout with Zpět, losing nothing', async () => {
