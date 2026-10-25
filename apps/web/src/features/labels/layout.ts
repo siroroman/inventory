@@ -93,9 +93,23 @@ export function labelLayout({ width, height }: Size): { stacked: boolean; qr: Bo
   };
 }
 
-/** The side of the QR code of a label of this grid, for the "too small" warning. */
-export function qrSide(grid: Grid): number {
-  return labelLayout(labelSize(grid)).qr.width;
-}
+/** The side of the QR code of a label of this size, for the "too small" warning. */
+export const qrSideOf = (size: Size): number => labelLayout(size).qr.width;
+
+/** The side of the QR code of a label of this grid. */
+export const qrSide = (grid: Grid): number => qrSideOf(labelSize(grid));
 
 export const isQrTooSmall = (grid: Grid) => qrSide(grid) < MIN_QR_SIDE_MM;
+
+/** The same warning for a label printer, whose label has the size the user typed. */
+export const isTapeQrTooSmall = (size: Size) => qrSideOf(size) < MIN_QR_SIDE_MM;
+
+// A label printer (SPEC §9.4.12): the PDF has one page per label, the page being the label itself.
+/** Either side may be typed in whole millimetres within this range. */
+export const MIN_LABEL_MM = 10;
+export const MAX_LABEL_MM = 100;
+/** A 24 mm tape, 50 mm long. */
+export const DEFAULT_TAPE: Size = { width: 50, height: 24 };
+
+export const isValidTapeSize = ({ width, height }: Size): boolean =>
+  [width, height].every((side) => Number.isFinite(side) && side >= MIN_LABEL_MM && side <= MAX_LABEL_MM);

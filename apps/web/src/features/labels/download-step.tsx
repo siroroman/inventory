@@ -1,8 +1,9 @@
-import { FileDown, LoaderCircle, Printer } from 'lucide-react';
-import { useState } from 'react';
+import { FileDown, LoaderCircle, Printer, Share2 } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { pdfFileName, printPdf, savePdf } from './download';
+import { coarsePointer, useMediaQuery } from '@/lib/use-media-query';
+import { canSharePdf, pdfFileName, printPdf, savePdf, sharePdf } from './download';
 import type { LayoutChoice } from './layout-choice';
 import { emptyOnLastPage, pageCount } from './layout';
 import type { ChosenLocation, LabelRow } from './selection';
@@ -15,7 +16,7 @@ type Props = {
   onRestart: () => void;
 };
 
-type Action = 'save' | 'print';
+type Action = 'save' | 'print' | 'share';
 type State =
   | { status: 'idle' }
   | { status: 'working' }
@@ -26,6 +27,13 @@ type State =
 export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const { t } = useTranslation();
   const [state, setState] = useState<State>({ status: 'idle' });
+  const tape = layout.format === 'tape';
+  // On a phone the label printer's app takes the PDF from the share sheet; on a computer it is printed.
+  const phone = useMediaQuery(coarsePointer);
+  const canShare = useMemo(canSharePdf, []);
+  const share = tape && phone && canShare;
+  // The bytes survive a failed share, so the next tap (a fresh user gesture) can share at once.
+  const built = useRef<Uint8Array | null>(null);
   const grid = { columns: layout.columns, rows: layout.rows };
   const sheets = pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
@@ -33,16 +41,22 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
 
   // The PDF is made once: "Stáhnout" after "Vytisknout" (and the other way round) reuses the bytes.
   const build = async (): Promise<Uint8Array> => {
-    if (state.status === 'done') return state.bytes;
+    if (built.current) return built.current;
     // The PDF library, the QR library and the fonts are a chunk of their own.
     const [{ buildLabelsPdf }, { loadLabelFonts }] = await Promise.all([import('./build-pdf'), import('./fonts')]);
-    return buildLabelsPdf({
-      items: items.map(({ code, name: itemName }) => ({ code, name: itemName })),
-      columns: layout.columns,
-      rows: layout.rows,
-      startPosition: layout.startPosition,
-      fonts: await loadLabelFonts(),
-    });
+    const labels = items.map(({ code, name: itemName }) => ({ code, name: itemName }));
+    const fonts = await loadLabelFonts();
+    const bytes = await (tape
+      ? buildLabelsPdf({ items: labels, fonts, format: 'tape', width: layout.width, height: layout.height })
+      : buildLabelsPdf({
+          items: labels,
+          fonts,
+          columns: layout.columns,
+          rows: layout.rows,
+          startPosition: layout.startPosition,
+        }));
+    built.current = bytes;
+    return bytes;
   };
 
   const make = async (action: Action) => {
@@ -51,6 +65,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
     try {
       const bytes = await build();
       if (action === 'print') printPdf(bytes);
+      else if (action === 'share') await sharePdf(bytes, name);
       else savePdf(bytes, name);
       setState({ status: 'done', bytes });
     } catch {
@@ -70,17 +85,28 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
         <dd className="font-medium break-words">{location.name}</dd>
         <dt className="text-muted-foreground">{t('labels.download.labels')}</dt>
         <dd className="font-medium">{t('labels.layout.labelCount', { count: items.length })}</dd>
-        <dt className="text-muted-foreground">{t('labels.download.sheet')}</dt>
-        <dd className="font-medium">{t('labels.download.grid', { columns: layout.columns, rows: layout.rows })}</dd>
-        <dt className="text-muted-foreground">{t('labels.download.sheets')}</dt>
-        <dd className="font-medium">
-          {t('labels.layout.sheetCount', { count: sheets })}
-          {empty > 0 && <span className="text-muted-foreground"> · {t('labels.layout.emptyOnLast', { count: empty })}</span>}
-        </dd>
-        {layout.startPosition > 1 && (
+        {tape ? (
           <>
-            <dt className="text-muted-foreground">{t('labels.download.start')}</dt>
-            <dd className="font-medium">{t('labels.download.startPosition', { position: layout.startPosition })}</dd>
+            <dt className="text-muted-foreground">{t('labels.download.sheet')}</dt>
+            <dd className="font-medium">{t('labels.download.tape', { width: layout.width, height: layout.height })}</dd>
+            <dt className="text-muted-foreground">{t('labels.download.pages')}</dt>
+            <dd className="font-medium">{items.length}</dd>
+          </>
+        ) : (
+          <>
+            <dt className="text-muted-foreground">{t('labels.download.sheet')}</dt>
+            <dd className="font-medium">{t('labels.download.grid', { columns: layout.columns, rows: layout.rows })}</dd>
+            <dt className="text-muted-foreground">{t('labels.download.sheets')}</dt>
+            <dd className="font-medium">
+              {t('labels.layout.sheetCount', { count: sheets })}
+              {empty > 0 && <span className="text-muted-foreground"> · {t('labels.layout.emptyOnLast', { count: empty })}</span>}
+            </dd>
+            {layout.startPosition > 1 && (
+              <>
+                <dt className="text-muted-foreground">{t('labels.download.start')}</dt>
+                <dd className="font-medium">{t('labels.download.startPosition', { position: layout.startPosition })}</dd>
+              </>
+            )}
           </>
         )}
       </dl>
@@ -92,10 +118,17 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
             {working ? <LoaderCircle aria-hidden className="animate-spin" /> : <FileDown aria-hidden />}
             {t('labels.download.button')}
           </Button>
-          <Button variant="outline" disabled={working} onClick={() => void make('print')} className="flex-1">
-            <Printer aria-hidden />
-            {t('labels.download.print')}
-          </Button>
+          {share ? (
+            <Button variant="outline" disabled={working} onClick={() => void make('share')} className="flex-1">
+              <Share2 aria-hidden />
+              {t('labels.download.share')}
+            </Button>
+          ) : (
+            <Button variant="outline" disabled={working} onClick={() => void make('print')} className="flex-1">
+              <Printer aria-hidden />
+              {t('labels.download.print')}
+            </Button>
+          )}
         </div>
         <div role="status" className="text-sm">
           {working && <p>{t('labels.download.working')}</p>}
@@ -108,7 +141,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
             </Button>
           </p>
         )}
-        <p className="text-sm text-muted-foreground">{t('labels.download.tip')}</p>
+        <p className="text-sm text-muted-foreground">{t(tape ? 'labels.download.tipTape' : 'labels.download.tip')}</p>
       </div>
 
       {state.status === 'done' && (

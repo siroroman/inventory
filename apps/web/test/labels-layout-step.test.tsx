@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubTouchScreen } from './helpers.tsx';
 
 const build = vi.hoisted(() => ({ buildLabelsPdf: vi.fn() }));
 vi.mock('../src/features/labels/build-pdf.ts', () => build);
@@ -40,13 +40,21 @@ const remember = (selection: Record<string, unknown> = {}, layout?: Record<strin
     'labels-wizard',
     JSON.stringify({ location: LOCATION, excluded: [], added: [], ...selection }),
   );
-  if (layout) sessionStorage.setItem('labels-layout', JSON.stringify(layout));
+  if (layout) {
+    // The device keeps the format and the grid; the place on the sheet lasts for the tab.
+    const { startPosition, ...settings } = layout;
+    localStorage.setItem('labels-layout', JSON.stringify(settings));
+    if (startPosition !== undefined) sessionStorage.setItem('labels-start', JSON.stringify(startPosition));
+  }
 };
+const storedLayout = () => JSON.parse(localStorage.getItem('labels-layout')!);
+const storedStart = () => JSON.parse(sessionStorage.getItem('labels-start')!);
 const open = (step: number) => renderApp(`/?tab=labels&step=${step}&locationId=${LOCATION.id}`);
 
 const downloads: { name: string; href: string }[] = [];
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   build.buildLabelsPdf.mockReset().mockResolvedValue(new Uint8Array([37, 80, 68, 70]));
   downloads.length = 0;
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:labels', revokeObjectURL: () => {} }));
@@ -63,7 +71,9 @@ describe('labels wizard: step 3, the layout', () => {
     open(3);
 
     expect(await screen.findByRole('heading', { name: 'Rozložení' })).toBeInTheDocument();
-    expect(screen.getByText('A4 na výšku · 210 × 297 mm')).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'A4 tiskárna' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Štítkovač' })).not.toBeChecked();
+    expect(screen.getByText(/A4 na výšku · 210 × 297 mm/)).toBeInTheDocument();
     expect(screen.getByLabelText('Sloupce')).toHaveValue('3');
     expect(screen.getByLabelText('Řádky')).toHaveValue('8');
     expect(screen.getByText('Štítek 66,7 × 35,9 mm')).toBeInTheDocument();
@@ -92,7 +102,7 @@ describe('labels wizard: step 3, the layout', () => {
     await userEvent.type(rows, '10{Enter}');
     expect(rows).toHaveValue('10');
     expect(screen.getByText('Štítek 50,0 × 28,7 mm')).toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('labels-layout')!)).toMatchObject({ columns: 4, rows: 10 });
+    expect(storedLayout()).toMatchObject({ columns: 4, rows: 10 });
 
     // A number out of range is brought to the nearest allowed one.
     await userEvent.clear(rows);
@@ -110,6 +120,75 @@ describe('labels wizard: step 3, the layout', () => {
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'Ubrat: Řádky' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('switches to a label printer: size of one label, a preview of each label, no sheet or start place', async () => {
+    api();
+    remember();
+    open(3);
+    await screen.findByText('Štítek 66,7 × 35,9 mm');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
+    expect(screen.getByLabelText('Šířka (mm)')).toHaveValue('50');
+    expect(screen.getByLabelText('Výška (mm)')).toHaveValue('24');
+    expect(screen.getByText('Štítek 50 × 24 mm')).toBeInTheDocument();
+    expect(screen.getByText('Výška je šířka pásky, šířka je délka štítku.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sloupce')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Začít od pozice')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Okraj stránky/)).not.toBeInTheDocument();
+    expect(screen.getByText('3 štítky · každý na vlastní stránce PDF')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    // One label at a time, in its real proportions, through all the labels.
+    const label = screen.getByRole('img', { name: 'Náhled štítku 1' });
+    expect(label).toHaveAttribute('viewBox', '0 0 50 24');
+    expect(label).toHaveTextContent('INV-00001');
+    expect(label.querySelector('path')).not.toBeNull();
+    expect(screen.getByText('Štítek 1 z 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Předchozí štítek' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Další štítek' }));
+    expect(screen.getByRole('img', { name: 'Náhled štítku 2' })).toHaveTextContent('Položka 2');
+    expect(screen.getByText('Štítek 2 z 3')).toBeInTheDocument();
+
+    expect(storedLayout()).toMatchObject({ format: 'tape', width: 50, height: 24 });
+  });
+
+  it('keeps the label size and the grid when the format is switched back and forth', async () => {
+    api();
+    remember();
+    open(3);
+    await screen.findByText('Štítek 66,7 × 35,9 mm');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Přidat: Sloupce' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
+    const width = screen.getByLabelText('Šířka (mm)');
+    await userEvent.clear(width);
+    await userEvent.type(width, '40{Enter}');
+    expect(screen.getByText('Štítek 40 × 24 mm')).toBeInTheDocument();
+
+    // Typing outside 10 to 100 mm is brought to the nearest allowed size.
+    const height = screen.getByLabelText('Výška (mm)');
+    await userEvent.clear(height);
+    await userEvent.type(height, '5');
+    await userEvent.tab();
+    expect(height).toHaveValue('10');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'A4 tiskárna' }));
+    expect(screen.getByLabelText('Sloupce')).toHaveValue('4');
+    await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
+    expect(screen.getByLabelText('Šířka (mm)')).toHaveValue('40');
+  });
+
+  it('warns, without blocking, when the label of a narrow tape would hold only a small QR code', async () => {
+    api();
+    remember({}, { format: 'tape', width: 40, height: 12 });
+    open(3);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Štítky jsou příliš malé, QR kód by se špatně četl.');
+    expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Přidat: Výška (mm)' }));
+    for (let i = 0; i < 8; i++) await userEvent.click(screen.getByRole('button', { name: 'Přidat: Výška (mm)' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
@@ -131,7 +210,7 @@ describe('labels wizard: step 3, the layout', () => {
     const sheet = screen.getByRole('img', { name: 'Náhled listu 1' });
     expect(sheet.querySelectorAll('[data-used]')).toHaveLength(4);
     expect(screen.getByText(/na posledním listu zůstane 17 míst prázdných/)).toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('labels-layout')!).startPosition).toBe(5);
+    expect(storedStart()).toBe(5);
 
     await userEvent.click(screen.getByRole('button', { name: 'Přidat: Řádky' }));
     expect(screen.getByLabelText('Začít od pozice')).toHaveValue('1');
@@ -216,6 +295,28 @@ describe('labels wizard: step 4, the download', () => {
     expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
   });
 
+  it('makes a PDF of one label per page for a label printer, and summarises it without a sheet', async () => {
+    const items = api();
+    remember({ excluded: [items[1]!.id] }, { format: 'tape', width: 40, height: 20, columns: 2, rows: 5 });
+    open(4);
+
+    expect(await screen.findByRole('heading', { name: 'Stažení' })).toBeInTheDocument();
+    expect(screen.getByText('Štítkovač · 40 × 20 mm')).toBeInTheDocument();
+    expect(screen.getByText('Stran PDF')).toBeInTheDocument();
+    expect(screen.queryByText('Listy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Začátek')).not.toBeInTheDocument();
+    expect(screen.getByText(/aplikaci štítkovače/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
+
+    const options = build.buildLabelsPdf.mock.calls[0]![0];
+    expect(options).toMatchObject({ format: 'tape', width: 40, height: 20 });
+    expect(options).not.toHaveProperty('columns');
+    expect(options.items).toHaveLength(2);
+    expect(downloads).toHaveLength(1);
+  });
+
   it('shows the work in progress, and an error with a retry', async () => {
     api();
     remember();
@@ -290,7 +391,8 @@ describe('labels wizard: step 4, the download', () => {
     expect(await screen.findByRole('heading', { name: 'Vyberte lokalitu' })).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'labels' }));
     expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).location).toBeNull();
-    expect(JSON.parse(sessionStorage.getItem('labels-layout')!)).toEqual({ columns: 4, rows: 6, startPosition: 1 });
+    expect(storedLayout()).toMatchObject({ columns: 4, rows: 6 });
+    expect(storedStart()).toBe(1);
   });
 
   it('goes back to the layout with Zpět, losing nothing', async () => {
@@ -302,6 +404,97 @@ describe('labels wizard: step 4, the download', () => {
     await waitFor(() => expect(router.state.location.search.step).toBe(3));
     expect(await screen.findByLabelText('Sloupce')).toHaveValue('4');
     expect(screen.getByLabelText('Začít od pozice')).toHaveValue('7');
+  });
+});
+
+describe('labels wizard: step 4, sharing the PDF with a label printer app', () => {
+  const TAPE = { format: 'tape', width: 50, height: 24 };
+
+  /** A phone's system share sheet: `navigator.share` and `canShare` exist only there. */
+  function stubShareSheet(share = vi.fn().mockResolvedValue(undefined)) {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    return share;
+  }
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'canShare');
+  });
+
+  it('offers Sdílet instead of Vytisknout on a phone, and hands the PDF over as a file', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    const share = stubShareSheet();
+    open(4);
+
+    expect(await screen.findByRole('button', { name: 'Stáhnout PDF' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Vytisknout' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Sdílet' }));
+
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
+    expect(share).toHaveBeenCalledTimes(1);
+    const file: File = share.mock.calls[0]![0].files[0];
+    expect(file.name).toMatch(/^stitky-Přízemí-\d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(file.type).toBe('application/pdf');
+    expect(downloads).toHaveLength(0);
+
+    // The PDF is not made twice for a share and a download.
+    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
+    expect(downloads).toHaveLength(1);
+    expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not an error to close the share sheet without choosing an app', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    stubShareSheet(vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError')));
+    open(4);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sdílet' }));
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the error with a retry when sharing fails for another reason', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    stubShareSheet(vi.fn().mockRejectedValue(new DOMException('no', 'NotAllowedError')));
+    open(4);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sdílet' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('PDF se nepodařilo vytvořit.');
+    expect(screen.getByRole('button', { name: 'Zkusit znovu' })).toBeInTheDocument();
+  });
+
+  it('keeps Vytisknout on a computer, for a label printer too', async () => {
+    api();
+    remember({}, TAPE);
+    stubShareSheet();
+    open(4);
+    expect(await screen.findByRole('button', { name: 'Vytisknout' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sdílet' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Vytisknout for A4 sheets on a phone', async () => {
+    api();
+    remember();
+    stubTouchScreen();
+    stubShareSheet();
+    open(4);
+    expect(await screen.findByRole('button', { name: 'Vytisknout' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sdílet' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Vytisknout on a phone that cannot share files', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    open(4);
+    expect(await screen.findByRole('button', { name: 'Vytisknout' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sdílet' })).not.toBeInTheDocument();
   });
 });
 

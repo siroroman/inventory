@@ -4,14 +4,17 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { loadPreviewFonts } from './fonts';
-import type { LayoutChoice } from './layout-choice';
+import type { LabelFormat, LayoutChoice } from './layout-choice';
 import {
   emptyOnLastPage,
   isQrTooSmall,
+  isTapeQrTooSmall,
   labelSize,
   MAX_COLUMNS,
+  MAX_LABEL_MM,
   MAX_ROWS,
   MIN_COLUMNS,
+  MIN_LABEL_MM,
   MIN_ROWS,
   PAGE_MARGIN_MM,
   pageCount,
@@ -20,6 +23,8 @@ import {
 import { SheetPreview } from './sheet-preview';
 import type { LabelRow } from './selection';
 import { Stepper } from './stepper';
+import { TapePreview } from './tape-preview';
+import { cn } from '@/lib/utils';
 
 type Props = {
   items: LabelRow[];
@@ -29,13 +34,22 @@ type Props = {
 
 const oneDecimal = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-/** Step 3: the grid of the sheet, the place to start from on a partly used one, and the sheet as it will print. */
+const FORMATS: LabelFormat[] = ['sheet', 'tape'];
+
+/**
+ * Step 3: A4 sheets of stickers (the grid, the place to start from on a partly used one, the sheet as
+ * it will print) or a label printer (the size of one label, each label a page of its own).
+ */
 export function LayoutStep({ items, layout, onChange }: Props) {
   const { t } = useTranslation();
+  const tape = layout.format === 'tape';
   const grid = { columns: layout.columns, rows: layout.rows };
   const size = labelSize(grid);
-  const sheets = pageCount(grid, layout.startPosition, items.length);
+  const tapeSize = { width: layout.width, height: layout.height };
+  // What the preview pages through: the sheets of an A4 printer, the labels of a label printer.
+  const sheets = tape ? items.length : pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
+  const tooSmall = tape ? isTapeQrTooSmall(tapeSize) : isQrTooSmall(grid);
   const [page, setPage] = useState(0);
   const shownPage = Math.min(page, Math.max(0, sheets - 1));
   // The sheet at the size of the screen, to check the text on the labels.
@@ -59,17 +73,19 @@ export function LayoutStep({ items, layout, onChange }: Props) {
       <Button
         variant="outline"
         size="icon"
-        aria-label={t('labels.layout.previousSheet')}
+        aria-label={t(tape ? 'labels.layout.previousLabel' : 'labels.layout.previousSheet')}
         disabled={shownPage === 0}
         onClick={() => setPage(shownPage - 1)}
       >
         <ChevronLeft aria-hidden />
       </Button>
-      <p className="text-sm">{t('labels.layout.sheetOf', { page: shownPage + 1, total: sheets })}</p>
+      <p className="text-sm">
+        {t(tape ? 'labels.layout.labelOf' : 'labels.layout.sheetOf', { page: shownPage + 1, total: sheets })}
+      </p>
       <Button
         variant="outline"
         size="icon"
-        aria-label={t('labels.layout.nextSheet')}
+        aria-label={t(tape ? 'labels.layout.nextLabel' : 'labels.layout.nextSheet')}
         disabled={shownPage >= sheets - 1}
         onClick={() => setPage(shownPage + 1)}
       >
@@ -86,43 +102,100 @@ export function LayoutStep({ items, layout, onChange }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <div className="flex flex-col gap-5">
-          <p className="w-fit rounded-full border bg-muted px-3 py-1 text-sm font-medium">{t('labels.layout.format')}</p>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-sm font-medium">{t('labels.layout.formatLegend')}</legend>
+            <div className="flex flex-wrap gap-3">
+              {FORMATS.map((format) => (
+                <label key={format} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="labels-format"
+                    className="peer sr-only"
+                    checked={layout.format === format}
+                    onChange={() => {
+                      setPage(0);
+                      onChange({ ...layout, format });
+                    }}
+                  />
+                  <span
+                    className={cn(
+                      'flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium',
+                      'peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground',
+                      'peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50',
+                    )}
+                  >
+                    {t(`labels.layout.format_${format}`)}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">{t(`labels.layout.formatInfo_${layout.format}`)}</p>
+          </fieldset>
 
-          <div className="flex flex-wrap gap-6">
-            <Stepper
-              label={t('labels.layout.columns')}
-              value={layout.columns}
-              min={MIN_COLUMNS}
-              max={MAX_COLUMNS}
-              onChange={(columns) => setGrid({ columns })}
-            />
-            <Stepper
-              label={t('labels.layout.rows')}
-              value={layout.rows}
-              min={MIN_ROWS}
-              max={MAX_ROWS}
-              onChange={(rows) => setGrid({ rows })}
-            />
-            <Stepper
-              label={t('labels.layout.startPosition')}
-              value={layout.startPosition}
-              min={1}
-              max={slotsPerPage(grid)}
-              onChange={(startPosition) => onChange({ ...layout, startPosition })}
-            />
-          </div>
+          {tape ? (
+            <>
+              <div className="flex flex-wrap gap-6">
+                <Stepper
+                  label={t('labels.layout.tapeWidth')}
+                  value={layout.width}
+                  min={MIN_LABEL_MM}
+                  max={MAX_LABEL_MM}
+                  onChange={(width) => onChange({ ...layout, width })}
+                />
+                <Stepper
+                  label={t('labels.layout.tapeHeight')}
+                  value={layout.height}
+                  min={MIN_LABEL_MM}
+                  max={MAX_LABEL_MM}
+                  onChange={(height) => onChange({ ...layout, height })}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <p className="font-medium">
+                  {t('labels.layout.labelSize', { width: layout.width, height: layout.height })}
+                </p>
+                <p className="text-sm text-muted-foreground">{t('labels.layout.tapeHint')}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-6">
+                <Stepper
+                  label={t('labels.layout.columns')}
+                  value={layout.columns}
+                  min={MIN_COLUMNS}
+                  max={MAX_COLUMNS}
+                  onChange={(columns) => setGrid({ columns })}
+                />
+                <Stepper
+                  label={t('labels.layout.rows')}
+                  value={layout.rows}
+                  min={MIN_ROWS}
+                  max={MAX_ROWS}
+                  onChange={(rows) => setGrid({ rows })}
+                />
+                <Stepper
+                  label={t('labels.layout.startPosition')}
+                  value={layout.startPosition}
+                  min={1}
+                  max={slotsPerPage(grid)}
+                  onChange={(startPosition) => onChange({ ...layout, startPosition })}
+                />
+              </div>
 
-          <div className="flex flex-col gap-1">
-            <p className="font-medium">
-              {t('labels.layout.labelSize', {
-                width: oneDecimal.format(size.width),
-                height: oneDecimal.format(size.height),
-              })}
-            </p>
-            <p className="text-sm text-muted-foreground">{t('labels.layout.margin', { mm: PAGE_MARGIN_MM })}</p>
-          </div>
+              <div className="flex flex-col gap-1">
+                <p className="font-medium">
+                  {t('labels.layout.labelSize', {
+                    width: oneDecimal.format(size.width),
+                    height: oneDecimal.format(size.height),
+                  })}
+                </p>
+                <p className="text-sm text-muted-foreground">{t('labels.layout.margin', { mm: PAGE_MARGIN_MM })}</p>
+              </div>
+            </>
+          )}
 
-          {isQrTooSmall(grid) && (
+          {tooSmall && (
             <p role="alert" className="flex items-start gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm text-warning">
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
               {t('labels.layout.tooSmall')}
@@ -130,20 +203,25 @@ export function LayoutStep({ items, layout, onChange }: Props) {
           )}
 
           <p role="status" className="font-medium">
-            {t('labels.layout.labelCount', { count: items.length })} · {t('labels.layout.sheetCount', { count: sheets })}
-            {empty > 0 && <> · {t('labels.layout.emptyOnLast', { count: empty })}</>}
+            {t('labels.layout.labelCount', { count: items.length })} ·{' '}
+            {tape ? t('labels.layout.eachOnPage') : t('labels.layout.sheetCount', { count: sheets })}
+            {!tape && empty > 0 && <> · {t('labels.layout.emptyOnLast', { count: empty })}</>}
           </p>
         </div>
 
         <div className="flex flex-col gap-2">
           <div className="relative">
-            <SheetPreview
-              items={items}
-              grid={grid}
-              startPosition={layout.startPosition}
-              page={shownPage}
-              fontsReady={fontsReady}
-            />
+            {tape ? (
+              <TapePreview item={items[shownPage]!} size={tapeSize} number={shownPage + 1} fontsReady={fontsReady} />
+            ) : (
+              <SheetPreview
+                items={items}
+                grid={grid}
+                startPosition={layout.startPosition}
+                page={shownPage}
+                fontsReady={fontsReady}
+              />
+            )}
             <button
               type="button"
               onClick={() => setEnlarged(true)}
@@ -162,16 +240,28 @@ export function LayoutStep({ items, layout, onChange }: Props) {
       <Dialog open={enlarged} onOpenChange={setEnlarged}>
         <DialogContent className="h-dvh max-h-dvh w-screen max-w-none gap-3 rounded-none border-0 p-4 sm:p-6">
           <DialogTitle>{t('labels.layout.fullscreenTitle')}</DialogTitle>
-          <DialogDescription className="sr-only">{t('labels.layout.fullscreenHint')}</DialogDescription>
+          <DialogDescription className="sr-only">
+            {t(tape ? 'labels.layout.fullscreenHintTape' : 'labels.layout.fullscreenHint')}
+          </DialogDescription>
           <div className="flex min-h-0 flex-1 items-center justify-center">
-            <SheetPreview
-              items={items}
-              grid={grid}
-              startPosition={layout.startPosition}
-              page={shownPage}
-              fontsReady={fontsReady}
-              className="aspect-[210/297] h-full w-auto max-w-full"
-            />
+            {tape ? (
+              <TapePreview
+                item={items[shownPage]!}
+                size={tapeSize}
+                number={shownPage + 1}
+                fontsReady={fontsReady}
+                className="max-h-full max-w-3xl"
+              />
+            ) : (
+              <SheetPreview
+                items={items}
+                grid={grid}
+                startPosition={layout.startPosition}
+                page={shownPage}
+                fontsReady={fontsReady}
+                className="aspect-[210/297] h-full w-auto max-w-full"
+              />
+            )}
           </div>
           {pager}
         </DialogContent>

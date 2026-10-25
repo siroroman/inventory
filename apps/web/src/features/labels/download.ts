@@ -55,6 +55,31 @@ export function savePdf(bytes: Uint8Array, name: string): void {
   setTimeout(() => URL.revokeObjectURL(url), KEEP_MS);
 }
 
+/** Whether the browser can hand a PDF file to another app through the system share sheet. */
+export function canSharePdf(): boolean {
+  try {
+    const probe = new File([], 'stitky.pdf', { type: 'application/pdf' });
+    return typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Opens the system share sheet with the PDF, so a label printer's app (Brother iPrint&Label) can take
+ * it. Closing the sheet without choosing an app is not a failure: that answers `false`.
+ */
+export async function sharePdf(bytes: Uint8Array, name: string): Promise<boolean> {
+  const file = new File([bytes as BlobPart], name, { type: 'application/pdf' });
+  try {
+    await navigator.share({ files: [file] });
+    return true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return false;
+    throw error;
+  }
+}
+
 /**
  * Opens the browser's print dialog for the PDF: it is loaded into a hidden frame and that frame is
  * printed, so nothing leaves the page. iOS cannot print a frame, so there the PDF opens in a new
