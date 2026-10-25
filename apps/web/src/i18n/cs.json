@@ -832,6 +832,7 @@
       "startPosition": "od pozice {{position}}",
       "button": "Stáhnout PDF",
       "print": "Vytisknout",
+      "share": "Sdílet",
       "working": "Připravuje se PDF…",
       "failed": "PDF se nepodařilo vytvořit.",
       "retry": "Zkusit znovu",

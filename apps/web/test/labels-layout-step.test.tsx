@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { jsonResponse, me, renderApp, stubApi } from './helpers.tsx';
+import { jsonResponse, me, renderApp, stubApi, stubTouchScreen } from './helpers.tsx';
 
 const build = vi.hoisted(() => ({ buildLabelsPdf: vi.fn() }));
 vi.mock('../src/features/labels/build-pdf.ts', () => build);
@@ -404,6 +404,97 @@ describe('labels wizard: step 4, the download', () => {
     await waitFor(() => expect(router.state.location.search.step).toBe(3));
     expect(await screen.findByLabelText('Sloupce')).toHaveValue('4');
     expect(screen.getByLabelText('Začít od pozice')).toHaveValue('7');
+  });
+});
+
+describe('labels wizard: step 4, sharing the PDF with a label printer app', () => {
+  const TAPE = { format: 'tape', width: 50, height: 24 };
+
+  /** A phone's system share sheet: `navigator.share` and `canShare` exist only there. */
+  function stubShareSheet(share = vi.fn().mockResolvedValue(undefined)) {
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    return share;
+  }
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+    Reflect.deleteProperty(navigator, 'canShare');
+  });
+
+  it('offers Sdílet instead of Vytisknout on a phone, and hands the PDF over as a file', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    const share = stubShareSheet();
+    open(4);
+
+    expect(await screen.findByRole('button', { name: 'Stáhnout PDF' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Vytisknout' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Sdílet' }));
+
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
+    expect(share).toHaveBeenCalledTimes(1);
+    const file: File = share.mock.calls[0]![0].files[0];
+    expect(file.name).toMatch(/^stitky-Přízemí-\d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(file.type).toBe('application/pdf');
+    expect(downloads).toHaveLength(0);
+
+    // The PDF is not made twice for a share and a download.
+    await userEvent.click(screen.getByRole('button', { name: 'Stáhnout PDF' }));
+    expect(downloads).toHaveLength(1);
+    expect(build.buildLabelsPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not an error to close the share sheet without choosing an app', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    stubShareSheet(vi.fn().mockRejectedValue(new DOMException('cancelled', 'AbortError')));
+    open(4);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sdílet' }));
+    expect(await screen.findByRole('button', { name: 'Vytvořit nové štítky' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows the error with a retry when sharing fails for another reason', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    stubShareSheet(vi.fn().mockRejectedValue(new DOMException('no', 'NotAllowedError')));
+    open(4);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sdílet' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('PDF se nepodařilo vytvořit.');
+    expect(screen.getByRole('button', { name: 'Zkusit znovu' })).toBeInTheDocument();
+  });
+
+  it('keeps Vytisknout on a computer, for a label printer too', async () => {
+    api();
+    remember({}, TAPE);
+    stubShareSheet();
+    open(4);
+    expect(await screen.findByRole('button', { name: 'Vytisknout' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sdílet' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Vytisknout for A4 sheets on a phone', async () => {
+    api();
+    remember();
+    stubTouchScreen();
+    stubShareSheet();
+    open(4);
+    expect(await screen.findByRole('button', { name: 'Vytisknout' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sdílet' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Vytisknout on a phone that cannot share files', async () => {
+    api();
+    remember({}, TAPE);
+    stubTouchScreen();
+    open(4);
+    expect(await screen.findByRole('button', { name: 'Vytisknout' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sdílet' })).not.toBeInTheDocument();
   });
 });
 

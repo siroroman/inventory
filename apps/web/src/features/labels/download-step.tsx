@@ -1,8 +1,9 @@
-import { FileDown, LoaderCircle, Printer } from 'lucide-react';
+import { FileDown, LoaderCircle, Printer, Share2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { pdfFileName, printPdf, savePdf } from './download';
+import { coarsePointer, useMediaQuery } from '@/lib/use-media-query';
+import { canSharePdf, pdfFileName, printPdf, savePdf, sharePdf } from './download';
 import type { LayoutChoice } from './layout-choice';
 import { emptyOnLastPage, pageCount } from './layout';
 import type { ChosenLocation, LabelRow } from './selection';
@@ -15,7 +16,7 @@ type Props = {
   onRestart: () => void;
 };
 
-type Action = 'save' | 'print';
+type Action = 'save' | 'print' | 'share';
 type State =
   | { status: 'idle' }
   | { status: 'working' }
@@ -27,6 +28,9 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const { t } = useTranslation();
   const [state, setState] = useState<State>({ status: 'idle' });
   const tape = layout.format === 'tape';
+  // On a phone the label printer's app takes the PDF from the share sheet; on a computer it is printed.
+  const phone = useMediaQuery(coarsePointer);
+  const share = tape && phone && canSharePdf();
   const grid = { columns: layout.columns, rows: layout.rows };
   const sheets = pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
@@ -56,6 +60,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
     try {
       const bytes = await build();
       if (action === 'print') printPdf(bytes);
+      else if (action === 'share') await sharePdf(bytes, name);
       else savePdf(bytes, name);
       setState({ status: 'done', bytes });
     } catch {
@@ -108,10 +113,17 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
             {working ? <LoaderCircle aria-hidden className="animate-spin" /> : <FileDown aria-hidden />}
             {t('labels.download.button')}
           </Button>
-          <Button variant="outline" disabled={working} onClick={() => void make('print')} className="flex-1">
-            <Printer aria-hidden />
-            {t('labels.download.print')}
-          </Button>
+          {share ? (
+            <Button variant="outline" disabled={working} onClick={() => void make('share')} className="flex-1">
+              <Share2 aria-hidden />
+              {t('labels.download.share')}
+            </Button>
+          ) : (
+            <Button variant="outline" disabled={working} onClick={() => void make('print')} className="flex-1">
+              <Printer aria-hidden />
+              {t('labels.download.print')}
+            </Button>
+          )}
         </div>
         <div role="status" className="text-sm">
           {working && <p>{t('labels.download.working')}</p>}
