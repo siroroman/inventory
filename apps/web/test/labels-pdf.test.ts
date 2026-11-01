@@ -32,7 +32,13 @@ function textPositions(content: string) {
   return [...content.matchAll(/1 0 0 1 ([\d.]+) ([\d.]+) Tm/g)].map((m) => ({ x: Number(m[1]), y: Number(m[2]) }));
 }
 
-type SheetOptions = { items: LabelItem[]; columns: number; rows: number; startPosition: number };
+type SheetOptions = {
+  items: LabelItem[];
+  columns: number;
+  rows: number;
+  startPosition: number;
+  margins: { left: number; top: number; right: number; bottom: number };
+};
 
 async function build(options: Partial<SheetOptions> = {}) {
   const bytes = await buildLabelsPdf({ items: items(4), columns: 3, rows: 8, startPosition: 1, fonts, ...options });
@@ -162,5 +168,22 @@ describe('the label fonts', () => {
       );
       expect(missing, file).toEqual([]);
     }
+  });
+});
+
+describe('buildLabelsPdf margins', () => {
+  it('starts the first label at the left and top margins', async () => {
+    const margins = { left: 10, top: 12, right: 6, bottom: 20 };
+    const grid = { columns: 3, rows: 8, margins };
+    const layout = labelLayout(labelSize(grid));
+    const { doc, pages } = await build({ items: items(1), margins });
+    const positions = textPositions(contentOf(doc, pages[0]!));
+    const cell = cellOrigin(grid, 0, 0);
+    expect(cell).toEqual({ x: 10, y: 12 });
+    expect(positions[0]!.x).toBeCloseTo((cell.x + layout.text.x) * MM, 1);
+  });
+
+  it('refuses margins that are not whole millimetres in range', async () => {
+    await expect(build({ margins: { left: 8, top: 60, right: 8, bottom: 21 } })).rejects.toThrow(RangeError);
   });
 });

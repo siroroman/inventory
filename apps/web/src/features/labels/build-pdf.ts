@@ -5,9 +5,11 @@ import { planLabel } from './label-plan.ts';
 import {
   cellOrigin,
   type Grid,
+  isValidMargins,
   isValidStartPosition,
   isValidTapeSize,
   labelSize,
+  type Margins,
   MAX_COLUMNS,
   MAX_LABEL_MM,
   MAX_ROWS,
@@ -37,6 +39,8 @@ type SheetOptions = {
   rows: number;
   /** The first free place of a partly used sheet, from 1, left to right, top to bottom. */
   startPosition: number;
+  /** Where the grid starts, from the edges of the paper; the default sheet when left out. */
+  margins?: Margins;
 };
 /** A label printer: every page is one label of this size, in millimetres. */
 type TapeOptions = { format: 'tape'; width: number; height: number };
@@ -75,8 +79,9 @@ function drawLabel(page: PDFPage, fonts: { regular: PDFFont; bold: PDFFont }, me
   }
 }
 
-function checkSheet({ columns, rows, startPosition }: SheetOptions): Grid {
-  const grid = { columns, rows };
+function checkSheet({ columns, rows, startPosition, margins }: SheetOptions): Grid {
+  const grid = { columns, rows, margins };
+  if (margins && !isValidMargins(margins)) throw new RangeError('margins must be whole millimetres in range');
   if (!Number.isInteger(columns) || columns < MIN_COLUMNS || columns > MAX_COLUMNS) {
     throw new RangeError(`columns must be ${MIN_COLUMNS} to ${MAX_COLUMNS}`);
   }
@@ -89,7 +94,7 @@ function checkSheet({ columns, rows, startPosition }: SheetOptions): Grid {
 
 /**
  * A PDF of QR labels. For an A4 printer (the default) the pages are A4 portrait with `columns` x
- * `rows` labels inside a 5 mm margin, the first at `startPosition`. For a label printer
+ * `rows` labels inside the `margins`, the first at `startPosition`. For a label printer
  * (`format: 'tape'`) every page is one label of `width` x `height` mm, which the printer's app
  * prints as it is. Black on white, vector QR codes with error correction Q, the fonts embedded as
  * subsets. Runs in the browser and in Node (the unit tests).

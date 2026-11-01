@@ -1,11 +1,14 @@
 import {
   DEFAULT_COLUMNS,
+  DEFAULT_MARGINS,
   DEFAULT_ROWS,
   DEFAULT_TAPE,
+  isValidMargins,
   isValidStartPosition,
   isValidTapeSize,
   MAX_COLUMNS,
   MAX_ROWS,
+  type Margins,
   MIN_COLUMNS,
   MIN_ROWS,
 } from './layout.ts';
@@ -22,6 +25,8 @@ export type LayoutChoice = {
   columns: number;
   rows: number;
   startPosition: number;
+  /** A4 sheet: where the first label starts, in millimetres from the edges of the paper. */
+  margins: Margins;
   /** Label printer: the label's size in millimetres (the height is the width of the tape). */
   width: number;
   height: number;
@@ -32,6 +37,7 @@ export const defaultLayout: LayoutChoice = {
   columns: DEFAULT_COLUMNS,
   rows: DEFAULT_ROWS,
   startPosition: 1,
+  margins: DEFAULT_MARGINS,
   ...DEFAULT_TAPE,
 };
 
@@ -64,9 +70,11 @@ export function loadLayout(): LayoutChoice {
   const tape = { width: Number(stored.width), height: Number(stored.height) };
   const size = isValidTapeSize(tape) ? tape : DEFAULT_TAPE;
 
+  const margins = isValidMargins(stored.margins) ? stored.margins : DEFAULT_MARGINS;
+
   const start = read(() => sessionStorage, START_KEY);
   const startPosition = typeof start === 'number' && isValidStartPosition({ columns, rows }, start) ? start : 1;
-  return { format: stored.format === 'tape' ? 'tape' : 'sheet', columns, rows, startPosition, ...size };
+  return { format: stored.format === 'tape' ? 'tape' : 'sheet', columns, rows, startPosition, margins, ...size };
 }
 
 export function saveLayout({ startPosition, ...settings }: LayoutChoice): void {
