@@ -187,7 +187,7 @@ export function LayoutStep({ items, layout, onChange }: Props) {
 
               <fieldset className="flex flex-col gap-2">
                 <legend className="mb-2 text-sm font-medium">{t('labels.layout.marginsLegend')}</legend>
-                <div className="flex flex-wrap gap-6">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:max-w-md">
                   {MARGIN_SIDES.map((side) => (
                     <Stepper
                       key={side}
