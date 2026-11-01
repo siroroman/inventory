@@ -34,7 +34,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
   const share = tape && phone && canShare;
   // The bytes survive a failed share, so the next tap (a fresh user gesture) can share at once.
   const built = useRef<Uint8Array | null>(null);
-  const grid = { columns: layout.columns, rows: layout.rows };
+  const grid = { columns: layout.columns, rows: layout.rows, margins: layout.margins };
   const sheets = pageCount(grid, layout.startPosition, items.length);
   const empty = emptyOnLastPage(grid, layout.startPosition, items.length);
   const name = pdfFileName(location);
@@ -54,6 +54,7 @@ export function DownloadStep({ location, items, layout, onRestart }: Props) {
           columns: layout.columns,
           rows: layout.rows,
           startPosition: layout.startPosition,
+          margins: layout.margins,
         }));
     built.current = bytes;
     return bytes;

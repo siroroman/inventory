@@ -8,21 +8,30 @@ beforeEach(() => {
 
 describe('the remembered label layout', () => {
   it('is A4 3 x 8 and a 50 x 24 mm label printer when nothing is remembered', () => {
-    expect(loadLayout()).toEqual({ format: 'sheet', columns: 3, rows: 8, startPosition: 1, width: 50, height: 24 });
+    expect(loadLayout()).toEqual({ format: 'sheet', columns: 3, rows: 8, startPosition: 1, margins: { left: 8, top: 21, right: 8, bottom: 21 }, width: 50, height: 24 });
     expect(loadLayout()).toEqual(defaultLayout);
   });
 
   it('keeps the format, the grid and the label size on the device, the place on the sheet for the tab', () => {
-    saveLayout({ format: 'tape', columns: 4, rows: 6, startPosition: 7, width: 40, height: 12 });
+    saveLayout({ format: 'tape', columns: 4, rows: 6, startPosition: 7, margins: { left: 10, top: 12, right: 6, bottom: 20 }, width: 40, height: 12 });
     expect(JSON.parse(localStorage.getItem('labels-layout')!)).toEqual({
       format: 'tape',
       columns: 4,
       rows: 6,
+      margins: { left: 10, top: 12, right: 6, bottom: 20 },
       width: 40,
       height: 12,
     });
     expect(JSON.parse(sessionStorage.getItem('labels-start')!)).toBe(7);
-    expect(loadLayout()).toEqual({ format: 'tape', columns: 4, rows: 6, startPosition: 7, width: 40, height: 12 });
+    expect(loadLayout()).toEqual({
+      format: 'tape',
+      columns: 4,
+      rows: 6,
+      startPosition: 7,
+      margins: { left: 10, top: 12, right: 6, bottom: 20 },
+      width: 40,
+      height: 12,
+    });
 
     // A new tab on the same device has the format but starts the sheet at its first place.
     sessionStorage.clear();
@@ -32,10 +41,10 @@ describe('the remembered label layout', () => {
   it('replaces whatever does not look right, field by field', () => {
     localStorage.setItem(
       'labels-layout',
-      JSON.stringify({ format: 'printer', columns: 9, rows: 6, width: 500, height: 'x' }),
+      JSON.stringify({ format: 'printer', columns: 9, rows: 6, width: 500, height: 'x', margins: { left: 99, top: 1, right: 1, bottom: 1 } }),
     );
     sessionStorage.setItem('labels-start', JSON.stringify(99));
-    expect(loadLayout()).toEqual({ format: 'sheet', columns: 3, rows: 6, startPosition: 1, width: 50, height: 24 });
+    expect(loadLayout()).toEqual({ format: 'sheet', columns: 3, rows: 6, startPosition: 1, margins: { left: 8, top: 21, right: 8, bottom: 21 }, width: 50, height: 24 });
   });
 
   it('survives broken or missing storage', () => {

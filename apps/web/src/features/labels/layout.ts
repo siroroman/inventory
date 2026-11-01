@@ -3,8 +3,13 @@
 
 export const PAGE_WIDTH_MM = 210;
 export const PAGE_HEIGHT_MM = 297;
-/** The fixed margin round the grid; the labels have no gaps between them. */
-export const PAGE_MARGIN_MM = 5;
+/** Where the grid starts on the page, per side; the labels have no gaps between them. */
+export type Margins = { left: number; top: number; right: number; bottom: number };
+/** The margins of the stickers we print on: 8 mm at the sides, 21 mm at the top and bottom. */
+export const DEFAULT_MARGINS: Margins = { left: 8, top: 21, right: 8, bottom: 21 };
+/** Each margin may be typed in whole millimetres within this range. */
+export const MIN_MARGIN_MM = 0;
+export const MAX_MARGIN_MM = 50;
 export const MIN_COLUMNS = 1;
 export const MAX_COLUMNS = 6;
 export const MIN_ROWS = 1;
@@ -25,17 +30,23 @@ const STACKED_TEXT_MM = 11;
 /** Between the QR code and the text beside it. */
 const GAP_MM = 2;
 
-export type Grid = { columns: number; rows: number };
+/** `margins` is left out where the default sheet is meant. */
+export type Grid = { columns: number; rows: number; margins?: Margins };
 export type Size = { width: number; height: number };
 export type Box = { x: number; y: number; width: number; height: number };
 
-/** Size of one label: the page inside its margin, shared out evenly. */
-export function labelSize({ columns, rows }: Grid): Size {
+/** Size of one label: the page inside its margins, shared out evenly. */
+export function labelSize({ columns, rows, margins = DEFAULT_MARGINS }: Grid): Size {
   return {
-    width: (PAGE_WIDTH_MM - 2 * PAGE_MARGIN_MM) / columns,
-    height: (PAGE_HEIGHT_MM - 2 * PAGE_MARGIN_MM) / rows,
+    width: (PAGE_WIDTH_MM - margins.left - margins.right) / columns,
+    height: (PAGE_HEIGHT_MM - margins.top - margins.bottom) / rows,
   };
 }
+
+export const isValidMargins = (margins: Margins): boolean =>
+  Object.values(margins).every(
+    (side) => Number.isInteger(side) && side >= MIN_MARGIN_MM && side <= MAX_MARGIN_MM,
+  );
 
 export const slotsPerPage = ({ columns, rows }: Grid) => columns * rows;
 
@@ -55,7 +66,8 @@ export function placement(grid: Grid, startPosition: number, index: number) {
 /** Top left corner of a cell of the grid on the page. */
 export function cellOrigin(grid: Grid, row: number, column: number) {
   const { width, height } = labelSize(grid);
-  return { x: PAGE_MARGIN_MM + column * width, y: PAGE_MARGIN_MM + row * height };
+  const { left, top } = grid.margins ?? DEFAULT_MARGINS;
+  return { x: left + column * width, y: top + row * height };
 }
 
 export function pageCount(grid: Grid, startPosition: number, labels: number): number {

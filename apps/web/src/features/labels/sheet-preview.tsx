@@ -4,10 +4,10 @@ import { LabelGraphic } from './label-graphic';
 import { planLabel } from './label-plan';
 import {
   cellOrigin,
+  DEFAULT_MARGINS,
   type Grid,
   labelSize,
   PAGE_HEIGHT_MM,
-  PAGE_MARGIN_MM,
   PAGE_WIDTH_MM,
   placement,
   slotsPerPage,
@@ -36,13 +36,14 @@ type Props = {
 export function SheetPreview({ items, grid, startPosition, page, fontsReady, className }: Props) {
   const { t } = useTranslation();
   const { columns, rows } = grid;
+  const { left, top, right, bottom } = grid.margins ?? DEFAULT_MARGINS;
   const size = labelSize(grid);
   const perPage = slotsPerPage(grid);
 
   // Keyed on plain values: `grid` and `size` are new objects on every render.
   // biome-ignore lint/correctness/useExhaustiveDependencies: `fontsReady` only invalidates the text measure
   const labels = useMemo(() => {
-    const cells = { columns, rows };
+    const cells = { columns, rows, margins: { left, top, right, bottom } };
     const labelBox = labelSize(cells);
     const onPage: { row: LabelRow; at: { row: number; column: number } }[] = [];
     items.forEach((row, index) => {
@@ -55,7 +56,7 @@ export function SheetPreview({ items, grid, startPosition, page, fontsReady, cla
       plan: planLabel(previewMeasure, row, labelBox),
       modules: qrModules(row.code),
     }));
-  }, [items, columns, rows, startPosition, page, fontsReady]);
+  }, [items, columns, rows, left, top, right, bottom, startPosition, page, fontsReady]);
 
   // The places before the start position, on the first sheet only.
   const used = page === 0 ? startPosition - 1 : 0;
@@ -77,10 +78,10 @@ export function SheetPreview({ items, grid, startPosition, page, fontsReady, cla
         </pattern>
       </defs>
       <rect
-        x={PAGE_MARGIN_MM}
-        y={PAGE_MARGIN_MM}
-        width={PAGE_WIDTH_MM - 2 * PAGE_MARGIN_MM}
-        height={PAGE_HEIGHT_MM - 2 * PAGE_MARGIN_MM}
+        x={left}
+        y={top}
+        width={PAGE_WIDTH_MM - left - right}
+        height={PAGE_HEIGHT_MM - top - bottom}
         fill="none"
         stroke="currentColor"
         strokeOpacity="0.25"

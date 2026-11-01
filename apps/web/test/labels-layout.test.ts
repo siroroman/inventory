@@ -4,6 +4,7 @@ import {
   DEFAULT_TAPE,
   emptyOnLastPage,
   isQrTooSmall,
+  isValidMargins,
   isTapeQrTooSmall,
   isValidStartPosition,
   isValidTapeSize,
@@ -21,19 +22,19 @@ import {
 const grid = { columns: 3, rows: 8 };
 
 describe('label grid', () => {
-  it('shares the page inside the 5 mm margin evenly, without gaps', () => {
+  it('shares the page inside the default margins (8, 21, 8, 21 mm) evenly, without gaps', () => {
     const size = labelSize(grid);
-    expect(size.width).toBeCloseTo(66.667, 3);
-    expect(size.height).toBeCloseTo(35.875, 3);
-    expect(labelSize({ columns: 5, rows: 13 }).width).toBe(40);
+    expect(size.width).toBeCloseTo(64.667, 3);
+    expect(size.height).toBeCloseTo(31.875, 3);
+    expect(labelSize({ columns: 5, rows: 13 }).width).toBeCloseTo(38.8, 3);
     expect(slotsPerPage(grid)).toBe(24);
   });
 
   it('puts a cell where its row and column are', () => {
-    expect(cellOrigin(grid, 0, 0)).toEqual({ x: 5, y: 5 });
+    expect(cellOrigin(grid, 0, 0)).toEqual({ x: 8, y: 21 });
     const last = cellOrigin(grid, 7, 2);
-    expect(last.x + labelSize(grid).width).toBeCloseTo(205);
-    expect(last.y + labelSize(grid).height).toBeCloseTo(292);
+    expect(last.x + labelSize(grid).width).toBeCloseTo(202);
+    expect(last.y + labelSize(grid).height).toBeCloseTo(276);
   });
 
   it('counts positions from 1, left to right, top to bottom, and carries over to the next sheet', () => {
@@ -74,11 +75,11 @@ describe('label layout', () => {
     expect(stacked).toBe(false);
     expect(qr.x).toBe(3);
     expect(qr.y).toBe(3);
-    expect(qr.width).toBeCloseTo(35.875 - 6, 3);
+    expect(qr.width).toBeCloseTo(31.875 - 6, 3);
     expect(qr.height).toBe(qr.width);
     expect(text.x).toBeCloseTo(3 + qr.width + 2, 3);
-    expect(text.x + text.width).toBeCloseTo(66.667 - 3, 3);
-    expect(text.height).toBeCloseTo(29.875, 3);
+    expect(text.x + text.width).toBeCloseTo(64.667 - 3, 3);
+    expect(text.height).toBeCloseTo(25.875, 3);
   });
 
   it('stacks a portrait-ish label: QR on top and centred, text below', () => {
@@ -98,10 +99,10 @@ describe('label layout', () => {
   });
 
   it('warns when the QR side is under 15 mm', () => {
-    expect(qrSide(grid)).toBeCloseTo(29.875, 3);
+    expect(qrSide(grid)).toBeCloseTo(25.875, 3);
     expect(isQrTooSmall(grid)).toBe(false);
-    expect(isQrTooSmall({ columns: 5, rows: 13 })).toBe(false);
-    expect(isQrTooSmall({ columns: 5, rows: 14 })).toBe(true);
+    expect(isQrTooSmall({ columns: 5, rows: 12 })).toBe(false);
+    expect(isQrTooSmall({ columns: 5, rows: 13 })).toBe(true);
     expect(isQrTooSmall({ columns: 6, rows: 16 })).toBe(true);
     expect(isQrTooSmall({ columns: 1, rows: 1 })).toBe(false);
   });
@@ -125,5 +126,26 @@ describe('label printer sizes', () => {
     expect(isValidTapeSize({ width: 9.9, height: 24 })).toBe(false);
     expect(isValidTapeSize({ width: 50, height: 100.1 })).toBe(false);
     expect(isValidTapeSize({ width: Number.NaN, height: 24 })).toBe(false);
+  });
+});
+
+describe('page margins', () => {
+  const margins = { left: 10, top: 12, right: 6, bottom: 20 };
+
+  it('shares the page inside the given margins and starts the grid at the left and top ones', () => {
+    const custom = { columns: 2, rows: 5, margins };
+    expect(labelSize(custom)).toEqual({ width: 97, height: 53 });
+    expect(cellOrigin(custom, 0, 0)).toEqual({ x: 10, y: 12 });
+    const last = cellOrigin(custom, 4, 1);
+    expect(last.x + 97).toBeCloseTo(210 - 6);
+    expect(last.y + 53).toBeCloseTo(297 - 20);
+  });
+
+  it('accepts whole millimetres from 0 to 50 on every side', () => {
+    expect(isValidMargins(margins)).toBe(true);
+    expect(isValidMargins({ ...margins, left: 0 })).toBe(true);
+    expect(isValidMargins({ ...margins, top: 51 })).toBe(false);
+    expect(isValidMargins({ ...margins, right: -1 })).toBe(false);
+    expect(isValidMargins({ ...margins, bottom: 2.5 })).toBe(false);
   });
 });

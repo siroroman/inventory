@@ -12,11 +12,13 @@ import {
   labelSize,
   MAX_COLUMNS,
   MAX_LABEL_MM,
+  MAX_MARGIN_MM,
   MAX_ROWS,
+  type Margins,
   MIN_COLUMNS,
   MIN_LABEL_MM,
+  MIN_MARGIN_MM,
   MIN_ROWS,
-  PAGE_MARGIN_MM,
   pageCount,
   slotsPerPage,
 } from './layout';
@@ -35,6 +37,7 @@ type Props = {
 const oneDecimal = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const FORMATS: LabelFormat[] = ['sheet', 'tape'];
+const MARGIN_SIDES: (keyof Margins)[] = ['left', 'top', 'right', 'bottom'];
 
 /**
  * Step 3: A4 sheets of stickers (the grid, the place to start from on a partly used one, the sheet as
@@ -43,7 +46,7 @@ const FORMATS: LabelFormat[] = ['sheet', 'tape'];
 export function LayoutStep({ items, layout, onChange }: Props) {
   const { t } = useTranslation();
   const tape = layout.format === 'tape';
-  const grid = { columns: layout.columns, rows: layout.rows };
+  const grid = { columns: layout.columns, rows: layout.rows, margins: layout.margins };
   const size = labelSize(grid);
   const tapeSize = { width: layout.width, height: layout.height };
   // What the preview pages through: the sheets of an A4 printer, the labels of a label printer.
@@ -183,6 +186,22 @@ export function LayoutStep({ items, layout, onChange }: Props) {
                 />
               </div>
 
+              <fieldset className="flex flex-col gap-2">
+                <legend className="mb-2 text-sm font-medium">{t('labels.layout.marginsLegend')}</legend>
+                <div className="flex flex-wrap gap-6">
+                  {MARGIN_SIDES.map((side) => (
+                    <Stepper
+                      key={side}
+                      label={t(`labels.layout.margin_${side}`)}
+                      value={layout.margins[side]}
+                      min={MIN_MARGIN_MM}
+                      max={MAX_MARGIN_MM}
+                      onChange={(mm) => onChange({ ...layout, margins: { ...layout.margins, [side]: mm } })}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+
               <div className="flex flex-col gap-1">
                 <p className="font-medium">
                   {t('labels.layout.labelSize', {
@@ -190,7 +209,7 @@ export function LayoutStep({ items, layout, onChange }: Props) {
                     height: oneDecimal.format(size.height),
                   })}
                 </p>
-                <p className="text-sm text-muted-foreground">{t('labels.layout.margin', { mm: PAGE_MARGIN_MM })}</p>
+                <p className="text-sm text-muted-foreground">{t('labels.layout.margin')}</p>
               </div>
             </>
           )}

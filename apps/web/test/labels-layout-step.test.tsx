@@ -76,8 +76,11 @@ describe('labels wizard: step 3, the layout', () => {
     expect(screen.getByText(/A4 na výšku · 210 × 297 mm/)).toBeInTheDocument();
     expect(screen.getByLabelText('Sloupce')).toHaveValue('3');
     expect(screen.getByLabelText('Řádky')).toHaveValue('8');
-    expect(screen.getByText('Štítek 66,7 × 35,9 mm')).toBeInTheDocument();
-    expect(screen.getByText(/Okraj stránky 5 mm/)).toBeInTheDocument();
+    expect(screen.getByText('Štítek 64,7 × 31,9 mm')).toBeInTheDocument();
+    expect(screen.getByLabelText('Zleva (mm)')).toHaveValue('8');
+    expect(screen.getByLabelText('Shora (mm)')).toHaveValue('21');
+    expect(screen.getByLabelText('Zprava (mm)')).toHaveValue('8');
+    expect(screen.getByLabelText('Zdola (mm)')).toHaveValue('21');
     expect(screen.getByText('3 štítky · 1 list · na posledním listu zůstane 21 míst prázdných')).toBeInTheDocument();
     const sheet = screen.getByRole('img', { name: 'Náhled listu 1' });
     expect(sheet.querySelectorAll('[data-label]')).toHaveLength(3);
@@ -87,21 +90,41 @@ describe('labels wizard: step 3, the layout', () => {
     expect(screen.getByText('List 1 z 1')).toBeInTheDocument();
   });
 
+  it('changes the margins by typing, resizes the label, keeps them and moves the sheet in the preview', async () => {
+    api();
+    remember();
+    open(3);
+    await screen.findByText('Štítek 64,7 × 31,9 mm');
+
+    const left = screen.getByLabelText('Zleva (mm)');
+    await userEvent.clear(left);
+    await userEvent.type(left, '10{Enter}');
+    const bottom = screen.getByLabelText('Zdola (mm)');
+    await userEvent.clear(bottom);
+    await userEvent.type(bottom, '15{Enter}');
+
+    // (210 - 10 - 8) / 3 = 64,0 and (297 - 21 - 15) / 8 = 32,6
+    expect(screen.getByText('Štítek 64,0 × 32,6 mm')).toBeInTheDocument();
+    expect(storedLayout()).toMatchObject({ margins: { left: 10, top: 21, right: 8, bottom: 15 } });
+    const sheet = screen.getByRole('img', { name: 'Náhled listu 1' });
+    expect(sheet.querySelector('[data-label="INV-00001"]')).toHaveAttribute('transform', 'translate(10 21)');
+  });
+
   it('changes the grid with the buttons and by typing, keeps it, and updates the size', async () => {
     api();
     remember();
     open(3);
-    await screen.findByText('Štítek 66,7 × 35,9 mm');
+    await screen.findByText('Štítek 64,7 × 31,9 mm');
 
     await userEvent.click(screen.getByRole('button', { name: 'Přidat: Sloupce' }));
     expect(screen.getByLabelText('Sloupce')).toHaveValue('4');
-    expect(screen.getByText('Štítek 50,0 × 35,9 mm')).toBeInTheDocument();
+    expect(screen.getByText('Štítek 48,5 × 31,9 mm')).toBeInTheDocument();
 
     const rows = screen.getByLabelText('Řádky');
     await userEvent.clear(rows);
     await userEvent.type(rows, '10{Enter}');
     expect(rows).toHaveValue('10');
-    expect(screen.getByText('Štítek 50,0 × 28,7 mm')).toBeInTheDocument();
+    expect(screen.getByText('Štítek 48,5 × 25,5 mm')).toBeInTheDocument();
     expect(storedLayout()).toMatchObject({ columns: 4, rows: 10 });
 
     // A number out of range is brought to the nearest allowed one.
@@ -114,7 +137,7 @@ describe('labels wizard: step 3, the layout', () => {
 
   it('warns, without blocking, when the QR code would be too small', async () => {
     api();
-    remember({}, { columns: 5, rows: 14, startPosition: 1 });
+    remember({}, { columns: 5, rows: 13, startPosition: 1 });
     open(3);
     expect(await screen.findByRole('alert')).toHaveTextContent('Štítky jsou příliš malé, QR kód by se špatně četl.');
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
@@ -127,7 +150,7 @@ describe('labels wizard: step 3, the layout', () => {
     api();
     remember();
     open(3);
-    await screen.findByText('Štítek 66,7 × 35,9 mm');
+    await screen.findByText('Štítek 64,7 × 31,9 mm');
 
     await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
     expect(screen.getByLabelText('Šířka (mm)')).toHaveValue('50');
@@ -136,7 +159,7 @@ describe('labels wizard: step 3, the layout', () => {
     expect(screen.getByText('Výška je šířka pásky, šířka je délka štítku.')).toBeInTheDocument();
     expect(screen.queryByLabelText('Sloupce')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Začít od pozice')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Okraj stránky/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Zleva (mm)')).not.toBeInTheDocument();
     expect(screen.getByText('3 štítky · každý na vlastní stránce PDF')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
@@ -158,7 +181,7 @@ describe('labels wizard: step 3, the layout', () => {
     api();
     remember();
     open(3);
-    await screen.findByText('Štítek 66,7 × 35,9 mm');
+    await screen.findByText('Štítek 64,7 × 31,9 mm');
 
     await userEvent.click(screen.getByRole('button', { name: 'Přidat: Sloupce' }));
     await userEvent.click(screen.getByRole('radio', { name: 'Štítkovač' }));
@@ -196,7 +219,7 @@ describe('labels wizard: step 3, the layout', () => {
     api();
     remember();
     open(3);
-    await screen.findByText('Štítek 66,7 × 35,9 mm');
+    await screen.findByText('Štítek 64,7 × 31,9 mm');
 
     const start = screen.getByLabelText('Začít od pozice');
     expect(start).toHaveValue('1');
