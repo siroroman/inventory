@@ -43,10 +43,16 @@ export function labelSize({ columns, rows, margins = DEFAULT_MARGINS }: Grid): S
   };
 }
 
-export const isValidMargins = (margins: Margins): boolean =>
-  Object.values(margins).every(
-    (side) => Number.isInteger(side) && side >= MIN_MARGIN_MM && side <= MAX_MARGIN_MM,
-  );
+export const MARGIN_SIDES: (keyof Margins)[] = ['left', 'top', 'right', 'bottom'];
+
+/** Takes anything (it is also used on what the browser remembers): all four sides must be there. */
+export const isValidMargins = (margins: unknown): margins is Margins =>
+  typeof margins === 'object' &&
+  margins !== null &&
+  MARGIN_SIDES.every((side) => {
+    const mm = (margins as Record<string, unknown>)[side];
+    return typeof mm === 'number' && Number.isInteger(mm) && mm >= MIN_MARGIN_MM && mm <= MAX_MARGIN_MM;
+  });
 
 export const slotsPerPage = ({ columns, rows }: Grid) => columns * rows;
 

@@ -12,9 +12,9 @@ import {
   labelSize,
   MAX_COLUMNS,
   MAX_LABEL_MM,
+  MARGIN_SIDES,
   MAX_MARGIN_MM,
   MAX_ROWS,
-  type Margins,
   MIN_COLUMNS,
   MIN_LABEL_MM,
   MIN_MARGIN_MM,
@@ -37,7 +37,6 @@ type Props = {
 const oneDecimal = new Intl.NumberFormat('cs-CZ', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const FORMATS: LabelFormat[] = ['sheet', 'tape'];
-const MARGIN_SIDES: (keyof Margins)[] = ['left', 'top', 'right', 'bottom'];
 
 /**
  * Step 3: A4 sheets of stickers (the grid, the place to start from on a partly used one, the sheet as

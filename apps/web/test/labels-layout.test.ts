@@ -147,5 +147,9 @@ describe('page margins', () => {
     expect(isValidMargins({ ...margins, top: 51 })).toBe(false);
     expect(isValidMargins({ ...margins, right: -1 })).toBe(false);
     expect(isValidMargins({ ...margins, bottom: 2.5 })).toBe(false);
+    // Anything that is not four numbers, as the browser may remember it.
+    for (const bad of [{}, [], 5, 'x', null, undefined, { left: 8, top: 21, right: 8 }, { ...margins, left: '8' }]) {
+      expect(isValidMargins(bad)).toBe(false);
+    }
   });
 });

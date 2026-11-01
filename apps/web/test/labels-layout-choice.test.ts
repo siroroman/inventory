@@ -47,6 +47,13 @@ describe('the remembered label layout', () => {
     expect(loadLayout()).toEqual({ format: 'sheet', columns: 3, rows: 6, startPosition: 1, margins: { left: 8, top: 21, right: 8, bottom: 21 }, width: 50, height: 24 });
   });
 
+  it('ignores margins that are not four whole numbers', () => {
+    for (const margins of [{}, [], 5, { left: 8 }]) {
+      localStorage.setItem('labels-layout', JSON.stringify({ format: 'sheet', columns: 3, rows: 8, margins }));
+      expect(loadLayout().margins).toEqual(defaultLayout.margins);
+    }
+  });
+
   it('survives broken or missing storage', () => {
     localStorage.setItem('labels-layout', '{not json');
     expect(loadLayout()).toEqual(defaultLayout);

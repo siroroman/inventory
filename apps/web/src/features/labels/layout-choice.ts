@@ -70,8 +70,7 @@ export function loadLayout(): LayoutChoice {
   const tape = { width: Number(stored.width), height: Number(stored.height) };
   const size = isValidTapeSize(tape) ? tape : DEFAULT_TAPE;
 
-  const storedMargins = stored.margins as Margins | undefined;
-  const margins = storedMargins && isValidMargins(storedMargins) ? storedMargins : DEFAULT_MARGINS;
+  const margins = isValidMargins(stored.margins) ? stored.margins : DEFAULT_MARGINS;
 
   const start = read(() => sessionStorage, START_KEY);
   const startPosition = typeof start === 'number' && isValidStartPosition({ columns, rows }, start) ? start : 1;
