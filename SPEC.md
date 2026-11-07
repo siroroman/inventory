@@ -550,7 +550,7 @@ Every screen has its own URL. Canvas frame numbers are given in brackets. "Not d
 - Read-only, the same for every role.
 - **Header:** the root with its path; start and end date and time with who started and who ended it; the participants; the note and the committee.
 - **Summary counts**, then the sections **Nezvěstné (N)**, **Nalezeno jinde (N)** (each marked "přesunuto" or "ponecháno"), **Nové (N)**, **Nezkontrolováno (N)**, and **Nalezeno (N)** (collapsed). Rows link to the item.
-- **Actions** (finished runs only): "Tisknout protokol" and "Stáhnout CSV".
+- **Actions:** "Tisknout protokol" (finished runs only) and "Stáhnout CSV" (§9.4.9; built on the overview for every state).
 - A cancelled run shows the *Zrušená* badge and who cancelled it.
 
 #### 9.4.8 Protocol — `/inventories/$id/protocol` (print view, *Decided*, not drawn)

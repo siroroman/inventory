@@ -1,3 +1,4 @@
+import type { ExportResult } from '@inventory/shared';
 import { type Actor, assertRole } from '../../auth/roles.ts';
 import type { DbExecutor } from '../../db/client.ts';
 import type { Page } from '../../db/pagination.ts';
@@ -76,13 +77,6 @@ export type InventoryDetail = InventoryEntry & {
 export type InventoryRunItem = RunItem & { registeredPath: PathSegment[]; registeredElsewhere: boolean };
 
 /**
- * How an item of a run came out, for the export: `found` (on the list, checked), `found_elsewhere`
- * and `new` (checked, not on the list), `missing` (flagged), `archived` (on the list, unchecked and
- * archived since the start) and `not_checked` (left unchecked).
- */
-export type ExportResult = 'found' | 'found_elsewhere' | 'new' | 'missing' | 'not_checked' | 'archived';
-
-/**
  * An item of a run as the export lists it. `accountingId` is the external ID `Účetnictví`
  * (`<centre>-<number>`), `originalCode` the one `Původní kód`, `otherExternalIds` the rest as
  * "Source: value". `foundPath` is the row's location (where it was checked, or where the list had
@@ -97,6 +91,7 @@ export type InventoryExportItem = Omit<ExportItem, 'externalIds' | 'outcome' | '
   registeredPath: PathSegment[];
 };
 
+/** How an item of a run came out, for the export (`archived`: on the list, unchecked and archived since the start). */
 export function exportResultOf(row: Pick<ExportItem, 'kind' | 'checkedAt' | 'outcome' | 'itemArchived'>): ExportResult {
   if (row.kind === 'elsewhere') return 'found_elsewhere';
   if (row.kind === 'new') return 'new';
@@ -108,8 +103,10 @@ export function exportResultOf(row: Pick<ExportItem, 'kind' | 'checkedAt' | 'out
 
 /** Splits an item's external IDs into the accounting number, the original code and the rest. */
 export function splitExternalIds(ids: ExportItem['externalIds']) {
-  const accounting = ids.find((e) => e.source === ACCOUNTING_SOURCE);
-  const original = ids.find((e) => e.source === ORIGINAL_CODE_SOURCE);
+  // The unique index on external IDs ignores the case of the source, so a user can have typed "účetnictví".
+  const isSource = (source: string) => (e: { source: string }) => e.source.toLowerCase() === source.toLowerCase();
+  const accounting = ids.find(isSource(ACCOUNTING_SOURCE));
+  const original = ids.find(isSource(ORIGINAL_CODE_SOURCE));
   return {
     accountingId: accounting?.value ?? null,
     originalCode: original?.value ?? null,

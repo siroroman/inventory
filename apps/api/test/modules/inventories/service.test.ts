@@ -804,6 +804,23 @@ describe('inventory service', () => {
       expect(item).toMatchObject({ accountingId: null, originalCode: null, otherExternalIds: [], manufacturer: null });
       await expectCode(service.exportItems(actor('read'), crypto.randomUUID()), 'not_found');
     });
+
+    it('finds the accounting number whatever the case of its source', async () => {
+      const { store, service, actor, praha } = await setup();
+      const item = await store.addItem(praha.id, 'Tiskárna');
+      await store.itemStore.repos.items.replaceExternalIds(
+        item.id,
+        [
+          { source: 'účetnictví', value: '74-1512' },
+          { source: 'PŮVODNÍ KÓD', value: 'HK-0042' },
+        ],
+        'setup',
+      );
+      const run = await service.start(actor('write'), { locationId: praha.id });
+
+      const [row] = await service.exportItems(actor('read'), run.id);
+      expect(row).toMatchObject({ accountingId: '74-1512', originalCode: 'HK-0042', otherExternalIds: [] });
+    });
   });
 
   describe('check', () => {

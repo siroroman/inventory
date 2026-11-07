@@ -15,7 +15,7 @@ const LINE_END = '\r\n';
 /** The prefix of the top-level locations made from the centres by the import. */
 const CENTRE_PREFIX = 'LOC-';
 /** Text Excel would take for a formula; a leading apostrophe keeps it as text (CSV injection). */
-const FORMULA_START = /^[=+@\t\r]/;
+const FORMULA_START = /^[=+\-@\t\r]/;
 
 const columns = [
   'centre',

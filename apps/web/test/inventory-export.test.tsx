@@ -133,6 +133,7 @@ describe('inventory CSV', () => {
     const csv = inventoryCsv([row({ name: 'Stůl; "dub"', model: '=HYPERLINK("x")' })]);
     expect(csv).toContain(';"Stůl; ""dub""";');
     expect(csv).toContain(`;"'=HYPERLINK(""x"")";`);
+    expect(inventoryCsv([row({ model: '-2+3' })])).toContain(";'-2+3;");
   });
 
   it('is named after the root and the end date, or today for a run in progress', () => {
