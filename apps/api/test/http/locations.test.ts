@@ -1,7 +1,7 @@
 import {
   itemListSchema,
+  locationDetailSchema,
   locationListSchema,
-  locationSchema,
   locationTypeListSchema,
   locationTypeSchema,
 } from '@inventory/shared';
@@ -144,11 +144,11 @@ describe('GET /locations/{id}', () => {
     await insertItem(db().app, { locationId: praha.id });
     await insertItem(db().app, { locationId: floor.id });
 
-    const floorBody = await expectJson(await read.get(`/locations/${floor.id}`), 200, locationSchema);
+    const floorBody = await expectJson(await read.get(`/locations/${floor.id}`), 200, locationDetailSchema);
     expect(floorBody.path.map((s) => s.name)).toEqual(['Praha', 'Přízemí']);
     expect(floorBody).toMatchObject({ itemCount: 1, childCount: 0, type: null, parentId: praha.id });
 
-    const body = await expectJson(await read.get(`/locations/${praha.id}`), 200, locationSchema);
+    const body = await expectJson(await read.get(`/locations/${praha.id}`), 200, locationDetailSchema);
     expect(body).toMatchObject({ code: praha.code, address: 'Nádražní 1', itemCount: 2, childCount: 1, version: 1, archivedAt: null });
   });
 
@@ -156,7 +156,7 @@ describe('GET /locations/{id}', () => {
     const { read, write } = await setup();
     const brno = await insertLocation(db().app, { name: 'Brno' });
     await write.post(`/locations/${brno.id}/archive`, { version: 1 });
-    const body = await expectJson(await read.get(`/locations/${brno.id}`), 200, locationSchema);
+    const body = await expectJson(await read.get(`/locations/${brno.id}`), 200, locationDetailSchema);
     expect(body.archivedAt).not.toBeNull();
   });
 
@@ -208,7 +208,7 @@ describe('POST /locations', () => {
   it('creates a top-level location with its type', async () => {
     const { write, hq } = await setup();
     const res = await write.post('/locations', { name: '  Centrála Praha ', locationTypeId: hq, address: 'Nádražní 1' });
-    const body = await expectJson(res, 201, locationSchema);
+    const body = await expectJson(res, 201, locationDetailSchema);
     expect(body).toMatchObject({
       name: 'Centrála Praha',
       code: expect.stringMatching(/^LOC-\d{3}$/),
@@ -224,10 +224,10 @@ describe('POST /locations', () => {
 
   it('takes the ID the user chose, upper-cased and trimmed', async () => {
     const { write, hq } = await setup();
-    const body = await expectJson(await write.post('/locations', { name: 'Sklad', locationTypeId: hq, code: ' sklad-a.1 ' }), 201, locationSchema);
+    const body = await expectJson(await write.post('/locations', { name: 'Sklad', locationTypeId: hq, code: ' sklad-a.1 ' }), 201, locationDetailSchema);
     expect(body.code).toBe('SKLAD-A.1');
     // The next generated ID is not disturbed.
-    const next = await expectJson(await write.post('/locations', { name: 'Jiný', locationTypeId: hq }), 201, locationSchema);
+    const next = await expectJson(await write.post('/locations', { name: 'Jiný', locationTypeId: hq }), 201, locationDetailSchema);
     expect(next.code).toMatch(/^LOC-\d{3}$/);
   });
 
@@ -240,7 +240,7 @@ describe('POST /locations', () => {
   it('creates a sub-location without a type', async () => {
     const { write } = await setup();
     const praha = await insertLocation(db().app, { name: 'Praha' });
-    const body = await expectJson(await write.post('/locations', { name: 'Přízemí', parentId: praha.id }), 201, locationSchema);
+    const body = await expectJson(await write.post('/locations', { name: 'Přízemí', parentId: praha.id }), 201, locationDetailSchema);
     expect(body).toMatchObject({ type: null, parentId: praha.id });
     expect(body.path.map((s) => s.name)).toEqual(['Praha', 'Přízemí']);
   });
@@ -277,7 +277,7 @@ describe('PATCH /locations/{id}', () => {
     const body = await expectJson(
       await write.patch(`/locations/${brno.id}`, { version: 1, name: 'Brno střed', address: null }),
       200,
-      locationSchema,
+      locationDetailSchema,
     );
     expect(body).toMatchObject({ name: 'Brno střed', address: null, note: 'pozn.', version: 2 });
   });
@@ -286,7 +286,7 @@ describe('PATCH /locations/{id}', () => {
     const { write } = await setup();
     const praha = await insertLocation(db().app, { name: 'Praha' });
     const brno = await insertLocation(db().app, { name: 'Brno' });
-    const body = await expectJson(await write.patch(`/locations/${brno.id}`, { version: 1, parentId: praha.id }), 200, locationSchema);
+    const body = await expectJson(await write.patch(`/locations/${brno.id}`, { version: 1, parentId: praha.id }), 200, locationDetailSchema);
     expect(body).toMatchObject({ parentId: praha.id, type: null });
     expect(body.path.map((s) => s.name)).toEqual(['Praha', 'Brno']);
   });
@@ -335,7 +335,7 @@ describe('PATCH /locations/{id}', () => {
     const { write, read } = await setup();
     const brno = await insertLocation(db().app, { name: 'Brno' });
     await expectProblem(await write.patch(`/locations/${brno.id}`, { version: 1 }), 400, 'validation_error');
-    expect(await expectJson(await read.get(`/locations/${brno.id}`), 200, locationSchema)).toMatchObject({ version: 1 });
+    expect(await expectJson(await read.get(`/locations/${brno.id}`), 200, locationDetailSchema)).toMatchObject({ version: 1 });
   });
 });
 
@@ -343,9 +343,9 @@ describe('POST /locations/{id}/archive and /restore', () => {
   it('archives and restores, keeping the version in step', async () => {
     const { write } = await setup();
     const brno = await insertLocation(db().app, { name: 'Brno' });
-    const archived = await expectJson(await write.post(`/locations/${brno.id}/archive`, { version: 1 }), 200, locationSchema);
+    const archived = await expectJson(await write.post(`/locations/${brno.id}/archive`, { version: 1 }), 200, locationDetailSchema);
     expect(archived).toMatchObject({ version: 2, archivedAt: expect.any(String) });
-    const restored = await expectJson(await write.post(`/locations/${brno.id}/restore`, { version: 2 }), 200, locationSchema);
+    const restored = await expectJson(await write.post(`/locations/${brno.id}/restore`, { version: 2 }), 200, locationDetailSchema);
     expect(restored).toMatchObject({ version: 3, archivedAt: null });
   });
 
@@ -444,5 +444,79 @@ describe('location types', () => {
     const { admin } = await setup();
     const kiosk = await expectJson(await admin.post('/location-types', { code: 'KIOSK', name: 'Kiosek' }), 201, locationTypeSchema);
     await expectProblem(await admin.patch(`/location-types/${kiosk.id}`, { version: 1, code: 'STAN' }), 400, 'validation_error');
+  });
+});
+
+describe('location contacts', () => {
+  const spravce = { role: 'Správce', name: 'Jan Novák', phone: '+420 601 123 456' };
+  const prodejna = { role: 'Prodejna', phone: '495 111 222', email: 'prodejna@example.cz' };
+
+  it('are created, replaced and cleared with the location, in their order', async () => {
+    const { write, read, hq } = await setup();
+    const created = await expectJson(
+      await write.post('/locations', { name: 'Prodejna Brno', locationTypeId: hq, contacts: [spravce, prodejna] }),
+      201,
+      locationDetailSchema,
+    );
+    expect(created.contacts).toEqual([
+      { role: 'Správce', name: 'Jan Novák', phone: '+420 601 123 456', email: null },
+      { role: 'Prodejna', name: null, phone: '495 111 222', email: 'prodejna@example.cz' },
+    ]);
+
+    const swapped = await expectJson(
+      await write.patch(`/locations/${created.id}`, { version: 1, contacts: [prodejna, spravce] }),
+      200,
+      locationDetailSchema,
+    );
+    expect(swapped).toMatchObject({ version: 2, contacts: [{ role: 'Prodejna' }, { role: 'Správce' }] });
+    expect((await expectJson(await read.get(`/locations/${created.id}`), 200, locationDetailSchema)).contacts).toHaveLength(2);
+
+    const cleared = await expectJson(await write.patch(`/locations/${created.id}`, { version: 2, contacts: [] }), 200, locationDetailSchema);
+    expect(cleared.contacts).toEqual([]);
+  });
+
+  it('of the locations above are shown on a sub-location, nearest first', async () => {
+    const { write, read, hq } = await setup();
+    const brno = await expectJson(
+      await write.post('/locations', { name: 'Centrála Brno', locationTypeId: hq, contacts: [spravce] }),
+      201,
+      locationDetailSchema,
+    );
+    const floor = await insertLocation(db().app, { name: '2. patro', parentId: brno.id });
+    const room = await expectJson(
+      await write.post('/locations', { name: 'Kancelář', parentId: floor.id, contacts: [prodejna] }),
+      201,
+      locationDetailSchema,
+    );
+    const shelf = await insertLocation(db().app, { name: 'Regál', parentId: room.id });
+
+    const body = await expectJson(await read.get(`/locations/${shelf.id}`), 200, locationDetailSchema);
+    expect(body.contacts).toEqual([]);
+    expect(body.inheritedContacts).toEqual([
+      { location: { id: room.id, code: room.code, name: 'Kancelář' }, contacts: [expect.objectContaining({ role: 'Prodejna' })] },
+      { location: { id: brno.id, code: brno.code, name: 'Centrála Brno' }, contacts: [expect.objectContaining({ role: 'Správce' })] },
+    ]);
+  });
+
+  it('answer 400 for a contact without a phone or an email, a bad phone, a blank role or too many', async () => {
+    const { write, hq } = await setup();
+    const location = await insertLocation(db().app, { name: 'Brno' });
+    for (const contacts of [
+      [{ role: 'Správce', name: 'Jan Novák' }],
+      [{ role: 'Správce', phone: 'zavolat ráno' }],
+      [{ role: ' ', phone: '601123456' }],
+      [{ role: 'Správce', email: 'novak' }],
+      Array(21).fill(spravce),
+    ]) {
+      const problem = await expectProblem(await write.patch(`/locations/${location.id}`, { version: 1, contacts }), 400, 'validation_error');
+      expect(JSON.stringify(problem)).toContain('contacts');
+    }
+    await expectProblem(await write.post('/locations', { name: 'X', locationTypeId: hq, contacts: [{ role: 'X' }] }), 400, 'validation_error');
+  });
+
+  it('cannot be changed by a reader', async () => {
+    const { read } = await setup();
+    const location = await insertLocation(db().app, { name: 'Brno' });
+    await expectProblem(await read.patch(`/locations/${location.id}`, { version: 1, contacts: [spravce] }), 403, 'forbidden');
   });
 });

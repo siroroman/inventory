@@ -107,6 +107,8 @@ export const unmappedConstraints: Record<string, string> = {
   session_token_unique: 'owned by Better Auth; tokens are random',
   rate_limit_key_unique: 'owned by Better Auth, which retries a clash of two first attempts itself',
   inventory_items_inventory_id_item_id_key: 'the snapshot adds each item to a run once; a clash is a bug, not a client error',
+  location_contacts_location_id_sort_order_key:
+    'the service numbers a whole list after deleting the old one, in one transaction; a clash is a bug, not a client error',
 };
 
 type ProblemExtras = { detail?: string; details?: Record<string, unknown> };

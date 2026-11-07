@@ -6,8 +6,10 @@ import { DomainError } from '../../errors.ts';
 import { changedFields, initialFields } from '../audit/changes.ts';
 import { type AuditRepository, createAuditRepository } from '../audit/repository.ts';
 import {
+  type ContactInput,
   createLocationRepository,
   createLocationTypeRepository,
+  type LocationContact,
   type LocationFilter,
   type LocationRepository,
   type LocationType,
@@ -35,6 +37,12 @@ export type LocationDeps = { repos: LocationRepos; transact: Transact<LocationRe
 /** A location with its path from the top (itself included) and its subtree counts. */
 export type LocationSummary = LocationWithType & SubtreeCounts & { path: PathSegment[] };
 
+/** The contacts of one location above the one shown. */
+export type InheritedContacts = { location: PathSegment; contacts: LocationContact[] };
+
+/** A location as its detail shows it: its own contacts, and those of the locations above it, nearest first. */
+export type LocationDetail = LocationSummary & { contacts: LocationContact[]; inheritedContacts: InheritedContacts[] };
+
 export type CreateLocationInput = {
   /** Chosen by the user; the database assigns the next LOC-nnn when missing. */
   code?: string;
@@ -45,12 +53,22 @@ export type CreateLocationInput = {
   locationTypeId?: string | null;
   address?: string | null;
   note?: string | null;
+  /** In the order to show them. */
+  contacts?: ContactInput[];
 };
 
-/** Only the fields present change. Moving under a parent drops the type unless one is sent. */
+/**
+ * Only the fields present change. Moving under a parent drops the type unless one is sent.
+ * Sending `contacts` replaces the whole list.
+ */
 export type UpdateLocationInput = Partial<CreateLocationInput> & { version: number };
 
 const AUDITED = ['code', 'name', 'parentId', 'locationTypeId', 'address', 'note'] as const;
+
+/** How the audit log shows a contact: "Správce · Jan Novák · +420 601 123 456". */
+const contactLabel = (contact: ContactInput) =>
+  [contact.role, contact.name, contact.phone, contact.email].filter(Boolean).join(' · ');
+const contactLabels = (contacts: ContactInput[]) => contacts.map(contactLabel);
 
 type Placement = {
   /** Undefined when creating. */
@@ -109,10 +127,24 @@ async function summarize(r: LocationRepos, rows: LocationWithType[]): Promise<Lo
   }));
 }
 
+/** Adds the contacts of the location and of every location above it (one query for the whole path). */
+async function withContacts(r: LocationRepos, summary: LocationSummary): Promise<LocationDetail> {
+  const above = summary.path.slice(0, -1).reverse();
+  const contacts = await r.locations.listContacts([summary.id, ...above.map((segment) => segment.id)]);
+  return {
+    ...summary,
+    contacts: contacts.get(summary.id) ?? [],
+    inheritedContacts: above.flatMap((location) => {
+      const own = contacts.get(location.id);
+      return own ? [{ location, contacts: own }] : [];
+    }),
+  };
+}
+
 /** The stored location as `get` shows it, read back with the connection that wrote it. */
-async function reload(r: LocationRepos, id: string): Promise<LocationSummary> {
+async function reload(r: LocationRepos, id: string): Promise<LocationDetail> {
   const [summary] = await summarize(r, [(await r.locations.findById(id))!]);
-  return summary!;
+  return withContacts(r, summary!);
 }
 
 async function loadCurrent(r: LocationRepos, id: string, version: number): Promise<LocationWithType> {
@@ -123,7 +155,7 @@ async function loadCurrent(r: LocationRepos, id: string, version: number): Promi
 }
 
 export function createLocationService({ repos, transact }: LocationDeps) {
-  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<LocationSummary> {
+  async function setArchived(actor: Actor, id: string, version: number, archive: boolean): Promise<LocationDetail> {
     assertRole(actor, 'write');
     return transact(async (r) => {
       const current = await loadCurrent(r, id, version);
@@ -144,12 +176,12 @@ export function createLocationService({ repos, transact }: LocationDeps) {
 
   return {
     /** Detail: archived locations are returned too, so they can be viewed and restored. */
-    async get(actor: Actor, id: string): Promise<LocationSummary> {
+    async get(actor: Actor, id: string): Promise<LocationDetail> {
       assertRole(actor, 'read');
       const row = await repos.locations.findById(id);
       if (!row) throw new DomainError('not_found');
       const [summary] = await summarize(repos, [row]);
-      return summary!;
+      return withContacts(repos, summary!);
     },
 
     /** Active (or archived) locations with counts and paths, plus the total for the list heading. */
@@ -167,7 +199,7 @@ export function createLocationService({ repos, transact }: LocationDeps) {
       return { items: await summarize(repos, result.items), nextCursor: result.nextCursor, total };
     },
 
-    async create(actor: Actor, input: CreateLocationInput): Promise<LocationSummary> {
+    async create(actor: Actor, input: CreateLocationInput): Promise<LocationDetail> {
       assertRole(actor, 'write');
       return transact(async (r) => {
         const parentId = input.parentId ?? null;
@@ -182,18 +214,22 @@ export function createLocationService({ repos, transact }: LocationDeps) {
           note: input.note ?? null,
           createdBy: actor.id,
         });
+        const contacts = input.contacts?.length ? await r.locations.replaceContacts(row.id, input.contacts, actor.id) : [];
         await r.audit.record({
           userId: actor.id,
           entityType: 'location',
           entityId: row.id,
           action: 'create',
-          changes: initialFields(row, AUDITED),
+          changes: {
+            ...initialFields(row, AUDITED),
+            ...(contacts.length > 0 && { contacts: { from: null, to: contactLabels(contacts) } }),
+          },
         });
         return reload(r, row.id);
       });
     },
 
-    async update(actor: Actor, id: string, input: UpdateLocationInput): Promise<LocationSummary> {
+    async update(actor: Actor, id: string, input: UpdateLocationInput): Promise<LocationDetail> {
       assertRole(actor, 'write');
       return transact(async (r) => {
         const current = await loadCurrent(r, id, input.version);
@@ -206,6 +242,7 @@ export function createLocationService({ repos, transact }: LocationDeps) {
         const typeChanged = locationTypeId !== current.locationTypeId;
         await checkPlacement(r, { id, parentId, locationTypeId, parentChanged, typeChanged });
 
+        // The row is always updated, so the version moves even when only the contacts change.
         const updated = await r.locations.update(id, input.version, {
           ...(input.name !== undefined && { name: input.name }),
           ...(input.address !== undefined && { address: input.address }),
@@ -215,13 +252,14 @@ export function createLocationService({ repos, transact }: LocationDeps) {
           updatedBy: actor.id,
         });
         if (!updated) throw new DomainError('conflict');
-        await r.audit.record({
-          userId: actor.id,
-          entityType: 'location',
-          entityId: id,
-          action: 'update',
-          changes: changedFields(current, updated, AUDITED),
-        });
+
+        const changes: Record<string, unknown> = changedFields(current, updated, AUDITED);
+        if (input.contacts) {
+          const before = contactLabels((await r.locations.listContacts([id])).get(id) ?? []);
+          const after = contactLabels(await r.locations.replaceContacts(id, input.contacts, actor.id));
+          if (before.join('\n') !== after.join('\n')) changes.contacts = { from: before, to: after };
+        }
+        await r.audit.record({ userId: actor.id, entityType: 'location', entityId: id, action: 'update', changes });
         return reload(r, id);
       });
     },

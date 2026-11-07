@@ -3,6 +3,7 @@ import { searchWords } from '../../src/db/search.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type {
   Location,
+  LocationContact,
   LocationRepository,
   LocationType,
   LocationTypeRepository,
@@ -19,6 +20,7 @@ export function createFakeLocationStore() {
     types: [] as LocationType[],
     locations: [] as Location[],
     items: [] as FakeItem[],
+    contacts: [] as LocationContact[],
     audit: [] as AuditEntry[],
   };
 
@@ -115,6 +117,30 @@ export function createFakeLocationStore() {
     async setArchived(id, version, archived, by) {
       const row = byId(id);
       return row && bump(row, version, { archivedAt: archived ? now() : null, updatedBy: by });
+    },
+    async listContacts(locationIds) {
+      const byLocation = new Map<string, LocationContact[]>();
+      for (const id of locationIds) {
+        const own = state.contacts.filter((c) => c.locationId === id).sort((a, b) => a.sortOrder - b.sortOrder);
+        if (own.length > 0) byLocation.set(id, own.map((c) => ({ ...c })));
+      }
+      return byLocation;
+    },
+    async replaceContacts(locationId, contacts, by) {
+      const kept = state.contacts.filter((c) => c.locationId !== locationId);
+      const added: LocationContact[] = contacts.map((contact, sortOrder) => ({
+        id: randomUUID(),
+        locationId,
+        sortOrder,
+        role: contact.role,
+        name: contact.name ?? null,
+        phone: contact.phone ?? null,
+        email: contact.email ?? null,
+        createdAt: now(),
+        createdBy: by,
+      }));
+      state.contacts.splice(0, state.contacts.length, ...kept, ...added);
+      return added.map((c) => ({ ...c }));
     },
   };
 

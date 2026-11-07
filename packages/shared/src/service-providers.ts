@@ -1,9 +1,8 @@
 import { z } from 'zod';
-import { hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
+import { emailAddress, hasChange, nullableText, pageOf, recordFields, requiredText, timestamp } from './fields.ts';
 import { archivedQuery, searchPageQuery, versionField } from './http.ts';
 
-/** A valid address, internationalised ones included (`servis@příklad.cz`). */
-const email = z.string().trim().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
+const email = emailAddress;
 
 /**
  * A web link the SPA renders as an anchor: only http(s), so a `javascript:` link never gets in,

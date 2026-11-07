@@ -98,6 +98,7 @@ From the user menu (avatar with initials, top right) you can also reach: Users (
 
 - Breadcrumb at the top with the full path up, e.g. *Centrála Praha › Přízemí výroba*.
 - Fields: ID (e.g. LOC-004), Parent location (as a link), Location type (top-level locations only), Address, Note. An empty field shows as "—".
+- **Contacts** (*Decided* 2026-11): people and numbers to reach for this location, e.g. *Majitel budovy*, *Správce*, *Prodejna*. Each contact shows its role, name, phone and email; the phone is a call link (`tel:`) with a 44 px call button, so a tap on a phone opens the dialer, and the email a `mailto:` link. A sub-location also lists the contacts of the locations above it, read-only, grouped under "Kontakty z: <location>" (the nearest one first), so the building's manager is one tap away from any room. Without contacts of its own the field shows "—" like the others; the groups from above appear only when those locations have some.
 - **Sub-locations (N):** direct children with their item counts, linking to their detail; an "Add sub-location" button.
 - **Items in this location (N):** items in this location and all its sub-locations. Each row shows which sub-location it's actually in (desktop: a "Location" column). Show the first few plus a "Show all N items" link (suggested: opens the Items tab pre-filtered to this location).
 - **Inventory:** a "Historie inventur" row (a run in progress, the last finished one) that opens the location's inventory history (§9.4.10). An inventory is started only from the Inventory tab.
@@ -143,7 +144,7 @@ Item (link), Date, Title, Service performed by, Responsible person, Description 
 
 ### 3.7 Forms
 
-- **Location:** Parent location (optional; empty = top level), Name, Location type (top level only: Centrála/HQ, Prodejna/Store, Provozovna/Site, Sklad/Warehouse; extensible list), Address (single line), Note.
+- **Location:** Parent location (optional; empty = top level), Name, Location type (top level only: Centrála/HQ, Prodejna/Store, Provozovna/Site, Sklad/Warehouse; extensible list), Address (single line), Note, Contacts. Contacts are repeatable rows (like external IDs) with an "Add contact" button and a remove button per row: Role (required, free text with suggestions: Majitel budovy, Správce budovy, Prodejna, Vedoucí, Údržba), Name, Phone, Email; each contact needs a phone or an email. A phone takes digits, spaces, `-`, `(`, `)` and a leading `+` (at least 3 digits), so the call link always works. At most 20 contacts, kept in the order entered; an empty row is not sent. They are saved with the location in one request.
 - **Item:** sections Basic info, Registration/warranty/service, Photos, Note. Location is optional (an item can be added before anyone knows where it is) and is chosen via search, including sub-locations shown with their full path; each match is followed by the sub-locations below it; tapping the chosen location searches again. External IDs are a repeatable Supplier + Their ID pair with an "Add external ID" button. Photos: "Take photo" on mobile, "Upload" or drag-and-drop on desktop.
 - **To add beyond the current design:** a Documents field (Google Drive folder link) in the item form's Basic info section.
 - **Service record:** the item (read-only), Date (default today), Title (required), Service performed by and Responsible person (both free text, not links to registered providers or users), Description. Opened from the item's "Add record" button and from the record's Edit.
@@ -171,6 +172,7 @@ Data is relational, hence PostgreSQL. Every entity has an internal `id` (UUID, n
 | --- | --- | --- |
 | `location_types` | code, name, sort_order | HQ, Store, Site, Warehouse; a new type is a new row |
 | `locations` | code, name, parent_id, location_type_id, address, note | tree via `parent_id`, unlimited depth; type required only for a location with no parent; address is a single text line |
+| `location_contacts` | location_id, sort_order, role, name, phone, email | N:1 location; `role` is free text (e.g. "Správce"); a phone or an email is required; the whole list is replaced on save (like external IDs), so rows are deleted for real and the audit log keeps the trace; not searched |
 | `items` | code, name, location_id, manufacturer_id, model, serial_number, manufacture_year, registered_on, purchase_price, warranty_until, last_service_on, next_service_on, documents_url, note, missing_since | N:1 location at any level (optional), N:1 manufacturer (optional); `missing_since` null = not missing (§9.5) |
 | `item_external_ids` | item_id, source, value | N:1 item; `source` is free text (e.g. "Electrician"), `value` is searchable the same way as the internal ID; (source, value) is unique across all items, archived ones included, ignoring case |
 | `item_photos` | item_id, storage_key, content_type, width, height, sort_order | N:1 item; the file lives in Cloud Storage |
@@ -300,9 +302,9 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | --- | --- | --- |
 | `GET /me` | current user and role | Read |
 | `GET /locations?parentId=` | direct sub-locations; no param = top-level locations; search via `q` (every level; `withSubLocations=true` adds everything below each match, ordered by path); `archived=true` = the archived ones at every level | Read |
-| `GET /locations/{id}` | detail with path up, sub-locations, item count across the whole subtree | Read |
+| `GET /locations/{id}` | detail with path up, sub-locations, item count across the whole subtree, its contacts and the contacts of the locations above it | Read |
 | `GET /locations/{id}/items` | items in this location, including all sub-locations | Read |
-| `POST /locations`, `PATCH /locations/{id}` | create, edit incl. changing the parent | Write |
+| `POST /locations`, `PATCH /locations/{id}` | create, edit incl. changing the parent and the contacts (`contacts` replaces the whole list) | Write |
 | `POST /locations/{id}/archive`, `/restore` | archive, restore | Write |
 | `GET /location-types` | location types | Read |
 | `POST /location-types`, `PATCH /location-types/{id}` | manage types | Admin |

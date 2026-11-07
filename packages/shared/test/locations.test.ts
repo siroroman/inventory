@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createLocationBody, locationListQuery, updateLocationBody } from '../src/index.ts';
+import { createLocationBody, locationContactInput, locationListQuery, updateLocationBody } from '../src/index.ts';
 
 const ID = '0b7f1d4e-7c1a-4d5e-9a3b-2f6c8e1d9a40';
 
@@ -58,5 +58,51 @@ describe('locationListQuery', () => {
   it('rejects a bad parent id and limit', () => {
     expect(locationListQuery.safeParse({ parentId: 'nope' }).success).toBe(false);
     expect(locationListQuery.safeParse({ limit: '0' }).success).toBe(false);
+  });
+});
+
+describe('location contacts', () => {
+  const contact = { role: ' Správce ', name: ' Jan Novák ', phone: ' +420 601 123 456 ', email: ' novak@example.cz ' };
+
+  it('trims a contact and needs only a role and a phone or an email', () => {
+    expect(locationContactInput.parse(contact)).toEqual({
+      role: 'Správce',
+      name: 'Jan Novák',
+      phone: '+420 601 123 456',
+      email: 'novak@example.cz',
+    });
+    expect(locationContactInput.parse({ role: 'Prodejna', phone: '495111222' })).toEqual({ role: 'Prodejna', phone: '495111222' });
+    expect(locationContactInput.parse({ role: 'Majitel', phone: null, email: 'a@b.cz' })).toMatchObject({ email: 'a@b.cz' });
+  });
+
+  it.each(['601 123 456', '+420601123456', '(495) 111-222', '112'])('takes the phone %j', (phone) => {
+    expect(locationContactInput.safeParse({ role: 'x', phone }).success).toBe(true);
+  });
+
+  it.each(['', '12', '601 123 456 ext. 5', '420+601', 'tel:601123456', '+', '0'.repeat(31)])(
+    'refuses the phone %j',
+    (phone) => {
+      expect(locationContactInput.safeParse({ role: 'x', phone }).success).toBe(false);
+    },
+  );
+
+  it('refuses a contact nobody can reach, a blank role, a bad email and unknown keys', () => {
+    for (const body of [
+      { role: 'Správce' },
+      { role: 'Správce', name: 'Jan Novák', phone: null, email: null },
+      { role: ' ', phone: '601123456' },
+      { role: 'x'.repeat(61), phone: '601123456' },
+      { role: 'Správce', email: 'novak' },
+      { role: 'Správce', phone: '601123456', note: 'x' },
+    ]) {
+      expect(locationContactInput.safeParse(body).success, JSON.stringify(body)).toBe(false);
+    }
+  });
+
+  it('are optional on a location, at most 20, and replace the list on an update', () => {
+    const one = { role: 'Správce', phone: '601123456' };
+    expect(createLocationBody.parse({ name: 'x', contacts: [one] })).toEqual({ name: 'x', contacts: [one] });
+    expect(createLocationBody.safeParse({ name: 'x', contacts: Array(21).fill(one) }).success).toBe(false);
+    expect(updateLocationBody.parse({ version: 1, contacts: [] })).toEqual({ version: 1, contacts: [] });
   });
 });

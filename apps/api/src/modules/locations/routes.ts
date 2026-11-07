@@ -4,9 +4,9 @@ import {
   idParam,
   itemListQuery,
   itemListSchema,
+  locationDetailSchema,
   locationListQuery,
   locationListSchema,
-  locationSchema,
   locationTypeListSchema,
   locationTypeSchema,
   updateLocationBody,
@@ -17,7 +17,7 @@ import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
 import { toItemListEntryDto } from '../items/dto.ts';
 import type { ItemService } from '../items/service.ts';
-import { toLocationDto, toLocationTypeDto } from './dto.ts';
+import { toLocationDetailDto, toLocationDto, toLocationTypeDto } from './dto.ts';
 import type { LocationService, LocationTypeService } from './service.ts';
 
 const list = defineRoute({
@@ -35,10 +35,10 @@ const get = defineRoute({
   path: '/locations/{id}',
   minRole: 'read',
   tags: ['locations'],
-  summary: 'A location with its path and counts; archived ones too',
+  summary: 'A location with its path, counts and contacts (its own and those of the locations above it); archived ones too',
   request: { params: idParam },
   errors: [404],
-  responses: { 200: { description: 'The location', content: jsonContent(locationSchema) } },
+  responses: { 200: { description: 'The location', content: jsonContent(locationDetailSchema) } },
 });
 
 const listItems = defineRoute({
@@ -60,7 +60,7 @@ const create = defineRoute({
   summary: 'Create a location or sub-location',
   request: { body: { required: true, content: jsonContent(createLocationBody) } },
   errors: [422],
-  responses: { 201: { description: 'The new location', content: jsonContent(locationSchema) } },
+  responses: { 201: { description: 'The new location', content: jsonContent(locationDetailSchema) } },
 });
 
 const update = defineRoute({
@@ -68,10 +68,10 @@ const update = defineRoute({
   path: '/locations/{id}',
   minRole: 'write',
   tags: ['locations'],
-  summary: 'Edit a location, including moving it under another parent',
+  summary: 'Edit a location, including moving it under another parent; `contacts` replaces the whole list',
   request: { params: idParam, body: { required: true, content: jsonContent(updateLocationBody) } },
   errors: [404, 409, 422],
-  responses: { 200: { description: 'The updated location', content: jsonContent(locationSchema) } },
+  responses: { 200: { description: 'The updated location', content: jsonContent(locationDetailSchema) } },
 });
 
 const archive = defineRoute({
@@ -82,7 +82,7 @@ const archive = defineRoute({
   summary: 'Archive a location',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The archived location', content: jsonContent(locationSchema) } },
+  responses: { 200: { description: 'The archived location', content: jsonContent(locationDetailSchema) } },
 });
 
 const restore = defineRoute({
@@ -93,7 +93,7 @@ const restore = defineRoute({
   summary: 'Restore an archived location',
   request: { params: idParam, body: { required: true, content: jsonContent(versionBody) } },
   errors: [404, 409],
-  responses: { 200: { description: 'The restored location', content: jsonContent(locationSchema) } },
+  responses: { 200: { description: 'The restored location', content: jsonContent(locationDetailSchema) } },
 });
 
 type LocationServices = { locations: LocationService; items: ItemService };
@@ -109,7 +109,7 @@ export function createLocationRoutes({ locations, items }: LocationServices) {
     })
     .openapi(get, async (c) => {
       const row = await locations.get(c.get('actor'), c.req.valid('param').id);
-      return c.json(toLocationDto(row), 200);
+      return c.json(toLocationDetailDto(row), 200);
     })
     .openapi(listItems, async (c) => {
       const actor = c.get('actor');
@@ -120,19 +120,19 @@ export function createLocationRoutes({ locations, items }: LocationServices) {
     })
     .openapi(create, async (c) => {
       const row = await locations.create(c.get('actor'), c.req.valid('json'));
-      return c.json(toLocationDto(row), 201);
+      return c.json(toLocationDetailDto(row), 201);
     })
     .openapi(update, async (c) => {
       const row = await locations.update(c.get('actor'), c.req.valid('param').id, c.req.valid('json'));
-      return c.json(toLocationDto(row), 200);
+      return c.json(toLocationDetailDto(row), 200);
     })
     .openapi(archive, async (c) => {
       const row = await locations.archive(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
-      return c.json(toLocationDto(row), 200);
+      return c.json(toLocationDetailDto(row), 200);
     })
     .openapi(restore, async (c) => {
       const row = await locations.restore(c.get('actor'), c.req.valid('param').id, c.req.valid('json').version);
-      return c.json(toLocationDto(row), 200);
+      return c.json(toLocationDetailDto(row), 200);
     });
 }
 

@@ -326,6 +326,94 @@ describe('location service', () => {
       expect((await service.list(reader, {}, { limit: 50 })).items.map((l) => l.name)).toEqual(['Brno', 'Cheb']);
     });
   });
+
+  describe('contacts', () => {
+    const spravce = { role: 'Správce', name: 'Jan Novák', phone: '+420 601 123 456' };
+    const prodejna = { role: 'Prodejna', phone: '495 111 222', email: 'prodejna@example.cz' };
+
+    it('creates a location with its contacts in their order and audits them', async () => {
+      const { store, service, hq } = setup();
+      const row = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: hq, contacts: [spravce, prodejna] });
+      expect(row.contacts).toMatchObject([
+        { role: 'Správce', name: 'Jan Novák', phone: '+420 601 123 456', email: null },
+        { role: 'Prodejna', name: null, phone: '495 111 222', email: 'prodejna@example.cz' },
+      ]);
+      expect(row.inheritedContacts).toEqual([]);
+      expect(store.state.audit.at(-1)?.changes).toMatchObject({
+        contacts: { from: null, to: ['Správce · Jan Novák · +420 601 123 456', 'Prodejna · 495 111 222 · prodejna@example.cz'] },
+      });
+    });
+
+    it('creates a location without contacts and audits none', async () => {
+      const { store, top } = setup();
+      const row = await top('Centrála Praha');
+      expect(row.contacts).toEqual([]);
+      expect(store.state.audit.at(-1)?.changes).not.toHaveProperty('contacts');
+    });
+
+    it('replaces the whole list on an update, bumps the version and audits the difference', async () => {
+      const { store, service, hq } = setup();
+      const row = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: hq, contacts: [spravce] });
+      const updated = await service.update(writer, row.id, { version: 1, contacts: [prodejna, spravce] });
+      expect(updated.version).toBe(2);
+      expect(updated.contacts.map((c) => c.role)).toEqual(['Prodejna', 'Správce']);
+      expect(store.state.audit.at(-1)).toMatchObject({
+        action: 'update',
+        changes: {
+          contacts: {
+            from: ['Správce · Jan Novák · +420 601 123 456'],
+            to: ['Prodejna · 495 111 222 · prodejna@example.cz', 'Správce · Jan Novák · +420 601 123 456'],
+          },
+        },
+      });
+
+      const cleared = await service.update(writer, row.id, { version: 2, contacts: [] });
+      expect(cleared.contacts).toEqual([]);
+      expect(store.state.contacts).toEqual([]);
+    });
+
+    it('leaves the contacts alone when the update does not send them, and audits an unchanged list as nothing', async () => {
+      const { store, service, hq } = setup();
+      const row = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: hq, contacts: [spravce] });
+      const renamed = await service.update(writer, row.id, { version: 1, name: 'Prodejna Brno 2' });
+      expect(renamed.contacts.map((c) => c.role)).toEqual(['Správce']);
+      await service.update(writer, row.id, { version: 2, contacts: [spravce] });
+      expect(store.state.audit.at(-1)?.changes).toEqual({});
+    });
+
+    it('keeps the old contacts when the update conflicts', async () => {
+      const { store, service, hq } = setup();
+      const row = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: hq, contacts: [spravce] });
+      await service.update(writer, row.id, { version: 1, name: 'Nový název' });
+      await expectCode(service.update(writer, row.id, { version: 1, contacts: [] }), 'conflict');
+      expect(store.state.contacts.map((c) => c.role)).toEqual(['Správce']);
+    });
+
+    it('does not change the contacts of an archived location', async () => {
+      const { service, hq } = setup();
+      const row = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: hq, contacts: [spravce] });
+      await service.archive(writer, row.id, 1);
+      await expectCode(service.update(writer, row.id, { version: 2, contacts: [] }), 'archived');
+      expect((await service.get(reader, row.id)).contacts).toHaveLength(1);
+    });
+
+    it('shows the contacts of the locations above, nearest first, leaving out the ones without any', async () => {
+      const { service, hq, sub } = setup();
+      const brno = await service.create(writer, { name: 'Centrála Brno', locationTypeId: hq, contacts: [spravce] });
+      const patro = await sub('2. patro', brno.id);
+      const sklad = await service.create(writer, { name: 'Sklad', parentId: patro.id, contacts: [prodejna] });
+      const regal = await service.create(writer, { name: 'Regál A', parentId: sklad.id });
+
+      const detail = await service.get(reader, regal.id);
+      expect(detail.contacts).toEqual([]);
+      expect(detail.inheritedContacts.map((group) => [group.location.name, group.contacts.map((c) => c.role)])).toEqual([
+        ['Sklad', ['Prodejna']],
+        ['Centrála Brno', ['Správce']],
+      ]);
+      // The location's own contacts are not inherited from itself.
+      expect((await service.get(reader, sklad.id)).inheritedContacts.map((group) => group.location.name)).toEqual(['Centrála Brno']);
+    });
+  });
 });
 
 describe('location type service', () => {

@@ -1,13 +1,17 @@
-import { and, asc, count, eq, getTableColumns, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, inArray, isNotNull, isNull, or, type SQL, sql } from 'drizzle-orm';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, afterPath, type Page, toPage } from '../../db/pagination.ts';
-import { locations, locationTypes } from '../../db/schema/index.ts';
+import { locationContacts, locations, locationTypes } from '../../db/schema/index.ts';
 import { containsText, searchWords } from '../../db/search.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
 
 export type Location = typeof locations.$inferSelect;
 export type LocationType = typeof locationTypes.$inferSelect;
 export type LocationWithType = Location & { type: Pick<LocationType, 'id' | 'code' | 'name'> | null };
+export type LocationContact = typeof locationContacts.$inferSelect;
+
+/** A contact to store: a missing name, phone or email is none. */
+export type ContactInput = { role: string; name?: string | null; phone?: string | null; email?: string | null };
 
 type LocationFields = Pick<
   typeof locations.$inferInsert,
@@ -233,6 +237,41 @@ export function createLocationRepository(db: DbExecutor) {
 
     setArchived(id: string, version: number, archived: boolean, by: string): Promise<Location | undefined> {
       return setArchived(db, locations, id, version, archived, by);
+    },
+
+    /** The contacts of each given location, in their order; a location without any is left out. */
+    async listContacts(locationIds: string[]): Promise<Map<string, LocationContact[]>> {
+      const byLocation = new Map<string, LocationContact[]>();
+      if (locationIds.length === 0) return byLocation;
+      const rows = await db
+        .select()
+        .from(locationContacts)
+        .where(inArray(locationContacts.locationId, locationIds))
+        .orderBy(asc(locationContacts.locationId), asc(locationContacts.sortOrder));
+      for (const row of rows) byLocation.set(row.locationId, [...(byLocation.get(row.locationId) ?? []), row]);
+      return byLocation;
+    },
+
+    /** Replaces all contacts of a location, keeping the given order; run it in the service's transaction. */
+    async replaceContacts(locationId: string, contacts: ContactInput[], by: string): Promise<LocationContact[]> {
+      await db.delete(locationContacts).where(eq(locationContacts.locationId, locationId));
+      if (contacts.length === 0) return [];
+      const rows = await db
+        .insert(locationContacts)
+        .values(
+          contacts.map((contact, sortOrder) => ({
+            locationId,
+            sortOrder,
+            role: contact.role,
+            name: contact.name ?? null,
+            phone: contact.phone ?? null,
+            email: contact.email ?? null,
+            createdBy: by,
+          })),
+        )
+        .returning();
+      // RETURNING promises no order.
+      return rows.sort((a, b) => a.sortOrder - b.sortOrder);
     },
   };
 }
