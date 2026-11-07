@@ -1,3 +1,5 @@
+import { isIos, KEEP_MS, saveFile } from '@/lib/save-file';
+
 const MAX_NAME_CHARS = 60;
 
 /**
@@ -24,16 +26,6 @@ export function pdfFileName(location: { code: string; name: string }, now: Date 
   return `stitky-${fileNamePart(location.name) || location.code}-${day}.pdf`;
 }
 
-const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-/** An installed iOS web app, where a blob download may open the PDF in the viewer instead of saving it. */
-function isIosStandalone(): boolean {
-  const nav = navigator as Navigator & { standalone?: boolean };
-  return nav.standalone === true && isIos();
-}
-
-/** The browser has taken what it needs by then; a PDF must not stay in memory for the session. */
-const KEEP_MS = 60_000;
 const PRINT_KEEP_MS = 10 * KEEP_MS;
 
 /**
@@ -41,18 +33,7 @@ const PRINT_KEEP_MS = 10 * KEEP_MS;
  * where the share sheet can save it (the `download` attribute is not honoured there).
  */
 export function savePdf(bytes: Uint8Array, name: string): void {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
-  if (isIosStandalone()) {
-    window.open(url, '_blank');
-  } else {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = name;
-    document.body.append(link);
-    link.click();
-    link.remove();
-  }
-  setTimeout(() => URL.revokeObjectURL(url), KEEP_MS);
+  saveFile(new Blob([bytes as BlobPart], { type: 'application/pdf' }), name);
 }
 
 /** Whether the browser can hand a PDF file to another app through the system share sheet. */

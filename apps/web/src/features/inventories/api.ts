@@ -33,6 +33,10 @@ export const inventoryItemsQueryOptions = (id: string, locationId: string, inPro
     refetchInterval: inProgress ? inventoryPollMs : false,
   });
 
+/** Every item of a run with its result and identifiers, for the CSV export (not cached: a snapshot). */
+export const fetchInventoryExport = (id: string) =>
+  unwrap(api.api.v1.inventories[':id'].export.$get({ param: { id } }));
+
 /** Ticks an item by hand. An item somebody else ticked first is left as it is; the answer says who. */
 export const checkInventoryItem = (id: string, itemId: string) =>
   unwrap(api.api.v1.inventories[':id'].items[':itemId'].check.$post({ param: { id, itemId } }));

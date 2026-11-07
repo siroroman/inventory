@@ -19,6 +19,7 @@ import { problemMessage } from '@/lib/problem';
 import { inventoryQueryOptions } from './api';
 import { InventoryActions } from './inventory-actions';
 import { InventoryBreadcrumb } from './inventory-breadcrumb';
+import { InventoryExport } from './inventory-export';
 import { SubLocationsBox } from './inventory-sublocations';
 import { InventorySummary, progressOf, runFigures } from './inventory-summary';
 import { shortName, shortNames } from './people';
@@ -157,7 +158,10 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
             {inventory.archivedAt && <ArchivedBadge />}
           </div>
         </div>
-        {canWrite && <InventoryActions inventory={inventory} />}
+        <div className="flex flex-wrap gap-2">
+          {canWrite && <InventoryActions inventory={inventory} />}
+          <InventoryExport inventory={inventory} />
+        </div>
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border bg-card p-4">
