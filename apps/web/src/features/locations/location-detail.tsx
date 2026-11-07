@@ -24,6 +24,7 @@ import {
   locationQueryOptions,
   restoreLocation,
 } from './api';
+import { ContactList } from './location-contacts';
 import { useLocationRows } from './location-list';
 
 /** A link in the detail's header or fields: at least 44 px tall to tap. */
@@ -69,7 +70,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
       <dt className="text-sm font-semibold text-foreground sm:w-44 sm:shrink-0">{label}</dt>
-      <dd className="text-sm whitespace-pre-line">{children || t('common.empty')}</dd>
+      <dd className="min-w-0 flex-1 text-sm whitespace-pre-line">{children || t('common.empty')}</dd>
     </div>
   );
 }
@@ -246,6 +247,15 @@ export function LocationDetail({ id }: { id: string }) {
         {!location.parentId && <Field label={t('locationDetail.fields.type')}>{location.type?.name}</Field>}
         <Field label={t('locationDetail.fields.address')}>{location.address}</Field>
         <Field label={t('locationDetail.fields.note')}>{location.note}</Field>
+        <Field label={t('locationDetail.fields.contacts')}>
+          {location.contacts.length > 0 && <ContactList contacts={location.contacts} />}
+        </Field>
+        {/* Read-only here: they are edited on the location they belong to. */}
+        {location.inheritedContacts.map((group) => (
+          <Field key={group.location.id} label={t('locationDetail.fields.inheritedContacts', { name: group.location.name })}>
+            <ContactList contacts={group.contacts} />
+          </Field>
+        ))}
       </dl>
       <SubLocations location={location} canAdd={canAdd} />
       <Items location={location} canAdd={canAdd} />

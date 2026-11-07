@@ -9,6 +9,20 @@ export const requiredText = (max: number) => z.string().trim().min(1).max(max);
 /** Optional text. `null` clears it; an empty string is rejected (the SPA sends `null` for an empty field). */
 export const nullableText = (max: number) => z.string().trim().min(1).max(max).nullable();
 
+/** A valid email address, internationalised ones included (`servis@příklad.cz`). */
+export const emailAddress = z.string().trim().max(254).pipe(z.email({ pattern: z.regexes.unicodeEmail }));
+
+/**
+ * A phone number as people write it (`+420 601 123 456`, `(495) 111-222`): digits with spaces,
+ * `-`, `(` and `)`, a `+` only in front, at least three digits. Nothing else, so a `tel:` link made
+ * from it always dials.
+ */
+export const phoneNumber = z
+  .string()
+  .trim()
+  .max(30)
+  .regex(/^\+?(?:[ ()-]*[0-9]){3}[0-9 ()-]*$/);
+
 /** A calendar date without time, `2026-09-27`. */
 export const isoDate = z.iso.date();
 

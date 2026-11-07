@@ -17,6 +17,8 @@ export function location(over: Record<string, unknown> = {}) {
     path: [ref('LOC-001', 'Centrála Praha')],
     itemCount: 38,
     childCount: 4,
+    contacts: [],
+    inheritedContacts: [],
     ...over,
   };
 }

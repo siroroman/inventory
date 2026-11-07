@@ -1,9 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type LocationDto, locationCode, locationLimits } from '@inventory/shared';
+import {
+  contactLimits,
+  type LocationContactDto,
+  type LocationDetailDto,
+  locationCode,
+  locationLimits,
+  MAX_LOCATION_CONTACTS,
+  phoneNumber,
+} from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Plus, Trash2 } from 'lucide-react';
+import { type ComponentProps, useRef, useState } from 'react';
+import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -15,11 +24,43 @@ import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
+import { isFormEmail } from '@/lib/email';
 import { problemMessage } from '@/lib/problem';
 import { invalidateAfterWrite } from '@/lib/query';
 import { createLocation, locationQueryOptions, locationTypesQueryOptions, updateLocation } from './api';
 import { LocationPicker, type ParentChoice } from './location-picker';
 import { pathLabel } from './path';
+
+type ContactRow = { role: string; name: string; phone: string; email: string };
+
+const blankContact: ContactRow = { role: '', name: '', phone: '', email: '' };
+
+/** A row nothing was typed into is left out, so an added row can stay empty. */
+const isBlankContact = (row: ContactRow) => !row.role && !row.name && !row.phone && !row.email;
+
+const contactRowSchema = z
+  .object({
+    role: z.string().trim().max(contactLimits.role, 'locationForm.contactRoleTooLong'),
+    name: z.string().trim().max(contactLimits.name, 'locationForm.contactNameTooLong'),
+    phone: z
+      .string()
+      .trim()
+      .refine((value) => value === '' || phoneNumber.safeParse(value).success, 'locationForm.contactPhoneInvalid'),
+    email: z
+      .string()
+      .trim()
+      .refine((value) => value === '' || isFormEmail(value), 'locationForm.contactEmailInvalid'),
+  })
+  .superRefine((row, ctx) => {
+    if (isBlankContact(row)) return;
+    if (!row.role) ctx.addIssue({ code: 'custom', path: ['role'], message: 'locationForm.contactRoleRequired' });
+    if (!row.phone && !row.email) {
+      ctx.addIssue({ code: 'custom', path: ['phone'], message: 'locationForm.contactReachRequired' });
+    }
+  });
+
+/** Suggestions for the role field (`locationForm.contactRoles.*`); any other text is fine too. */
+const ROLE_SUGGESTIONS = ['owner', 'manager', 'store', 'head', 'maintenance'] as const;
 
 // Messages are i18n keys; the form turns them into Czech. The API checks the same limits again.
 const formSchema = z
@@ -34,6 +75,7 @@ const formSchema = z
     locationTypeId: z.string(),
     address: z.string().trim().max(locationLimits.address, 'locationForm.addressTooLong'),
     note: z.string().trim().max(locationLimits.note, 'locationForm.noteTooLong'),
+    contacts: z.array(contactRowSchema),
   })
   // Only a top-level location has a type, and it must have one.
   .refine((values) => values.parent !== null || values.locationTypeId !== '', {
@@ -71,10 +113,16 @@ type FieldMessage =
   | 'locationForm.nameTooLong'
   | 'locationForm.typeRequired'
   | 'locationForm.addressTooLong'
-  | 'locationForm.noteTooLong';
+  | 'locationForm.noteTooLong'
+  | 'locationForm.contactRoleRequired'
+  | 'locationForm.contactRoleTooLong'
+  | 'locationForm.contactNameTooLong'
+  | 'locationForm.contactReachRequired'
+  | 'locationForm.contactPhoneInvalid'
+  | 'locationForm.contactEmailInvalid';
 
-function valuesOf(location: LocationDto | undefined, parent: ParentChoice | null): FormValues {
-  if (!location) return { code: '', parent, name: '', locationTypeId: '', address: '', note: '' };
+function valuesOf(location: LocationDetailDto | undefined, parent: ParentChoice | null): FormValues {
+  if (!location) return { code: '', parent, name: '', locationTypeId: '', address: '', note: '', contacts: [] };
   const above = location.path.slice(0, -1);
   return {
     code: location.code,
@@ -83,8 +131,25 @@ function valuesOf(location: LocationDto | undefined, parent: ParentChoice | null
     locationTypeId: location.type?.id ?? '',
     address: location.address ?? '',
     note: location.note ?? '',
+    contacts: location.contacts.map((contact) => ({
+      role: contact.role,
+      name: contact.name ?? '',
+      phone: contact.phone ?? '',
+      email: contact.email ?? '',
+    })),
   };
 }
+
+/** The contacts to send, in the form's order: empty rows left out, empty fields as `null`. */
+function contactsOf(rows: ContactRow[]): LocationContactDto[] {
+  return rows
+    .filter((row) => !isBlankContact(row))
+    .map((row) => ({ role: row.role, name: row.name || null, phone: row.phone || null, email: row.email || null }));
+}
+
+const sameContacts = (a: LocationContactDto[], b: LocationContactDto[]) =>
+  JSON.stringify(a.map(contactsKey)) === JSON.stringify(b.map(contactsKey));
+const contactsKey = (c: LocationContactDto) => [c.role, c.name, c.phone, c.email];
 
 /**
  * The request body: empty text becomes `null`, and a sub-location never sends a type. The ID is not
@@ -102,7 +167,7 @@ function bodyOf(values: FormValues) {
 
 type Props = {
   /** The location being edited; missing when adding one. */
-  location?: LocationDto;
+  location?: LocationDetailDto;
   /** The parent a new location starts under (the "Add sub-location" button); ignored when editing. */
   initialParent?: ParentChoice | null;
 };
@@ -117,6 +182,23 @@ function FieldError({ id, children }: { id: string; children: string | undefined
   );
 }
 
+/** One labelled input of a contact row, with its error under it. */
+function ContactField({ id, label, error, ...input }: ComponentProps<typeof Input> & { id: string; label: string; error: string | undefined }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        autoComplete="off"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        {...input}
+      />
+      <FieldError id={`${id}-error`}>{error}</FieldError>
+    </div>
+  );
+}
+
 /** Form to add a location or change one. On save it opens the location's detail. */
 export function LocationForm({ location, initialParent = null }: Props) {
   const { t } = useTranslation();
@@ -125,6 +207,8 @@ export function LocationForm({ location, initialParent = null }: Props) {
   const types = useQuery(locationTypesQueryOptions);
   // The version the form's values are based on; a reload after a conflict replaces it.
   const [version, setVersion] = useState(location?.version ?? 0);
+  // The stored contacts the form started from: an edit sends the list only when it differs.
+  const [storedContacts, setStoredContacts] = useState(location?.contacts ?? []);
   const saved = useRef(false);
   // Whether the last failure was put on specific fields (then the general alert would repeat it).
   const [marked, setMarked] = useState(false);
@@ -142,6 +226,7 @@ export function LocationForm({ location, initialParent = null }: Props) {
     defaultValues: valuesOf(location, location ? null : initialParent),
   });
   const topLevel = watch('parent') === null;
+  const contacts = useFieldArray({ control, name: 'contacts' });
 
   // Leaving with unsaved changes asks first; a saved form is not "unsaved" any more.
   const unsaved = () => isDirty && !saved.current;
@@ -149,9 +234,14 @@ export function LocationForm({ location, initialParent = null }: Props) {
   const save = useMutation({
     mutationFn: (values: FormValues) => {
       const body = bodyOf(values);
+      const list = contactsOf(values.contacts);
       return location
-        ? updateLocation(location.id, { ...body, version })
-        : createLocation({ ...body, ...(values.code && { code: values.code }) }); // empty = assign one
+        ? updateLocation(location.id, { ...body, ...(!sameContacts(list, storedContacts) && { contacts: list }), version })
+        : createLocation({
+            ...body,
+            ...(list.length > 0 && { contacts: list }),
+            ...(values.code && { code: values.code }), // empty = assign one
+          });
     },
     // The form shows the failure itself, above the buttons.
     meta: { silentError: true },
@@ -184,6 +274,7 @@ export function LocationForm({ location, initialParent = null }: Props) {
       const fresh = await queryClient.fetchQuery({ ...locationQueryOptions(location.id), staleTime: 0 });
       reset(valuesOf(fresh, null));
       setVersion(fresh.version);
+      setStoredContacts(fresh.contacts);
       save.reset();
     } catch (error) {
       toast.error(problemMessage(error));
@@ -323,6 +414,86 @@ export function LocationForm({ location, initialParent = null }: Props) {
             {message(errors.note?.message as FieldMessage | undefined, locationLimits.note)}
           </FieldError>
         </div>
+
+        <fieldset className="flex min-w-0 flex-col gap-3" aria-describedby="location-contacts-hint">
+          <legend className="mb-1.5 text-sm leading-none font-medium">{t('locationForm.contacts')}</legend>
+          <p id="location-contacts-hint" className="text-xs text-muted-foreground">
+            {t('locationForm.contactsHint')}
+          </p>
+          {contacts.fields.length > 0 && (
+            <ul className="flex flex-col gap-3">
+              {contacts.fields.map((row, index) => {
+                const rowErrors = errors.contacts?.[index];
+                const id = (field: keyof ContactRow) => `location-contact-${index}-${field}`;
+                const error = (field: keyof ContactRow, max = 0) =>
+                  message(rowErrors?.[field]?.message as FieldMessage | undefined, max);
+                return (
+                  <li key={row.id}>
+                    <fieldset className="flex min-w-0 items-start gap-2 rounded-md border p-3">
+                      <legend className="sr-only">{t('locationForm.contactGroup', { n: index + 1 })}</legend>
+                      <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-2">
+                        <ContactField
+                          id={id('role')}
+                          label={t('locationForm.contactRole')}
+                          error={error('role', contactLimits.role)}
+                          list="location-contact-roles"
+                          placeholder={t('locationForm.contactRolePlaceholder')}
+                          maxLength={contactLimits.role}
+                          {...register(`contacts.${index}.role`)}
+                        />
+                        <ContactField
+                          id={id('name')}
+                          label={t('locationForm.contactName')}
+                          error={error('name', contactLimits.name)}
+                          maxLength={contactLimits.name}
+                          {...register(`contacts.${index}.name`)}
+                        />
+                        <ContactField
+                          id={id('phone')}
+                          label={t('locationForm.contactPhone')}
+                          error={error('phone')}
+                          type="tel"
+                          inputMode="tel"
+                          maxLength={contactLimits.phone}
+                          {...register(`contacts.${index}.phone`)}
+                        />
+                        <ContactField
+                          id={id('email')}
+                          label={t('locationForm.contactEmail')}
+                          error={error('email')}
+                          type="email"
+                          inputMode="email"
+                          maxLength={contactLimits.email}
+                          {...register(`contacts.${index}.email`)}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label={t('locationForm.removeContact', { n: index + 1 })}
+                        onClick={() => contacts.remove(index)}
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    </fieldset>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {contacts.fields.length < MAX_LOCATION_CONTACTS && (
+            <Button type="button" variant="outline" className="self-start" onClick={() => contacts.append(blankContact)}>
+              <Plus aria-hidden />
+              {t('locationForm.addContact')}
+            </Button>
+          )}
+          <datalist id="location-contact-roles">
+            {ROLE_SUGGESTIONS.map((key) => (
+              <option key={key} value={t(`locationForm.contactRoles.${key}`)} />
+            ))}
+          </datalist>
+        </fieldset>
 
         {save.isError && (!codeRefused || autoCodeClash) && !marked && (
           <div role="alert" className="flex flex-col items-start gap-2 rounded-md bg-danger-soft px-3 py-2.5 text-sm text-destructive">

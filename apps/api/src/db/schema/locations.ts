@@ -10,7 +10,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { auditColumns, id } from './common.ts';
+import { auditColumns, createdColumns, id } from './common.ts';
 
 export const locationTypes = pgTable(
   'location_types',
@@ -54,6 +54,36 @@ export const locations = pgTable(
     check(
       'locations_type_only_top_level',
       sql`(${t.parentId} is null) = (${t.locationTypeId} is not null)`,
+    ),
+  ],
+);
+
+/**
+ * People and numbers to reach for a location (the owner, the manager, the store's phone). The form
+ * saves the whole list at once, so rows are replaced, never edited; `sort_order` keeps the order entered.
+ */
+export const locationContacts = pgTable(
+  'location_contacts',
+  {
+    id: id(),
+    locationId: uuid()
+      .notNull()
+      .references(() => locations.id, { onDelete: 'restrict' }),
+    sortOrder: integer().notNull(),
+    role: text().notNull(),
+    name: text(),
+    phone: text(),
+    email: text(),
+    ...createdColumns(),
+  },
+  (t) => [
+    // Also the index on the foreign key: location_id leads.
+    unique('location_contacts_location_id_sort_order_key').on(t.locationId, t.sortOrder),
+    check('location_contacts_role_not_blank', sql`btrim(${t.role}) <> ''`),
+    // A contact nobody can call or write to is no contact.
+    check(
+      'location_contacts_phone_or_email',
+      sql`coalesce(btrim(${t.phone}), '') <> '' OR coalesce(btrim(${t.email}), '') <> ''`,
     ),
   ],
 );

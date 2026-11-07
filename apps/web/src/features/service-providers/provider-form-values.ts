@@ -1,10 +1,10 @@
 import {
   type CreateServiceProviderBody,
   type ServiceProviderDetailDto,
-  serviceProviderEmail,
   serviceProviderWeb,
 } from '@inventory/shared';
 import { z } from 'zod';
+import { isFormEmail } from '@/lib/email';
 
 // Messages are i18n keys; the form turns them into Czech. The API validates again with the shared
 // schemas, so these only need to catch what the user can fix before sending.
@@ -25,10 +25,7 @@ export const providerFormSchema = z.object({
   email: z
     .string()
     .trim()
-    .refine(
-      (v) => v === '' || (serviceProviderEmail.safeParse(v).success && v.split('@').at(-1)!.includes('.')),
-      'providerForm.errors.email',
-    ),
+    .refine((v) => v === '' || isFormEmail(v), 'providerForm.errors.email'),
   web: z
     .string()
     .trim()

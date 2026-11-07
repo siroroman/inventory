@@ -14,12 +14,12 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import type { RankedProviderDto } from '@inventory/shared';
 import { Link } from '@tanstack/react-router';
-import { Globe, GripVertical, Mail, Phone } from 'lucide-react';
+import { GripVertical } from 'lucide-react';
 import { type ComponentProps, type ReactNode, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArchivedBadge } from '@/components/archived-badge';
+import { ContactButtons } from '@/components/contact-buttons';
 import { Button } from '@/components/ui/button';
-import { telHref } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -31,37 +31,21 @@ type Props = {
   busy?: boolean;
 };
 
-const actionClass = 'rounded-full bg-muted text-foreground hover:bg-accent';
-
 /** What a card offers to reach the provider; only what is known. */
 function ContactActions({ provider }: { provider: RankedProviderDto }) {
   const { t } = useTranslation();
   const { name, phone, email, web } = provider;
-  if (!phone && !email && !web) return null;
   return (
-    <div className="flex shrink-0 gap-2">
-      {phone && (
-        <Button asChild variant="ghost" size="icon" className={actionClass}>
-          <a href={telHref(phone)} aria-label={t('manufacturer.call', { name })}>
-            <Phone aria-hidden />
-          </a>
-        </Button>
-      )}
-      {email && (
-        <Button asChild variant="ghost" size="icon" className={actionClass}>
-          <a href={`mailto:${email}`} aria-label={t('manufacturer.email', { name })}>
-            <Mail aria-hidden />
-          </a>
-        </Button>
-      )}
-      {web && (
-        <Button asChild variant="ghost" size="icon" className={actionClass}>
-          <a href={web} target="_blank" rel="noopener noreferrer" aria-label={t('manufacturer.web', { name })}>
-            <Globe aria-hidden />
-          </a>
-        </Button>
-      )}
-    </div>
+    <ContactButtons
+      phone={phone}
+      email={email}
+      web={web}
+      labels={{
+        call: t('manufacturer.call', { name }),
+        email: t('manufacturer.email', { name }),
+        web: t('manufacturer.web', { name }),
+      }}
+    />
   );
 }
 

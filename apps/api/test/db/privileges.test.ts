@@ -16,6 +16,7 @@ const EXPECTED_GRANTS: Record<string, string[]> = {
   item_external_ids: READ_WRITE_DELETE,
   item_photos: READ_WRITE_DELETE,
   items: READ_WRITE,
+  location_contacts: READ_WRITE_DELETE,
   location_types: READ_WRITE,
   locations: READ_WRITE,
   manufacturer_service_providers: READ_WRITE_DELETE,
