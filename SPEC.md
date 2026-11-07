@@ -566,11 +566,14 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 #### 9.4.9 CSV export (*Decided*)
 
-"Stáhnout CSV" on a finished run builds the file in the browser from the run's rows. No extra endpoint is needed.
+"Stáhnout CSV" builds the file in the browser from `GET /inventories/{id}/export` (*Built* 2026-11-07, replacing "from the run's rows, no extra endpoint": the checklist rows carry neither the external IDs nor the make, model and serial number). Its purpose is to lay the result next to the accountant's workbook (účetní evidence for the tax office and audits), which has one sheet per centre (`50`, `51`, `59`...) and the column **Inv. číslo** with the number without the centre (`1512`, `2025021`). Our centres are the top-level locations `LOC-50`..., and the accounting number is the external ID `Účetnictví` = `<centre>-<number>` (`74-1512`), so the export splits it into the two.
 
-- Format: UTF-8 with BOM, `;` separator, CRLF line ends, decimal comma. This opens correctly in Czech Excel.
-- Columns: ID; Název; Lokalita; Výsledek; Vedeno v; Přesunuto; Zkontroloval; Čas kontroly; Způsob; Pořizovací cena.
-- File name: `inventura-LOC-004-2026-10-04.csv` (the root's code and the end date).
+- The button is on the run's overview for every role and in every state (a run in progress exports the state of the moment).
+- Format: UTF-8 with BOM, `;` separator, CRLF line ends, decimal comma, no thousands separator. This opens correctly in Czech Excel. A cell that starts with `=`, `+` or `@` gets a leading apostrophe (CSV injection).
+- Rows: every item of the list taken at the start (items archived since too) and every found or added item that is checked. Sorted by centre and inventory number as numbers; items with no accounting ID after them, by name.
+- Columns: Středisko (from `Účetnictví`); Inv. číslo (from `Účetnictví`); ID; Název; Výrobce; Model; Sériové číslo; Původní kód; Další externí ID ("Zdroj: hodnota", comma separated); Výsledek (Nalezeno, Nalezeno jinde, Nové, Chybí, Nezkontrolováno, Archivováno); Lokalita (where it was checked, or where the list had it); Vedeno v (where it is registered now); Středisko lokality (the top-level code of Vedeno v without `LOC-`); Zkontroloval; Čas kontroly; Způsob (Sken / Ručně); Pořizovací cena.
+- "Přesunuto" is left out until moves exist.
+- File name: `inventura-LOC-004-2026-10-04.csv` (the root's code and the end date; today for a run in progress).
 
 #### 9.4.10 Histories, item and location detail, Items list
 
