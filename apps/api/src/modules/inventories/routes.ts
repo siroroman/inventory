@@ -1,5 +1,6 @@
 import {
   idParam,
+  inventoryExportSchema,
   inventoryListQuery,
   inventoryListSchema,
   inventoryPreviewQuery,
@@ -18,6 +19,7 @@ import { defineRoute, jsonContent } from '../../http/route.ts';
 import { createRouter } from '../../http/router.ts';
 import {
   toInventoryDto,
+  toInventoryExportRowDto,
   toInventoryListEntryDto,
   toInventoryPreviewDto,
   toInventoryRowDto,
@@ -80,6 +82,19 @@ const listItems = defineRoute({
   request: { params: idParam, query: inventoryRowsQuery },
   errors: [404],
   responses: { 200: { description: 'The rows a person sees in the run', content: jsonContent(inventoryRowsSchema) } },
+});
+
+const exportItems = defineRoute({
+  method: 'get',
+  path: '/inventories/{id}/export',
+  minRole: 'read',
+  tags: ['inventories'],
+  summary:
+    'Every item of a run with its result, external IDs, make, model, serial number and both locations, ' +
+    'for the export compared with the accounting records: not paged',
+  request: { params: idParam },
+  errors: [404],
+  responses: { 200: { description: 'The items of the run', content: jsonContent(inventoryExportSchema) } },
 });
 
 const scan = defineRoute({
@@ -224,6 +239,10 @@ export function createInventoryRoutes(inventories: InventoryService) {
       const { id } = c.req.valid('param');
       const rows = await inventories.listItems(c.get('actor'), id, c.req.valid('query').locationId);
       return c.json({ items: rows.map(toInventoryRowDto) }, 200);
+    })
+    .openapi(exportItems, async (c) => {
+      const rows = await inventories.exportItems(c.get('actor'), c.req.valid('param').id);
+      return c.json({ items: rows.map(toInventoryExportRowDto) }, 200);
     })
     .openapi(scan, async (c) => {
       const result = await inventories.scan(c.get('actor'), c.req.valid('param').id, c.req.valid('json'));

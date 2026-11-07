@@ -229,3 +229,47 @@ export const scanResultSchema = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('unknown_code') }),
 ]);
 export type ScanResultDto = z.infer<typeof scanResultSchema>;
+
+/**
+ * How an item of a run came out, for the export: `found` (on the list, checked), `found_elsewhere`
+ * and `new` (checked, not on the list), `missing` (flagged), `not_checked` (left unchecked at the end)
+ * and `archived` (on the list, archived since the start, so not counted).
+ */
+export const exportResults = ['found', 'found_elsewhere', 'new', 'missing', 'not_checked', 'archived'] as const;
+export const exportResult = z.enum(exportResults);
+export type ExportResult = z.infer<typeof exportResult>;
+
+/**
+ * One item of a run with what is needed to compare it with the accounting records: its identifiers
+ * (`accountingId` is the accounting inventory number `<centre>-<number>`, `originalCode` the code
+ * before the renumbering, `otherExternalIds` the rest as "Source: value"), the make, model and serial
+ * number, and where it is registered and where it was found. Paths run from the top-level location
+ * (the location last); an item with no location has an empty `registeredPath`.
+ */
+export const inventoryExportRowSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  name: z.string(),
+  accountingId: z.string().nullable(),
+  originalCode: z.string().nullable(),
+  otherExternalIds: z.array(z.string()),
+  manufacturer: z.string().nullable(),
+  model: z.string().nullable(),
+  serialNumber: z.string().nullable(),
+  purchasePrice: z.number().nullable(),
+  result: exportResult,
+  /** Where the item is registered now. */
+  registeredPath: z.array(codeRef),
+  /** Where it was found (checked), or where the list had it when it was not checked. */
+  foundPath: z.array(codeRef),
+  checkedAt: timestamp.nullable(),
+  checkedBy: personRef.nullable(),
+  method: checkMethod.nullable(),
+  /** The item is archived now. */
+  archived: z.boolean(),
+});
+export type InventoryExportRowDto = z.infer<typeof inventoryExportRowSchema>;
+
+/** Every item of a run, not paged: a run holds a few thousand items at most. */
+export const inventoryExportSchema = z.object({ items: z.array(inventoryExportRowSchema) });
+export type InventoryExportDto = z.infer<typeof inventoryExportSchema>;

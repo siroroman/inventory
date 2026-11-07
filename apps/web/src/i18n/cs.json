@@ -570,7 +570,42 @@
       "reopen": "Znovu otevřít inventuru",
       "archive": "Archivovat",
       "restore": "Obnovit",
-      "scan": "Skenovat"
+      "scan": "Skenovat",
+      "exportCsv": "Stáhnout CSV"
+    },
+    "export": {
+      "columns": {
+        "centre": "Středisko",
+        "inventoryNumber": "Inv. číslo",
+        "code": "ID",
+        "name": "Název",
+        "manufacturer": "Výrobce",
+        "model": "Model",
+        "serialNumber": "Sériové číslo",
+        "originalCode": "Původní kód",
+        "otherExternalIds": "Další externí ID",
+        "result": "Výsledek",
+        "foundIn": "Lokalita",
+        "registeredIn": "Vedeno v",
+        "locationCentre": "Středisko lokality",
+        "checkedBy": "Zkontroloval",
+        "checkedAt": "Čas kontroly",
+        "method": "Způsob",
+        "purchasePrice": "Pořizovací cena"
+      },
+      "results": {
+        "found": "Nalezeno",
+        "found_elsewhere": "Nalezeno jinde",
+        "new": "Nové",
+        "missing": "Chybí",
+        "not_checked": "Nezkontrolováno",
+        "archived": "Archivováno"
+      },
+      "methods": {
+        "scan": "Sken",
+        "manual": "Ručně"
+      },
+      "done": "CSV staženo"
     },
     "toast": {
       "finish": "Inventura dokončena",

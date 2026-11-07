@@ -4,6 +4,7 @@ import type { inventoryItems } from '../../src/db/schema/index.ts';
 import { searchWords } from '../../src/db/search.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type {
+  ExportItem,
   Inventory,
   InventoryCounts,
   InventoryFilter,
@@ -192,6 +193,35 @@ export function createFakeInventoryStore() {
       return rowsOf(inventoryId)
         .filter((r) => visible(r) && (!locationId || r.locationId === locationId))
         .map(runItemOf)
+        .sort((a, b) => collator.compare(a.name, b.name) || (a.itemId < b.itemId ? -1 : 1));
+    },
+    async exportItems(inventoryId) {
+      return rowsOf(inventoryId)
+        .filter((r) => r.kind === 'expected' || r.checkedAt !== null)
+        .map((row): ExportItem => {
+          const item = itemById(row.itemId);
+          const manufacturer = itemStore.catalog.state.manufacturers.find((m) => m.id === item.manufacturerId);
+          return {
+            itemId: row.itemId,
+            code: item.code,
+            name: item.name,
+            itemArchived: item.archivedAt !== null,
+            kind: row.kind,
+            locationId: row.locationId,
+            itemLocationId: item.locationId,
+            checkedAt: row.checkedAt,
+            checkedBy: person(row.checkedBy),
+            method: row.method,
+            outcome: row.outcome,
+            manufacturer: manufacturer?.name ?? null,
+            model: item.model,
+            serialNumber: item.serialNumber,
+            purchasePrice: item.purchasePrice,
+            externalIds: itemStore.state.externalIds
+              .filter((e) => e.itemId === row.itemId)
+              .map(({ source, value }) => ({ source, value })),
+          };
+        })
         .sort((a, b) => collator.compare(a.name, b.name) || (a.itemId < b.itemId ? -1 : 1));
     },
     async findRunItem(inventoryId, itemId) {
