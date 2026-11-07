@@ -722,6 +722,90 @@ describe('inventory service', () => {
     });
   });
 
+  describe('exportItems', () => {
+    it('gives every item a result: found, missing, not checked, archived, found elsewhere and new', async () => {
+      const { store, service, clock, actor, praha, users } = await setup();
+      const sklad = await store.itemStore.addLocation('Sklad');
+      const found = await store.addItem(praha.id, 'Tiskárna');
+      const flagged = await store.addItem(praha.id, 'Projektor');
+      await store.addItem(praha.id, 'Židle');
+      const retired = await store.addItem(praha.id, 'Starý stůl');
+      const stranger = await store.addItem(sklad.id, 'Pokladní systém');
+      const unticked = await store.addItem(sklad.id, 'Odškrtnutý');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const added = await store.addItem(praha.id, 'Nová police');
+      store.check(run.id, found.id, users.write.id, clock.now(), 'scan');
+      store.state.rows.find((r) => r.itemId === flagged.id)!.outcome = 'missing';
+      store.itemStore.state.items.find((i) => i.id === retired.id)!.archivedAt = clock.now();
+      const checked = { checkedAt: clock.now(), checkedBy: users.write.id, method: 'manual' };
+      store.addRow(run.id, stranger.id, praha.id, { kind: 'elsewhere', registeredLocationId: sklad.id, ...checked });
+      store.addRow(run.id, added.id, praha.id, { kind: 'new', ...checked });
+      // Found, then unticked: no longer part of the run.
+      store.addRow(run.id, unticked.id, praha.id, { kind: 'elsewhere', registeredLocationId: sklad.id });
+
+      const rows = new Map((await service.exportItems(actor('read'), run.id)).map((r) => [r.name, r]));
+      expect(Object.fromEntries([...rows].map(([name, r]) => [name, r.result]))).toEqual({
+        Tiskárna: 'found',
+        Projektor: 'missing',
+        Židle: 'not_checked',
+        'Starý stůl': 'archived',
+        'Pokladní systém': 'found_elsewhere',
+        'Nová police': 'new',
+      });
+      expect(rows.get('Tiskárna')).toMatchObject({ checkedBy: users.write, method: 'scan', itemArchived: false });
+      expect(rows.get('Starý stůl')).toMatchObject({ itemArchived: true });
+      expect(rows.get('Pokladní systém')!.registeredPath.map((l) => l.name)).toEqual(['Sklad']);
+      expect(rows.get('Pokladní systém')!.foundPath.map((l) => l.name)).toEqual(['Centrála Praha']);
+    });
+
+    it('splits the external IDs into the accounting number, the original code and the rest', async () => {
+      const { store, service, actor, praha } = await setup();
+      const patro = await store.itemStore.addLocation('Patro', praha.id);
+      const item = await store.addItem(patro.id, 'Tiskárna');
+      await store.addItem(null, 'Bez všeho');
+      const brand = await store.itemStore.catalog.addManufacturer('Canon');
+      Object.assign(store.itemStore.state.items.find((i) => i.id === item.id)!, {
+        manufacturerId: brand.id,
+        model: 'i-SENSYS',
+        serialNumber: 'SN-42',
+        purchasePrice: 12500.5,
+      });
+      await store.itemStore.repos.items.replaceExternalIds(
+        item.id,
+        [
+          { source: 'Účetnictví', value: '74-1512' },
+          { source: 'Původní kód', value: 'HK-0042' },
+          { source: 'Servis', value: 'S-9' },
+          { source: 'Elektrikář', value: 'EL-1' },
+        ],
+        'setup',
+      );
+      const run = await service.start(actor('write'), { locationId: praha.id });
+
+      const rows = new Map((await service.exportItems(actor('read'), run.id)).map((r) => [r.name, r]));
+      expect(rows.get('Tiskárna')).toMatchObject({
+        accountingId: '74-1512',
+        originalCode: 'HK-0042',
+        otherExternalIds: ['Elektrikář: EL-1', 'Servis: S-9'],
+        manufacturer: 'Canon',
+        model: 'i-SENSYS',
+        serialNumber: 'SN-42',
+        purchasePrice: 12500.5,
+      });
+      expect(rows.get('Tiskárna')!.foundPath.map((l) => l.name)).toEqual(['Centrála Praha', 'Patro']);
+      expect(rows.has('Bez všeho')).toBe(false);
+    });
+
+    it('lets readers export, and answers not_found for an unknown run', async () => {
+      const { store, service, users, actor, praha } = await setup();
+      await store.addItem(praha.id, 'Tiskárna');
+      const run = await service.start(actor('write'), { locationId: praha.id });
+      const item = (await service.exportItems(actor('read', users.read), run.id))[0]!;
+      expect(item).toMatchObject({ accountingId: null, originalCode: null, otherExternalIds: [], manufacturer: null });
+      await expectCode(service.exportItems(actor('read'), crypto.randomUUID()), 'not_found');
+    });
+  });
+
   describe('check', () => {
     it('ticks the row for the user at the time of the clock, by hand, and audits it', async () => {
       const { store, service, clock, actor, praha, users } = await setup();

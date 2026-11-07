@@ -1,11 +1,19 @@
 import type {
   InventoryDto,
+  InventoryExportRowDto,
   InventoryListEntryDto,
   InventoryPreviewDto,
   InventoryRowDto,
   ScanResultDto,
 } from '@inventory/shared';
-import type { InventoryDetail, InventoryEntry, InventoryPreview, InventoryRunItem, ScanResult } from './service.ts';
+import type {
+  InventoryDetail,
+  InventoryEntry,
+  InventoryExportItem,
+  InventoryPreview,
+  InventoryRunItem,
+  ScanResult,
+} from './service.ts';
 
 function runFields(row: InventoryEntry) {
   return {
@@ -59,6 +67,28 @@ export function toInventoryRowDto(row: InventoryRunItem): InventoryRowDto {
     registeredPath: row.registeredPath,
     registeredElsewhere: row.registeredElsewhere,
     moved: row.moved,
+  };
+}
+
+export function toInventoryExportRowDto(row: InventoryExportItem): InventoryExportRowDto {
+  return {
+    id: row.itemId,
+    code: row.code,
+    name: row.name,
+    accountingId: row.accountingId,
+    originalCode: row.originalCode,
+    otherExternalIds: row.otherExternalIds,
+    manufacturer: row.manufacturer,
+    model: row.model,
+    serialNumber: row.serialNumber,
+    purchasePrice: row.purchasePrice,
+    result: row.result,
+    registeredPath: row.registeredPath,
+    foundPath: row.foundPath,
+    checkedAt: row.checkedAt?.toISOString() ?? null,
+    checkedBy: row.checkedBy,
+    method: row.method as InventoryExportRowDto['method'],
+    archived: row.itemArchived,
   };
 }
 

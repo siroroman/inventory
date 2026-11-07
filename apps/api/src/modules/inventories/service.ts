@@ -2,12 +2,14 @@ import { type Actor, assertRole } from '../../auth/roles.ts';
 import type { DbExecutor } from '../../db/client.ts';
 import type { Page } from '../../db/pagination.ts';
 import type { Transact } from '../../db/transaction.ts';
+import { ACCOUNTING_SOURCE, ORIGINAL_CODE_SOURCE } from '../../db/accounting.ts';
 import { DomainError } from '../../errors.ts';
 import { changedFields } from '../audit/changes.ts';
 import { type AuditRepository, createAuditRepository } from '../audit/repository.ts';
 import { createLocationRepository, type LocationRepository, type PathSegment } from '../locations/repository.ts';
 import {
   createInventoryRepository,
+  type ExportItem,
   type Inventory,
   type InventoryCounts,
   type InventoryFilter,
@@ -72,6 +74,51 @@ export type InventoryDetail = InventoryEntry & {
  * ordinary edit of the item) the row is in place and shows as an ordinary check.
  */
 export type InventoryRunItem = RunItem & { registeredPath: PathSegment[]; registeredElsewhere: boolean };
+
+/**
+ * How an item of a run came out, for the export: `found` (on the list, checked), `found_elsewhere`
+ * and `new` (checked, not on the list), `missing` (flagged), `archived` (on the list, unchecked and
+ * archived since the start) and `not_checked` (left unchecked).
+ */
+export type ExportResult = 'found' | 'found_elsewhere' | 'new' | 'missing' | 'not_checked' | 'archived';
+
+/**
+ * An item of a run as the export lists it. `accountingId` is the external ID `Účetnictví`
+ * (`<centre>-<number>`), `originalCode` the one `Původní kód`, `otherExternalIds` the rest as
+ * "Source: value". `foundPath` is the row's location (where it was checked, or where the list had
+ * it), `registeredPath` where the item is registered now; both from the top, empty for none.
+ */
+export type InventoryExportItem = Omit<ExportItem, 'externalIds' | 'outcome' | 'kind'> & {
+  result: ExportResult;
+  accountingId: string | null;
+  originalCode: string | null;
+  otherExternalIds: string[];
+  foundPath: PathSegment[];
+  registeredPath: PathSegment[];
+};
+
+export function exportResultOf(row: Pick<ExportItem, 'kind' | 'checkedAt' | 'outcome' | 'itemArchived'>): ExportResult {
+  if (row.kind === 'elsewhere') return 'found_elsewhere';
+  if (row.kind === 'new') return 'new';
+  if (row.checkedAt) return 'found';
+  if (row.outcome === 'missing') return 'missing';
+  if (row.outcome === 'skipped' || row.itemArchived) return 'archived';
+  return 'not_checked';
+}
+
+/** Splits an item's external IDs into the accounting number, the original code and the rest. */
+export function splitExternalIds(ids: ExportItem['externalIds']) {
+  const accounting = ids.find((e) => e.source === ACCOUNTING_SOURCE);
+  const original = ids.find((e) => e.source === ORIGINAL_CODE_SOURCE);
+  return {
+    accountingId: accounting?.value ?? null,
+    originalCode: original?.value ?? null,
+    otherExternalIds: ids
+      .filter((e) => e !== accounting && e !== original)
+      .map((e) => `${e.source}: ${e.value}`)
+      .sort((a, b) => a.localeCompare(b, 'cs')),
+  };
+}
 
 /** The run in progress that blocks a start. */
 export type InventoryOverlap = {
@@ -470,6 +517,25 @@ export function createInventoryService({ repos, transact, now = () => new Date()
       assertRole(actor, 'read');
       if (!(await repos.inventories.findById(id))) throw new DomainError('not_found');
       return runItemEntries(await repos.inventories.runItems(id, locationId));
+    },
+
+    /**
+     * Every item of a run with its result, identifiers and both locations, for the export compared
+     * with the accounting records. Any state: an export of a run in progress is a snapshot.
+     */
+    async exportItems(actor: Actor, id: string): Promise<InventoryExportItem[]> {
+      assertRole(actor, 'read');
+      if (!(await repos.inventories.findById(id))) throw new DomainError('not_found');
+      const rows = await repos.inventories.exportItems(id);
+      const locationIds = rows.flatMap((row) => (row.itemLocationId ? [row.locationId, row.itemLocationId] : [row.locationId]));
+      const paths = await repos.locations.findPaths([...new Set(locationIds)]);
+      return rows.map(({ externalIds, outcome, kind, ...row }) => ({
+        ...row,
+        result: exportResultOf({ kind, outcome, checkedAt: row.checkedAt, itemArchived: row.itemArchived }),
+        ...splitExternalIds(externalIds),
+        foundPath: paths.get(row.locationId) ?? [],
+        registeredPath: (row.itemLocationId && paths.get(row.itemLocationId)) || [],
+      }));
     },
 
     /** Ticks an item of a run in progress by hand. */

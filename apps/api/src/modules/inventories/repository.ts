@@ -2,7 +2,16 @@ import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull,
 import { alias } from 'drizzle-orm/pg-core';
 import type { DbExecutor } from '../../db/client.ts';
 import { beforeTimestamp, type Page, toPage } from '../../db/pagination.ts';
-import { auditLog, inventories, inventoryItems, items, locations, user } from '../../db/schema/index.ts';
+import {
+  auditLog,
+  inventories,
+  inventoryItems,
+  itemExternalIds,
+  items,
+  locations,
+  manufacturers,
+  user,
+} from '../../db/schema/index.ts';
 import { setArchived, updateVersioned } from '../../db/versioned.ts';
 import { matchesSearch, subtreeOf } from '../locations/repository.ts';
 
@@ -64,6 +73,32 @@ export type RunItem = {
   /** A person flagged the unchecked item of the list as missing (`outcome = 'missing'`). */
   missing: boolean;
   moved: boolean;
+};
+
+/**
+ * An item of a run with what an export needs to compare it with the accounting records: the row's
+ * state (`outcome`: `missing`, `skipped` or null) and the item's identifiers, make, model, serial
+ * number and price. External IDs are in no particular order.
+ */
+export type ExportItem = {
+  itemId: string;
+  code: string;
+  name: string;
+  itemArchived: boolean;
+  kind: string;
+  /** Where the row belongs in the run (where it was checked, or where the list had it). */
+  locationId: string;
+  /** Where the item is registered now (null: nowhere). */
+  itemLocationId: string | null;
+  checkedAt: Date | null;
+  checkedBy: Person | null;
+  method: string | null;
+  outcome: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  purchasePrice: number | null;
+  externalIds: { source: string; value: string }[];
 };
 
 const starter = user;
@@ -245,6 +280,56 @@ export function createInventoryRepository(db: DbExecutor) {
         )
         .orderBy(asc(items.name), asc(items.id));
       return rows.map(toRunItem);
+    },
+
+    /**
+     * Every item of the run for an export: the whole list taken at the start (items archived since
+     * too) and the items found or added that are checked, by item name in Czech order.
+     */
+    async exportItems(inventoryId: string): Promise<ExportItem[]> {
+      const rows = await db
+        .select({
+          itemId: inventoryItems.itemId,
+          code: items.code,
+          name: items.name,
+          itemArchivedAt: items.archivedAt,
+          kind: inventoryItems.kind,
+          locationId: inventoryItems.locationId,
+          itemLocationId: items.locationId,
+          checkedAt: inventoryItems.checkedAt,
+          checkedBy: { id: checker.id, name: checker.name },
+          method: inventoryItems.method,
+          outcome: inventoryItems.outcome,
+          manufacturer: manufacturers.name,
+          model: items.model,
+          serialNumber: items.serialNumber,
+          purchasePrice: items.purchasePrice,
+        })
+        .from(inventoryItems)
+        .innerJoin(items, eq(items.id, inventoryItems.itemId))
+        .leftJoin(manufacturers, eq(manufacturers.id, items.manufacturerId))
+        .leftJoin(checker, eq(checker.id, inventoryItems.checkedBy))
+        .where(
+          and(
+            eq(inventoryItems.inventoryId, inventoryId),
+            or(eq(inventoryItems.kind, 'expected'), isNotNull(inventoryItems.checkedAt)),
+          ),
+        )
+        .orderBy(asc(items.name), asc(items.id));
+      const ids = rows.map((row) => row.itemId);
+      const externalIds =
+        ids.length === 0
+          ? []
+          : await db
+              .select({ itemId: itemExternalIds.itemId, source: itemExternalIds.source, value: itemExternalIds.value })
+              .from(itemExternalIds)
+              .where(inArray(itemExternalIds.itemId, ids));
+      const byItem = Map.groupBy(externalIds, (e) => e.itemId);
+      return rows.map(({ itemArchivedAt, ...row }) => ({
+        ...row,
+        itemArchived: itemArchivedAt !== null,
+        externalIds: (byItem.get(row.itemId) ?? []).map(({ source, value }) => ({ source, value })),
+      }));
     },
 
     /** The run's row for an item, visible or not. */

@@ -1,4 +1,5 @@
 import {
+  inventoryExportSchema,
   inventoryListSchema,
   inventoryPreviewSchema,
   inventoryRowSchema,
@@ -8,10 +9,10 @@ import {
 } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { auditLog, inventoryItems, items, locations } from '../../src/db/schema/index.ts';
+import { auditLog, inventoryItems, itemExternalIds, items, locations } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
-import { insertInventory, insertItem, insertLocation } from '../helpers/factories.ts';
+import { insertInventory, insertItem, insertLocation, insertManufacturer } from '../helpers/factories.ts';
 import { api, expectJson, expectProblem, roleClients } from '../helpers/http.ts';
 
 const db = useTestDb();
@@ -580,6 +581,59 @@ describe('GET /inventories/{id}/items', () => {
     await expectProblem(await read.get('/inventories/nope/items'), 400, 'validation_error');
     await expectProblem(await read.get(`/inventories/${MISSING}/items?locationId=nope`), 400, 'validation_error');
     await expectProblem(await api(app).get(`/inventories/${MISSING}/items`), 401, 'unauthenticated');
+  });
+});
+
+describe('GET /inventories/{id}/export', () => {
+  it('lists every item with its result, accounting number, make, model, serial number and locations', async () => {
+    const { read, write } = await setup();
+    const { run, top, patro, mixer, ladder, cap } = await startedRun(write);
+    const brand = await insertManufacturer(db().app, { name: 'Bosch' });
+    await db()
+      .app.update(items)
+      .set({ manufacturerId: brand.id, model: 'MUM5', serialNumber: 'SN-1', purchasePrice: 4990.5 })
+      .where(eq(items.id, mixer.id));
+    await db()
+      .app.insert(itemExternalIds)
+      .values([
+        { itemId: mixer.id, source: 'Účetnictví', value: '74-1512' },
+        { itemId: mixer.id, source: 'Původní kód', value: 'HK-0042' },
+        { itemId: mixer.id, source: 'Servis', value: 'S-9' },
+      ]);
+    await write.post(`/inventories/${run.id}/items/${mixer.id}/check`);
+    await write.post(`/inventories/${run.id}/items/${cap.id}/mark-missing`);
+    // Archived since the start: still exported, with its own result.
+    await db().app.update(items).set({ archivedAt: new Date() }).where(eq(items.id, ladder.id));
+
+    const body = await expectJson(await read.get(`/inventories/${run.id}/export`), 200, inventoryExportSchema);
+    const byName = new Map(body.items.map((r) => [r.name, r]));
+    expect(body.items).toHaveLength(5);
+    expect(byName.get('Mixér')).toMatchObject({
+      id: mixer.id,
+      code: mixer.code,
+      result: 'found',
+      accountingId: '74-1512',
+      originalCode: 'HK-0042',
+      otherExternalIds: ['Servis: S-9'],
+      manufacturer: 'Bosch',
+      model: 'MUM5',
+      serialNumber: 'SN-1',
+      purchasePrice: 4990.5,
+      method: 'manual',
+      archived: false,
+    });
+    expect(byName.get('Mixér')!.foundPath.map((l) => l.id)).toEqual([top.id]);
+    expect(byName.get('Čepice')).toMatchObject({ result: 'missing', checkedAt: null });
+    expect(byName.get('Čepice')!.registeredPath.map((l) => l.id)).toEqual([top.id, patro.id]);
+    expect(byName.get('Žebřík')).toMatchObject({ result: 'archived', archived: true });
+    expect(body.items.filter((r) => r.name === 'Konvektomat').map((r) => r.result)).toEqual(['not_checked', 'not_checked']);
+  });
+
+  it('answers 404 for an unknown run, 400 for a bad id and 401 for an anonymous caller', async () => {
+    const { app, read } = await setup();
+    await expectProblem(await read.get(`/inventories/${MISSING}/export`), 404, 'not_found');
+    await expectProblem(await read.get('/inventories/nope/export'), 400, 'validation_error');
+    await expectProblem(await api(app).get(`/inventories/${MISSING}/export`), 401, 'unauthenticated');
   });
 });
 
