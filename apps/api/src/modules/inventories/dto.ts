@@ -69,6 +69,7 @@ export function toInventoryRowDto(row: InventoryRunItem): InventoryRowDto {
     registeredPath: row.registeredPath,
     registeredElsewhere: row.registeredElsewhere,
     moved: row.moved,
+    externalIds: row.externalIds,
   };
 }
 

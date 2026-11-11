@@ -643,7 +643,9 @@
     },
     "checklist": {
       "searchLabel": "Hledat položky v lokalitě",
-      "searchPlaceholder": "Hledat podle názvu nebo ID…",
+      "searchPlaceholder": "Hledat podle názvu, ID nebo externího ID…",
+      "externalIdsLabel": "Externí ID",
+      "externalId": "{{source}}: {{value}}",
       "unchecked": "Nezkontrolované",
       "checked": "Zkontrolované",
       "missing": "Chybí",

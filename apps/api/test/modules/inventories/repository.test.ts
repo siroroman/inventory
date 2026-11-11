@@ -402,6 +402,25 @@ describe('inventory repository', () => {
       expect(rows.find((r) => r.name === 'Žebřík')).toMatchObject({ checkedAt: null, checkedBy: null, method: null });
     });
 
+    it('carries the external IDs of each item by source and value, case ignored, and none for an item without', async () => {
+      const { inventory, praha, row } = await run();
+      const cord = await row('Prodlužovačka', praha.id);
+      await insertExternalId(t().app, cord.itemId, 'účetnictví', '73-2');
+      await insertExternalId(t().app, cord.itemId, 'Revize ILKO', 'S 129');
+      await insertExternalId(t().app, cord.itemId, 'Revize ilko', 'S 1290');
+      await row('Tiskárna', praha.id);
+
+      const rows = await repo().runItems(inventory.id);
+
+      expect(rows.find((r) => r.name === 'Prodlužovačka')!.externalIds).toEqual([
+        { source: 'Revize ILKO', value: 'S 129' },
+        { source: 'Revize ilko', value: 'S 1290' },
+        { source: 'účetnictví', value: '73-2' },
+      ]);
+      expect(rows.find((r) => r.name === 'Tiskárna')!.externalIds).toEqual([]);
+      expect((await repo().findRunItem(inventory.id, cord.itemId))!.externalIds).toHaveLength(3);
+    });
+
     it('can be limited to one location of the run', async () => {
       const { inventory, praha, patro, row } = await run();
       await row('Tiskárna', praha.id);

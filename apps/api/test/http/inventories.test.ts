@@ -625,6 +625,23 @@ describe('GET /inventories/{id}/items', () => {
     expect(inPatro.items.map((r) => r.name)).toEqual(['Čepice', 'Konvektomat']);
   });
 
+  it('carries the external IDs of every row, also in the answer of a check', async () => {
+    const { read, write } = await setup();
+    const { run, cap, ladder } = await startedRun(write);
+    await insertExternalId(db().app, cap.id, 'Účetnictví', '73-2023016');
+    await insertExternalId(db().app, cap.id, 'Revize ILKO', 'S 129');
+
+    const all = await expectJson(await read.get(`/inventories/${run.id}/items`), 200, inventoryRowsSchema);
+    expect(all.items.find((r) => r.id === cap.id)!.externalIds).toEqual([
+      { source: 'Revize ILKO', value: 'S 129' },
+      { source: 'Účetnictví', value: '73-2023016' },
+    ]);
+    expect(all.items.find((r) => r.id === ladder.id)!.externalIds).toEqual([]);
+
+    const checked = await expectJson(await write.post(`/inventories/${run.id}/items/${cap.id}/check`), 200, inventoryRowSchema);
+    expect(checked.externalIds).toHaveLength(2);
+  });
+
   it('hides archived items and shows who checked a row', async () => {
     const { read, write } = await setup();
     const { run, mixer, ladder } = await startedRun(write);

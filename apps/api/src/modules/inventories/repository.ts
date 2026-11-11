@@ -52,6 +52,8 @@ export type LocationChecker = { locationId: string } & Person;
 export type StartPreview = { itemCount: number; locationCount: number };
 /** A source of external IDs among the items a run would check, and how many of them have one. */
 export type SourceCount = { source: string; itemCount: number };
+/** An identifier the item has at another party, e.g. "Revize ILKO" "S 129". */
+export type ExternalId = { source: string; value: string };
 
 /** Something that happened to a run after its start, with who did it (null: unknown user). */
 export type RunEvent = { action: 'finish' | 'cancel' | 'reopen'; at: Date; by: Person | null };
@@ -78,6 +80,8 @@ export type RunItem = {
   /** A person flagged the unchecked item of the list as missing (`outcome = 'missing'`). */
   missing: boolean;
   moved: boolean;
+  /** The item's external IDs, by source and value (case ignored): what is searched and shown on the checklist. */
+  externalIds: ExternalId[];
 };
 
 /**
@@ -131,6 +135,10 @@ const runItemColumns = {
   method: inventoryItems.method,
   outcome: inventoryItems.outcome,
   movedAt: inventoryItems.movedAt,
+  // In the same order as the item detail lists them.
+  externalIds: sql<ExternalId[]>`coalesce((
+    SELECT json_agg(json_build_object('source', e.source, 'value', e.value) ORDER BY lower(e.source), lower(e.value))
+      FROM ${itemExternalIds} e WHERE e.item_id = ${inventoryItems.itemId}), '[]'::json)`,
 };
 
 type RunItemRecord = Omit<RunItem, 'itemArchived' | 'missing' | 'moved'> & {

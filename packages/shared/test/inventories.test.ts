@@ -87,6 +87,7 @@ describe('scanResultSchema', () => {
     registeredPath: [],
     registeredElsewhere: false,
     moved: false,
+    externalIds: [{ source: 'Revize ILKO', value: 'S 129' }],
   };
 
   it('accepts every outcome with its own fields', () => {
@@ -104,6 +105,11 @@ describe('scanResultSchema', () => {
 
   it('refuses a row that does not say whether its item is still registered elsewhere', () => {
     const { registeredElsewhere: _, ...incomplete } = row;
+    expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
+  });
+
+  it('refuses a row without the external IDs of its item', () => {
+    const { externalIds: _, ...incomplete } = row;
     expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
   });
 

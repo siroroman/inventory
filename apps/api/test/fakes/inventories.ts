@@ -96,6 +96,15 @@ export function createFakeInventoryStore() {
       method: row.method,
       missing: row.outcome === 'missing',
       moved: row.movedAt !== null,
+      // Like the repository: by source, then value, case ignored.
+      externalIds: itemStore.state.externalIds
+        .filter((e) => e.itemId === row.itemId)
+        .map(({ source, value }) => ({ source, value }))
+        .sort(
+          (a, b) =>
+            a.source.toLowerCase().localeCompare(b.source.toLowerCase()) ||
+            a.value.toLowerCase().localeCompare(b.value.toLowerCase()),
+        ),
     };
   };
   const findRow = (inventoryId: string, itemId: string) =>

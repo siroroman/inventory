@@ -181,6 +181,11 @@ export const inventoryRowSchema = z.object({
   registeredElsewhere: z.boolean(),
   /** The item was moved to the run's location during the run. */
   moved: z.boolean(),
+  /**
+   * The item's external IDs (e.g. "Revize ILKO" "S 129" from the electrician's sticker), by source
+   * and value, case ignored: the checklist searches and shows them.
+   */
+  externalIds: z.array(z.object({ source: z.string(), value: z.string() })),
 });
 export type InventoryRowDto = z.infer<typeof inventoryRowSchema>;
 
