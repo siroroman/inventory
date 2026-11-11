@@ -22,6 +22,10 @@ export const inventories = pgTable(
     endedAt: timestamp({ withTimezone: true }),
     endedBy: uuid().references(() => user.id, { onDelete: 'restrict' }),
     archivedAt: timestamp({ withTimezone: true }),
+    // What the run checks (SPEC §9.3 rule 18): only items with an external ID of this source,
+    // case ignored ("Účetnictví": the assets in the accounting records). Null = every item.
+    // Chosen at the start and fixed afterwards.
+    scopeSource: text(),
     note: text(),
     committee: text(),
     ...createdColumns(),
@@ -44,6 +48,7 @@ export const inventories = pgTable(
     ),
     // Only an ended run can be archived.
     check('inventories_archived_when_closed', sql`${t.archivedAt} is null or ${t.status} <> 'in_progress'`),
+    check('inventories_scope_source_not_blank', sql`${t.scopeSource} is null or btrim(${t.scopeSource}) <> ''`),
   ],
 );
 

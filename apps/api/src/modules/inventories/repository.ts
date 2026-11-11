@@ -21,8 +21,11 @@ type LocationRef = { id: string; code: string; name: string };
 /** A run with its root location and the people who started and ended it (null: unknown user). */
 export type InventoryRow = Inventory & { location: LocationRef; startedBy: Person | null; closedBy: Person | null };
 
-/** `created_at` and `created_by` are the start. The service sets `createdAt` from its clock (see `TimestampKey`). */
-export type NewInventory = { locationId: string; createdBy: string; createdAt: Date };
+/**
+ * `created_at` and `created_by` are the start. The service sets `createdAt` from its clock (see
+ * `TimestampKey`). `scopeSource`: only items with an external ID of this source go on the list.
+ */
+export type NewInventory = { locationId: string; scopeSource?: string | null; createdBy: string; createdAt: Date };
 export type InventoryPatch = Partial<Pick<typeof inventories.$inferInsert, 'status' | 'endedAt' | 'endedBy' | 'note' | 'committee'>> & {
   updatedBy: string;
 };
@@ -47,6 +50,8 @@ export type LocationProgress = { locationId: string; total: number; checked: num
 export type LocationChecker = { locationId: string } & Person;
 
 export type StartPreview = { itemCount: number; locationCount: number };
+/** A source of external IDs among the items a run would check, and how many of them have one. */
+export type SourceCount = { source: string; itemCount: number };
 
 /** Something that happened to a run after its start, with who did it (null: unknown user). */
 export type RunEvent = { action: 'finish' | 'cancel' | 'reopen'; at: Date; by: Person | null };
@@ -166,8 +171,16 @@ function listWhere(db: DbExecutor, filter: InventoryFilter): SQL[] {
   return conditions;
 }
 
-/** Items of the active subtree: active, and in the root or an active location below it. */
-const inSnapshot = (rootId: string) => sql`i.archived_at IS NULL AND i.location_id IN (${subtreeOf(rootId)})`;
+/** The item `i` has an external ID of this source; the source's case is ignored, like the unique index does. */
+const hasSource = (source: string) =>
+  sql`EXISTS (SELECT 1 FROM ${itemExternalIds} e WHERE e.item_id = i.id AND lower(e.source) = lower(${source}))`;
+
+/**
+ * Items of the active subtree: active, and in the root or an active location below it. With a
+ * scope, only those with an external ID of that source.
+ */
+const inSnapshot = (rootId: string, scopeSource: string | null = null) =>
+  sql`i.archived_at IS NULL AND i.location_id IN (${subtreeOf(rootId)})${scopeSource ? sql` AND ${hasSource(scopeSource)}` : sql``}`;
 
 /** The rows a person sees: the list taken at the start without the items archived since, plus the items found or added (checked ones). */
 const visibleRow = or(
@@ -252,20 +265,45 @@ export function createInventoryRepository(db: DbExecutor) {
       return row!;
     },
 
-    /** Takes the list of the run: every active item in the root or an active location below it. Returns how many. */
-    async snapshot(inventoryId: string, rootId: string): Promise<number> {
+    /**
+     * Takes the list of the run: every active item in the root or an active location below it, with
+     * a scope only those with an external ID of that source. Returns how many.
+     */
+    async snapshot(inventoryId: string, rootId: string, scopeSource: string | null = null): Promise<number> {
       const result = await db.execute(sql`
         INSERT INTO inventory_items (inventory_id, item_id, kind, location_id)
-        SELECT ${inventoryId}::uuid, i.id, 'expected', i.location_id FROM items i WHERE ${inSnapshot(rootId)}`);
+        SELECT ${inventoryId}::uuid, i.id, 'expected', i.location_id FROM items i WHERE ${inSnapshot(rootId, scopeSource)}`);
       return result.rowCount ?? 0;
     },
 
-    /** What a run on `rootId` would check, for the start screen. */
-    async previewCounts(rootId: string): Promise<StartPreview> {
+    /** What a run on `rootId` would check, in the scope given, for the start screen. */
+    async previewCounts(rootId: string, scopeSource: string | null = null): Promise<StartPreview> {
       const result = await db.execute<StartPreview>(sql`
         SELECT count(*)::int AS "itemCount", count(DISTINCT i.location_id)::int AS "locationCount"
-          FROM items i WHERE ${inSnapshot(rootId)}`);
+          FROM items i WHERE ${inSnapshot(rootId, scopeSource)}`);
       return result.rows[0]!;
+    },
+
+    /**
+     * The sources of the external IDs that the items a run on `rootId` would check (without a
+     * scope) have, with how many items have one, in Czech order. Sources that differ only in case
+     * are one, named by one of their spellings.
+     */
+    async previewSources(rootId: string): Promise<SourceCount[]> {
+      const result = await db.execute<SourceCount>(sql`
+        SELECT min(e.source) AS source, count(DISTINCT i.id)::int AS "itemCount"
+          FROM items i JOIN ${itemExternalIds} e ON e.item_id = i.id
+         WHERE ${inSnapshot(rootId)}
+         GROUP BY lower(e.source)
+         ORDER BY min(e.source) COLLATE cs_cz, lower(e.source)`);
+      return result.rows;
+    },
+
+    /** Whether the item has an external ID of this source, case ignored: what a run's scope asks. */
+    async hasExternalIdSource(itemId: string, source: string): Promise<boolean> {
+      const result = await db.execute<{ found: boolean }>(sql`
+        SELECT ${hasSource(source)} AS found FROM items i WHERE i.id = ${itemId}`);
+      return result.rows[0]?.found ?? false;
     },
 
     /** The rows a person sees in the run, or in one of its locations, by item name in Czech order. */

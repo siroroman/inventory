@@ -142,6 +142,79 @@ describe('inventory service', () => {
       ]);
     });
 
+    describe('scope', () => {
+      /** An item in the location with these external IDs ("Source: value"). */
+      async function itemWith(store: Awaited<ReturnType<typeof setup>>['store'], locationId: string, name: string, ...ids: string[]) {
+        const item = await store.addItem(locationId, name);
+        const externalIds = ids.map((id) => {
+          const [source, value] = id.split(': ');
+          return { source: source!, value: value! };
+        });
+        await store.itemStore.repos.items.replaceExternalIds(item.id, externalIds, 'setup');
+        return item;
+      }
+
+      it('takes only the items with an external ID of the scope, case ignored, and keeps the scope', async () => {
+        const { store, service, actor, praha } = await setup();
+        const accounted = await itemWith(store, praha.id, 'Konvektomat', 'Účetnictví: 73-1');
+        const both = await itemWith(store, praha.id, 'Lednice', 'účetnictví: 73-2', 'Revize ILKO: S 129');
+        await itemWith(store, praha.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await store.addItem(praha.id, 'Bez ID');
+
+        const run = await service.start(actor('write'), { locationId: praha.id, scopeSource: ' Účetnictví ' });
+
+        expect(run.scopeSource).toBe('Účetnictví');
+        expect(store.state.rows.map((r) => r.itemId).sort()).toEqual([accounted.id, both.id].sort());
+        expect(run.counts.expected).toBe(2);
+      });
+
+      it('takes every item without a scope, and stores none', async () => {
+        const { store, service, actor, praha } = await setup();
+        await itemWith(store, praha.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await store.addItem(praha.id, 'Bez ID');
+        const run = await service.start(actor('write'), { locationId: praha.id, scopeSource: null });
+        expect(run.scopeSource).toBeNull();
+        expect(run.counts.expected).toBe(2);
+      });
+
+      it('audits the scope with the start', async () => {
+        const { store, service, actor, praha } = await setup();
+        await itemWith(store, praha.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await service.start(actor('write'), { locationId: praha.id, scopeSource: 'Revize ILKO' });
+        expect(store.state.audit[0]!.changes).toEqual({
+          locationId: { from: null, to: praha.id },
+          items: { from: null, to: 1 },
+          scopeSource: { from: null, to: 'Revize ILKO' },
+        });
+      });
+
+      it('previews the scope and lists the sources to choose from', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        await itemWith(store, praha.id, 'Konvektomat', 'Účetnictví: 73-1');
+        await itemWith(store, patro.id, 'Lednice', 'Účetnictví: 73-2', 'Revize ILKO: S 129');
+        await itemWith(store, patro.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await store.addItem(patro.id, 'Bez ID');
+
+        const sources = [
+          { source: 'Revize ILKO', itemCount: 2 },
+          { source: 'Účetnictví', itemCount: 2 },
+        ];
+        await expect(service.preview(actor('write'), praha.id)).resolves.toEqual({
+          itemCount: 4,
+          locationCount: 2,
+          sources,
+          overlap: null,
+        });
+        await expect(service.preview(actor('write'), praha.id, 'Revize ILKO')).resolves.toEqual({
+          itemCount: 2,
+          locationCount: 1,
+          sources,
+          overlap: null,
+        });
+      });
+    });
+
     it('refuses a location that does not exist or is archived', async () => {
       const { store, service, actor, praha } = await setup();
       await expectCode(service.start(actor('write'), { locationId: crypto.randomUUID() }), 'location_not_found');
@@ -206,6 +279,7 @@ describe('inventory service', () => {
       await expect(service.preview(actor('write'), praha.id)).resolves.toEqual({
         itemCount: 3,
         locationCount: 2,
+        sources: [],
         overlap: null,
       });
       expect(store.state.inventories).toEqual([]);

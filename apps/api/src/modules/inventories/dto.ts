@@ -26,6 +26,7 @@ function runFields(row: InventoryEntry) {
     endedAt: row.endedAt?.toISOString() ?? null,
     endedBy: row.closedBy,
     archivedAt: row.archivedAt?.toISOString() ?? null,
+    scopeSource: row.scopeSource,
     counts: row.counts,
     participants: row.participants,
   };
@@ -49,6 +50,7 @@ export function toInventoryPreviewDto(preview: InventoryPreview): InventoryPrevi
   return {
     itemCount: preview.itemCount,
     locationCount: preview.locationCount,
+    sources: preview.sources,
     overlap: preview.overlap && { ...preview.overlap, startedAt: preview.overlap.startedAt.toISOString() },
   };
 }

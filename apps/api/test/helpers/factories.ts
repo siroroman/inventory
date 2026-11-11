@@ -4,6 +4,7 @@ import type { Db } from '../../src/db/client.ts';
 import {
   inventories,
   inventoryItems,
+  itemExternalIds,
   items,
   locations,
   locationTypes,
@@ -75,6 +76,12 @@ export async function insertItem(db: Db, overrides: Partial<typeof items.$inferI
     .insert(items)
     .values({ name: 'Konvektomat', ...overrides, locationId })
     .returning();
+  return row!;
+}
+
+/** An external ID of the item, e.g. `insertExternalId(db, item.id, 'Revize ILKO', 'S 129')`. */
+export async function insertExternalId(db: Db, itemId: string, source: string, value: string) {
+  const [row] = await db.insert(itemExternalIds).values({ itemId, source, value }).returning();
   return row!;
 }
 

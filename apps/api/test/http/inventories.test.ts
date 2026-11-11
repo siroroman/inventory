@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { auditLog, inventoryItems, itemExternalIds, items, locations } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
-import { insertInventory, insertItem, insertLocation, insertManufacturer } from '../helpers/factories.ts';
+import { insertExternalId, insertInventory, insertItem, insertLocation, insertManufacturer } from '../helpers/factories.ts';
 import { api, expectJson, expectProblem, roleClients } from '../helpers/http.ts';
 
 const db = useTestDb();
@@ -102,6 +102,44 @@ describe('POST /inventories', () => {
     await expectProblem(await write.post('/inventories', { locationId: MISSING, status: 'finished' }), 400, 'validation_error');
   });
 
+  it('limits the list to the items with an external ID of the scope and keeps the scope', async () => {
+    const { write } = await setup();
+    const { top, patro } = await praha();
+    const accounted = await insertItem(db().app, { locationId: patro.id, name: 'Konvektomat' });
+    await insertExternalId(db().app, accounted.id, 'Účetnictví', '73-1');
+    const electricianOnly = await insertItem(db().app, { locationId: patro.id, name: 'Prodlužovačka' });
+    await insertExternalId(db().app, electricianOnly.id, 'Revize ILKO', 'S 129');
+
+    const body = await expectJson(
+      await write.post('/inventories', { locationId: top.id, scopeSource: 'Účetnictví' }),
+      201,
+      inventorySchema,
+    );
+
+    expect(body.scopeSource).toBe('Účetnictví');
+    expect(body.counts.expected).toBe(1);
+    const rows = await db().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, body.id));
+    expect(rows.map((r) => r.itemId)).toEqual([accounted.id]);
+    expect((await auditOf(body.id))[0]!.changes).toMatchObject({ scopeSource: { from: null, to: 'Účetnictví' } });
+
+    const listed = await expectJson(await write.get('/inventories?state=open'), 200, inventoryListSchema);
+    expect(listed.items[0]!.scopeSource).toBe('Účetnictví');
+  });
+
+  it('starts without a scope when it is null, and refuses a blank or too long one', async () => {
+    const { write } = await setup();
+    const { top, patro, zasedacka } = await praha();
+    const body = await expectJson(await write.post('/inventories', { locationId: top.id, scopeSource: null }), 201, inventorySchema);
+    expect(body.scopeSource).toBeNull();
+    expect(body.counts.expected).toBe(2);
+    await expectProblem(await write.post('/inventories', { locationId: patro.id, scopeSource: '  ' }), 400, 'validation_error');
+    await expectProblem(
+      await write.post('/inventories', { locationId: zasedacka.id, scopeSource: 'x'.repeat(61) }),
+      400,
+      'validation_error',
+    );
+  });
+
   it('is for writers and admins only, and for signed-in users', async () => {
     const { app, read, admin } = await setup();
     const { top, patro } = await praha();
@@ -116,7 +154,7 @@ describe('GET /inventories/preview', () => {
     const { write } = await setup();
     const { top, patro } = await praha();
     const clear = await expectJson(await write.get(`/inventories/preview?locationId=${top.id}`), 200, inventoryPreviewSchema);
-    expect(clear).toEqual({ itemCount: 2, locationCount: 2, overlap: null });
+    expect(clear).toEqual({ itemCount: 2, locationCount: 2, sources: [], overlap: null });
 
     const run = await expectJson(await write.post('/inventories', { locationId: patro.id }), 201, inventorySchema);
     const busy = await expectJson(await write.get(`/inventories/preview?locationId=${top.id}`), 200, inventoryPreviewSchema);
@@ -128,6 +166,32 @@ describe('GET /inventories/preview', () => {
     });
     // Previewing writes nothing.
     expect(await auditOf(run.id)).toHaveLength(1);
+  });
+
+  it('counts the items of a scope and lists the external ID sources to choose one from', async () => {
+    const { write } = await setup();
+    const { top, patro } = await praha();
+    const accounted = await insertItem(db().app, { locationId: patro.id });
+    await insertExternalId(db().app, accounted.id, 'Účetnictví', '73-1');
+    await insertExternalId(db().app, accounted.id, 'Revize ILKO', 'S 1');
+    const electricianOnly = await insertItem(db().app, { locationId: patro.id });
+    await insertExternalId(db().app, electricianOnly.id, 'Revize ILKO', 'S 2');
+
+    const scope = encodeURIComponent('Účetnictví');
+    const scoped = await expectJson(
+      await write.get(`/inventories/preview?locationId=${top.id}&scopeSource=${scope}`),
+      200,
+      inventoryPreviewSchema,
+    );
+    expect(scoped).toEqual({
+      itemCount: 1,
+      locationCount: 1,
+      sources: [
+        { source: 'Revize ILKO', itemCount: 2 },
+        { source: 'Účetnictví', itemCount: 1 },
+      ],
+      overlap: null,
+    });
   });
 
   it('answers 422 for an unknown or archived location, 400 for a bad id, 403 for readers, 401 for anonymous callers', async () => {
