@@ -1025,6 +1025,31 @@ describe('POST /inventories/{id}/scans', () => {
     expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start']);
   });
 
+  it('answers an item out of the scope of the run without recording anything', async () => {
+    const { write } = await setup();
+    const top = await insertLocation(db().app, { name: 'Centrála Praha' });
+    const accounted = await insertItem(db().app, { locationId: top.id, name: 'Konvektomat' });
+    await insertExternalId(db().app, accounted.id, 'Účetnictví', '73-1');
+    const cord = await insertItem(db().app, { locationId: top.id, name: 'Prodlužovačka' });
+    await insertExternalId(db().app, cord.id, 'Revize ILKO', 'S 129');
+    const run = await expectJson(
+      await write.post('/inventories', { locationId: top.id, scopeSource: 'Účetnictví' }),
+      201,
+      inventorySchema,
+    );
+
+    const body = await expectJson(await scan(write, run.id, { code: cord.code }), 200, scanResultSchema);
+
+    expect(body).toEqual({
+      outcome: 'out_of_scope',
+      item: { id: cord.id, code: cord.code, name: 'Prodlužovačka', path: [{ id: top.id, code: top.code, name: 'Centrála Praha' }] },
+      scopeSource: 'Účetnictví',
+    });
+    const rows = await db().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, run.id));
+    expect(rows.map((r) => r.itemId)).toEqual([accounted.id]);
+    expect((await auditOf(run.id)).map((e) => e.action)).toEqual(['start']);
+  });
+
   it('answers 404 for an unknown run, 409 for a run that is closed, 422 for a location outside the run', async () => {
     const { write } = await setup();
     const { run, mixer } = await startedRun(write);

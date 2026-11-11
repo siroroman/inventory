@@ -732,6 +732,8 @@
         "checkedAt": "Zkontrolováno v {{time}}",
         "archived": "Archivovaná položka",
         "archivedNote": "Položka je archivovaná a nezapočítá se.",
+        "outOfScope": "Mimo rozsah inventury",
+        "outOfScopeNote": "Položka nemá ID {{source}}, tato inventura ji nezahrnuje.",
         "unknown": "Neznámý kód",
         "unknownNote": "Žádná položka nemá ID {{code}}.",
         "scanOn": "Skenovat dál",

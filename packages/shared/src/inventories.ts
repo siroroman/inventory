@@ -215,7 +215,7 @@ export const scannedItemSchema = z.object({
 });
 export type ScannedItemDto = z.infer<typeof scannedItemSchema>;
 
-export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'archived', 'unknown_code'] as const;
+export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'archived', 'out_of_scope', 'unknown_code'] as const;
 
 /**
  * What a scan did, by `outcome`:
@@ -225,6 +225,8 @@ export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'arc
  *   location; `item.path` is where it is registered.
  * - `already_checked`: nothing changed, `row` says who checked it and when.
  * - `archived`: nothing recorded, the item is not counted.
+ * - `out_of_scope`: the item is not on the list and has no external ID of the run's scope
+ *   (`scopeSource`), so the run does not take it: nothing recorded.
  * - `unknown_code`: no item has this ID, nothing recorded.
  *
  * `wasMissing` is for a check that cleared the Nezvěstná status (always false until that exists).
@@ -245,6 +247,7 @@ export const scanResultSchema = z.discriminatedUnion('outcome', [
   }),
   z.object({ outcome: z.literal('already_checked'), item: scannedItemSchema, row: inventoryRowSchema }),
   z.object({ outcome: z.literal('archived'), item: scannedItemSchema }),
+  z.object({ outcome: z.literal('out_of_scope'), item: scannedItemSchema, scopeSource: z.string() }),
   z.object({ outcome: z.literal('unknown_code') }),
 ]);
 export type ScanResultDto = z.infer<typeof scanResultSchema>;

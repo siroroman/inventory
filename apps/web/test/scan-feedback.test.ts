@@ -151,6 +151,7 @@ describe('feedbackOf', () => {
     ['an item found elsewhere', { kind: 'elsewhere', item, wasMissing: false }, 'elsewhere'],
     ['an item already checked', { kind: 'already', item, row }, 'already'],
     ['an archived item', { kind: 'archived', item }, 'archived'],
+    ['an item out of the scope', { kind: 'outOfScope', item, source: 'Účetnictví' }, 'archived'],
     ['an unknown code', { kind: 'unknown', code: 'INV-NOPE' }, 'unknown'],
     ['a foreign code', { kind: 'foreign' }, 'foreign'],
     ['a failed scan', { kind: 'error', message: 'x', retry: true, ended: false }, 'error'],

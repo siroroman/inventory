@@ -20,6 +20,8 @@ export type Sheet =
   | { kind: 'elsewhere'; item: ScannedItemDto; wasMissing: boolean }
   | { kind: 'already'; item: ScannedItemDto; row: InventoryRowDto }
   | { kind: 'archived'; item: ScannedItemDto }
+  /** Not on the list, and without an external ID of the run's scope (`source`). */
+  | { kind: 'outOfScope'; item: ScannedItemDto; source: string }
   | { kind: 'unknown'; code: string }
   | { kind: 'foreign' }
   /** The request failed. `retry`: it may work on another try (no connection, a server fault). `ended`: the run was closed meanwhile. */
@@ -35,6 +37,8 @@ export function sheetOfResult(result: ScanResultDto, code: string): Sheet {
       return { kind: 'already', item: result.item, row: result.row };
     case 'archived':
       return { kind: 'archived', item: result.item };
+    case 'out_of_scope':
+      return { kind: 'outOfScope', item: result.item, source: result.scopeSource };
     case 'unknown_code':
       return { kind: 'unknown', code };
   }
@@ -48,7 +52,8 @@ export const closesItself = (sheet: Sheet) => sheet.kind === 'found' && !sheet.m
 
 /**
  * The sound and vibration of a sheet. A found item that is somewhere else than it belongs sounds like
- * one found elsewhere: both ask for a look at "Vedeno v".
+ * one found elsewhere: both ask for a look at "Vedeno v". An item out of the run's scope sounds like
+ * an archived one: both are seen and not counted.
  */
 export function feedbackOf(sheet: Sheet): FeedbackKind {
   switch (sheet.kind) {
@@ -60,6 +65,7 @@ export function feedbackOf(sheet: Sheet): FeedbackKind {
     case 'already':
       return 'already';
     case 'archived':
+    case 'outOfScope':
       return 'archived';
     case 'unknown':
       return 'unknown';
@@ -133,6 +139,14 @@ export function sheetContent(sheet: Sheet, t: TFunction): Content {
         name: sheet.item.name,
         detail: sheet.item.code,
         note: t('inventory.scanner.sheet.archivedNote'),
+      };
+    case 'outOfScope':
+      return {
+        tone: 'info',
+        title: t('inventory.scanner.sheet.outOfScope'),
+        name: sheet.item.name,
+        detail: `${sheet.item.code} · ${sheet.item.path.at(-1)?.name ?? t('inventory.checklist.noLocation')}`,
+        note: t('inventory.scanner.sheet.outOfScopeNote', { source: sheet.source }),
       };
     case 'unknown':
       return {

@@ -101,6 +101,7 @@ export function toScanResultDto(result: ScanResult): ScanResultDto {
     case 'already_checked':
       return { ...result, row: toInventoryRowDto(result.row) };
     case 'archived':
+    case 'out_of_scope':
     case 'unknown_code':
       return result;
   }
