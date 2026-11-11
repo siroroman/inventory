@@ -20,6 +20,7 @@ import {
   type RunEvent,
   type RunItem,
   type ScanTarget,
+  type SourceCount,
   type StartPreview,
 } from './repository.ts';
 
@@ -124,7 +125,10 @@ export type InventoryOverlap = {
   startedBy: Person | null;
   startedAt: Date;
 };
-export type InventoryPreview = StartPreview & { overlap: InventoryOverlap | null };
+export type InventoryPreview = StartPreview & { sources: SourceCount[]; overlap: InventoryOverlap | null };
+
+/** A scope as stored: trimmed, and null for none. */
+const scopeOf = (source: string | null | undefined): string | null => source?.trim() || null;
 
 /** The item a scan found, as the result sheet shows it: where it is registered is the path. */
 export type ScannedItem = { id: string; code: string; name: string; path: PathSegment[] };
@@ -135,6 +139,7 @@ export type ScanResult =
   | { outcome: 'found_elsewhere'; item: ScannedItem; row: InventoryRunItem; wasMissing: boolean }
   | { outcome: 'already_checked'; item: ScannedItem; row: InventoryRunItem }
   | { outcome: 'archived'; item: ScannedItem }
+  | { outcome: 'out_of_scope'; item: ScannedItem; scopeSource: string }
   | { outcome: 'unknown_code' };
 
 /** The decision of a scan before paths are looked up. */
@@ -143,6 +148,7 @@ type ScanDecision =
   | { outcome: 'found_elsewhere'; target: ScanTarget; row: RunItem }
   | { outcome: 'already_checked'; target: ScanTarget; row: RunItem }
   | { outcome: 'archived'; target: ScanTarget }
+  | { outcome: 'out_of_scope'; target: ScanTarget; scopeSource: string }
   | { outcome: 'unknown_code' };
 
 const ACTIVE_WINDOW_MS = 15 * 60_000;
@@ -306,7 +312,8 @@ export function createInventoryService({ repos, transact, now = () => new Date()
   /**
    * Checks an item by the code on its label. Like a tick, it runs with the run's row locked shared
    * and the first check wins; unlike a tick, an item that is not on the list is added to the run as
-   * found elsewhere, at the context location. Nothing is recorded for an archived item or an
+   * found elsewhere, at the context location, unless the run has a scope the item is not in
+   * (SPEC §9.3 rule 18). Nothing is recorded for an archived item, an item out of the scope or an
    * unknown code.
    */
   async function scan(
@@ -354,8 +361,13 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         return { outcome: 'found', target, row: (await r.inventories.findRunItem(id, target.id))!, misplaced };
       }
 
-      // Not on the list, or found before and unticked since. Recorded where the user stands: the
-      // checklist's location, or the root when the scanner was opened from the overview.
+      // Not on the list, or found before and unticked since. A run with a scope takes only the
+      // items that have an external ID of it: anything else is not part of this inventory.
+      if (run.scopeSource && !(await r.inventories.hasExternalIdSource(target.id, run.scopeSource))) {
+        return { outcome: 'out_of_scope', target, scopeSource: run.scopeSource };
+      }
+      // Recorded where the user stands: the checklist's location, or the root when the scanner was
+      // opened from the overview.
       const locationId = input.locationId ?? run.locationId;
       const found = { locationId, registeredLocationId: target.locationId, ...check };
       if (!(await r.inventories.recordFound(id, target.id, found))) return lost();
@@ -385,6 +397,7 @@ export function createInventoryService({ repos, transact, now = () => new Date()
       path: (target.locationId && paths.get(target.locationId)) || [],
     };
     if (decision.outcome === 'archived') return { outcome: 'archived', item };
+    if (decision.outcome === 'out_of_scope') return { outcome: 'out_of_scope', item, scopeSource: decision.scopeSource };
     const [row] = await runItemEntries([decision.row]);
     // `wasMissing` stays false until the Nezvěstná status exists (`items.missing_since`).
     switch (decision.outcome) {
@@ -549,20 +562,30 @@ export function createInventoryService({ repos, transact, now = () => new Date()
 
     scan,
 
-    /** What starting a run on `locationId` would check, and the run in progress it would clash with. */
-    async preview(actor: Actor, locationId: string): Promise<InventoryPreview> {
+    /**
+     * What starting a run on `locationId` would check (only the items with an external ID of
+     * `scopeSource`, when given), the sources to choose a scope from, and the run in progress it
+     * would clash with.
+     */
+    async preview(actor: Actor, locationId: string, scopeSource?: string): Promise<InventoryPreview> {
       assertRole(actor, 'write');
       await loadRoot(repos, locationId);
-      const [counts, overlapping] = await Promise.all([
-        repos.inventories.previewCounts(locationId),
+      const [counts, sources, overlapping] = await Promise.all([
+        repos.inventories.previewCounts(locationId, scopeOf(scopeSource)),
+        repos.inventories.previewSources(locationId),
         repos.inventories.findOverlapping(locationId),
       ]);
-      return { ...counts, overlap: overlapping ? overlapOf(overlapping) : null };
+      return { ...counts, sources, overlap: overlapping ? overlapOf(overlapping) : null };
     },
 
-    /** Starts a run: takes the list of items to check and refuses a location that overlaps a run in progress. */
-    async start(actor: Actor, input: { locationId: string }): Promise<InventoryDetail> {
+    /**
+     * Starts a run: takes the list of items to check and refuses a location that overlaps a run in
+     * progress. With `scopeSource` the list holds only the items with an external ID of that source
+     * (SPEC §9.3 rule 18); the scope stays with the run.
+     */
+    async start(actor: Actor, input: { locationId: string; scopeSource?: string | null }): Promise<InventoryDetail> {
       assertRole(actor, 'write');
+      const scopeSource = scopeOf(input.scopeSource);
       const id = await transact(async (r) => {
         // Serialised, so of two simultaneous starts the second sees the first.
         await r.inventories.lockStarts();
@@ -571,16 +594,21 @@ export function createInventoryService({ repos, transact, now = () => new Date()
         if (overlapping) throw new DomainError('inventory_overlap', { inventoryId: overlapping.id });
         const run = await r.inventories.insert({
           locationId: input.locationId,
+          scopeSource,
           createdBy: actor.id,
           createdAt: now(),
         });
-        const itemCount = await r.inventories.snapshot(run.id, input.locationId);
+        const itemCount = await r.inventories.snapshot(run.id, input.locationId, scopeSource);
         await r.audit.record({
           userId: actor.id,
           entityType: 'inventory',
           entityId: run.id,
           action: 'start',
-          changes: { locationId: { from: null, to: input.locationId }, items: { from: null, to: itemCount } },
+          changes: {
+            locationId: { from: null, to: input.locationId },
+            items: { from: null, to: itemCount },
+            ...(scopeSource && { scopeSource: { from: null, to: scopeSource } }),
+          },
         });
         return run.id;
       });

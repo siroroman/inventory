@@ -142,6 +142,79 @@ describe('inventory service', () => {
       ]);
     });
 
+    describe('scope', () => {
+      /** An item in the location with these external IDs ("Source: value"). */
+      async function itemWith(store: Awaited<ReturnType<typeof setup>>['store'], locationId: string, name: string, ...ids: string[]) {
+        const item = await store.addItem(locationId, name);
+        const externalIds = ids.map((id) => {
+          const [source, value] = id.split(': ');
+          return { source: source!, value: value! };
+        });
+        await store.itemStore.repos.items.replaceExternalIds(item.id, externalIds, 'setup');
+        return item;
+      }
+
+      it('takes only the items with an external ID of the scope, case ignored, and keeps the scope', async () => {
+        const { store, service, actor, praha } = await setup();
+        const accounted = await itemWith(store, praha.id, 'Konvektomat', 'Účetnictví: 73-1');
+        const both = await itemWith(store, praha.id, 'Lednice', 'účetnictví: 73-2', 'Revize ILKO: S 129');
+        await itemWith(store, praha.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await store.addItem(praha.id, 'Bez ID');
+
+        const run = await service.start(actor('write'), { locationId: praha.id, scopeSource: ' Účetnictví ' });
+
+        expect(run.scopeSource).toBe('Účetnictví');
+        expect(store.state.rows.map((r) => r.itemId).sort()).toEqual([accounted.id, both.id].sort());
+        expect(run.counts.expected).toBe(2);
+      });
+
+      it('takes every item without a scope, and stores none', async () => {
+        const { store, service, actor, praha } = await setup();
+        await itemWith(store, praha.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await store.addItem(praha.id, 'Bez ID');
+        const run = await service.start(actor('write'), { locationId: praha.id, scopeSource: null });
+        expect(run.scopeSource).toBeNull();
+        expect(run.counts.expected).toBe(2);
+      });
+
+      it('audits the scope with the start', async () => {
+        const { store, service, actor, praha } = await setup();
+        await itemWith(store, praha.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await service.start(actor('write'), { locationId: praha.id, scopeSource: 'Revize ILKO' });
+        expect(store.state.audit[0]!.changes).toEqual({
+          locationId: { from: null, to: praha.id },
+          items: { from: null, to: 1 },
+          scopeSource: { from: null, to: 'Revize ILKO' },
+        });
+      });
+
+      it('previews the scope and lists the sources to choose from', async () => {
+        const { store, service, actor, praha } = await setup();
+        const patro = await store.itemStore.addLocation('Patro', praha.id);
+        await itemWith(store, praha.id, 'Konvektomat', 'Účetnictví: 73-1');
+        await itemWith(store, patro.id, 'Lednice', 'Účetnictví: 73-2', 'Revize ILKO: S 129');
+        await itemWith(store, patro.id, 'Prodlužovačka', 'Revize ILKO: S 130');
+        await store.addItem(patro.id, 'Bez ID');
+
+        const sources = [
+          { source: 'Revize ILKO', itemCount: 2 },
+          { source: 'Účetnictví', itemCount: 2 },
+        ];
+        await expect(service.preview(actor('write'), praha.id)).resolves.toEqual({
+          itemCount: 4,
+          locationCount: 2,
+          sources,
+          overlap: null,
+        });
+        await expect(service.preview(actor('write'), praha.id, 'Revize ILKO')).resolves.toEqual({
+          itemCount: 2,
+          locationCount: 1,
+          sources,
+          overlap: null,
+        });
+      });
+    });
+
     it('refuses a location that does not exist or is archived', async () => {
       const { store, service, actor, praha } = await setup();
       await expectCode(service.start(actor('write'), { locationId: crypto.randomUUID() }), 'location_not_found');
@@ -206,6 +279,7 @@ describe('inventory service', () => {
       await expect(service.preview(actor('write'), praha.id)).resolves.toEqual({
         itemCount: 3,
         locationCount: 2,
+        sources: [],
         overlap: null,
       });
       expect(store.state.inventories).toEqual([]);
@@ -1342,6 +1416,47 @@ describe('inventory service', () => {
         expect(store.state.rows).toHaveLength(1);
         expect(store.state.rows[0]!.checkedAt).toBeNull();
         expect(store.state.audit).toHaveLength(auditBefore);
+      });
+
+      describe('a run with a scope', () => {
+        it('reports an item out of the scope and records nothing, wherever it is registered', async () => {
+          const { store, service, actor, praha } = await setup();
+          const accounted = await store.addItem(praha.id, 'Konvektomat');
+          await store.itemStore.repos.items.replaceExternalIds(accounted.id, [{ source: 'Účetnictví', value: '73-1' }], 'setup');
+          const cord = await store.addItem(praha.id, 'Prodlužovačka');
+          await store.itemStore.repos.items.replaceExternalIds(cord.id, [{ source: 'Revize ILKO', value: 'S 129' }], 'setup');
+          const stranger = await store.addItem(null, 'Bez lokality');
+          const run = await service.start(actor('write'), { locationId: praha.id, scopeSource: 'Účetnictví' });
+          const auditBefore = store.state.audit.length;
+
+          await expect(service.scan(actor('write'), run.id, { code: cord.code })).resolves.toEqual({
+            outcome: 'out_of_scope',
+            item: { id: cord.id, code: cord.code, name: 'Prodlužovačka', path: [expect.objectContaining({ name: 'Centrála Praha' })] },
+            scopeSource: 'Účetnictví',
+          });
+          await expect(service.scan(actor('write'), run.id, { code: stranger.code })).resolves.toMatchObject({
+            outcome: 'out_of_scope',
+            item: { path: [] },
+          });
+
+          expect(store.state.rows.map((r) => r.itemId)).toEqual([accounted.id]);
+          expect(store.state.audit).toHaveLength(auditBefore);
+        });
+
+        it('still checks the list and takes an item of the scope found elsewhere, its source in any case', async () => {
+          const { store, service, actor, praha } = await setup();
+          const brno = await store.itemStore.addLocation('Centrála Brno');
+          const listed = await store.addItem(praha.id, 'Konvektomat');
+          await store.itemStore.repos.items.replaceExternalIds(listed.id, [{ source: 'Účetnictví', value: '73-1' }], 'setup');
+          const moved = await store.addItem(brno.id, 'Lednice');
+          await store.itemStore.repos.items.replaceExternalIds(moved.id, [{ source: 'účetnictví', value: '74-1' }], 'setup');
+          const run = await service.start(actor('write'), { locationId: praha.id, scopeSource: 'Účetnictví' });
+
+          await expect(service.scan(actor('write'), run.id, { code: listed.code })).resolves.toMatchObject({ outcome: 'found' });
+          await expect(service.scan(actor('write'), run.id, { code: moved.code })).resolves.toMatchObject({
+            outcome: 'found_elsewhere',
+          });
+        });
       });
 
       it('answers an unknown code and records nothing', async () => {

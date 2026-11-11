@@ -45,10 +45,12 @@ const preview = defineRoute({
   path: '/inventories/preview',
   minRole: 'write',
   tags: ['inventories'],
-  summary: 'What a run on a location would check, and the run in progress it would clash with',
+  summary: 'What a run on a location would check, the sources to scope it by, and the run in progress it would clash with',
   request: { query: inventoryPreviewQuery },
   errors: [422],
-  responses: { 200: { description: 'Counts and the overlapping run', content: jsonContent(inventoryPreviewSchema) } },
+  responses: {
+    200: { description: 'Counts, external ID sources and the overlapping run', content: jsonContent(inventoryPreviewSchema) },
+  },
 });
 
 const start = defineRoute({
@@ -56,7 +58,7 @@ const start = defineRoute({
   path: '/inventories',
   minRole: 'write',
   tags: ['inventories'],
-  summary: 'Start a run on a location: takes the list of items to check',
+  summary: 'Start a run on a location: takes the list of items to check, optionally only those with an external ID of a source',
   request: { body: { required: true, content: jsonContent(startInventoryBody) } },
   errors: [409, 422],
   responses: { 201: { description: 'The new run', content: jsonContent(inventorySchema) } },
@@ -224,7 +226,8 @@ export function createInventoryRoutes(inventories: InventoryService) {
       return c.json({ ...page, items: page.items.map(toInventoryListEntryDto) }, 200);
     })
     .openapi(preview, async (c) => {
-      const result = await inventories.preview(c.get('actor'), c.req.valid('query').locationId);
+      const { locationId, scopeSource } = c.req.valid('query');
+      const result = await inventories.preview(c.get('actor'), locationId, scopeSource);
       return c.json(toInventoryPreviewDto(result), 200);
     })
     .openapi(start, async (c) => {

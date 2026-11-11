@@ -24,6 +24,7 @@ import { SubLocationsBox } from './inventory-sublocations';
 import { InventorySummary, progressOf, runFigures } from './inventory-summary';
 import { shortName, shortNames } from './people';
 import { ScanEntry } from './scan-entry';
+import { ScopeBadge } from './scope-badge';
 import { statusBadge } from './status';
 
 type Group = 'inProgress' | 'notStarted' | 'done';
@@ -152,6 +153,7 @@ function InventoryBody({ inventory }: { inventory: InventoryDto }) {
           <InventoryBreadcrumb inventory={inventory} path={inventory.path} />
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-2xl font-semibold break-words">{inventory.location.name}</h1>
+            <ScopeBadge source={inventory.scopeSource} />
             {inventory.status !== 'in_progress' && (
               <Badge variant={statusBadge[inventory.status]}>{t(`inventory.status.${inventory.status}`)}</Badge>
             )}

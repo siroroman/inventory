@@ -4,7 +4,14 @@ import { InvalidCursorError } from '../../../src/db/pagination.ts';
 import { inventoryItems, items, locations } from '../../../src/db/schema/index.ts';
 import { createInventoryRepository } from '../../../src/modules/inventories/repository.ts';
 import { useTestDb } from '../../helpers/db.ts';
-import { insertInventory, insertInventoryItem, insertItem, insertLocation, insertUser } from '../../helpers/factories.ts';
+import {
+  insertExternalId,
+  insertInventory,
+  insertInventoryItem,
+  insertItem,
+  insertLocation,
+  insertUser,
+} from '../../helpers/factories.ts';
 
 const MINUTE = 60_000;
 const at = (minutes: number) => new Date(Date.UTC(2026, 9, 3, 7, 0, 0) + minutes * MINUTE);
@@ -51,6 +58,60 @@ describe('inventory repository', () => {
     it('is empty for a location without items', async () => {
       const { praha } = await tree();
       expect(await repo().previewCounts(praha.id)).toEqual({ itemCount: 0, locationCount: 0 });
+      expect(await repo().previewSources(praha.id)).toEqual([]);
+    });
+
+    it('takes only the items with an external ID of the scope, ignoring its case', async () => {
+      const { praha, patro, brno } = await tree();
+      const user = await insertUser(t().app);
+      const accounted = await insertItem(t().app, { locationId: praha.id });
+      await insertExternalId(t().app, accounted.id, 'Účetnictví', '73-1');
+      const both = await insertItem(t().app, { locationId: patro.id });
+      await insertExternalId(t().app, both.id, 'účetnictví', '73-2');
+      await insertExternalId(t().app, both.id, 'Revize ILKO', 'S 129');
+      const electricianOnly = await insertItem(t().app, { locationId: patro.id });
+      await insertExternalId(t().app, electricianOnly.id, 'Revize ILKO', 'S 130');
+      await insertItem(t().app, { locationId: patro.id });
+      const elsewhere = await insertItem(t().app, { locationId: brno.id });
+      await insertExternalId(t().app, elsewhere.id, 'Účetnictví', '74-1');
+
+      expect(await repo().previewCounts(praha.id, 'ÚČETNICTVÍ')).toEqual({ itemCount: 2, locationCount: 2 });
+      expect(await repo().previewCounts(praha.id, 'Revize ILKO')).toEqual({ itemCount: 2, locationCount: 1 });
+      expect(await repo().previewCounts(praha.id, 'Elektrikář')).toEqual({ itemCount: 0, locationCount: 0 });
+      const run = await repo().insert({ locationId: praha.id, scopeSource: 'Účetnictví', createdBy: user.id, createdAt: at(0) });
+      expect(run.scopeSource).toBe('Účetnictví');
+      expect(await repo().snapshot(run.id, praha.id, 'Účetnictví')).toBe(2);
+
+      const rows = await t().app.select().from(inventoryItems).where(eq(inventoryItems.inventoryId, run.id));
+      expect(rows.map((r) => r.itemId).sort()).toEqual([accounted.id, both.id].sort());
+    });
+
+    it('lists the sources of the external IDs among the items a run would check, case folded, in Czech order', async () => {
+      const { praha, patro, brno } = await tree();
+      const a = await insertItem(t().app, { locationId: praha.id });
+      await insertExternalId(t().app, a.id, 'Účetnictví', '73-1');
+      await insertExternalId(t().app, a.id, 'Revize ILKO', 'S 1');
+      const b = await insertItem(t().app, { locationId: patro.id });
+      await insertExternalId(t().app, b.id, 'účetnictví', '73-2');
+      await insertExternalId(t().app, b.id, 'Původní kód', 'CPR-0001');
+      const archived = await insertItem(t().app, { locationId: patro.id, archivedAt: new Date() });
+      await insertExternalId(t().app, archived.id, 'Elektrikář', 'EL-1');
+      const outside = await insertItem(t().app, { locationId: brno.id });
+      await insertExternalId(t().app, outside.id, 'Dodavatel', 'D-1');
+
+      expect(await repo().previewSources(praha.id)).toEqual([
+        { source: 'Původní kód', itemCount: 1 },
+        { source: 'Revize ILKO', itemCount: 1 },
+        // One of the spellings names the source.
+        { source: expect.stringMatching(/^[Úú]četnictví$/), itemCount: 2 },
+      ]);
+    });
+
+    it('tells whether an item has an external ID of a source, ignoring its case', async () => {
+      const item = await insertItem(t().app);
+      await insertExternalId(t().app, item.id, 'Revize ILKO', 'S 129');
+      expect(await repo().hasExternalIdSource(item.id, 'revize ilko')).toBe(true);
+      expect(await repo().hasExternalIdSource(item.id, 'Účetnictví')).toBe(false);
     });
   });
 
@@ -339,6 +400,25 @@ describe('inventory repository', () => {
         registeredLocationId: null,
       });
       expect(rows.find((r) => r.name === 'Žebřík')).toMatchObject({ checkedAt: null, checkedBy: null, method: null });
+    });
+
+    it('carries the external IDs of each item by source and value, case ignored, and none for an item without', async () => {
+      const { inventory, praha, row } = await run();
+      const cord = await row('Prodlužovačka', praha.id);
+      await insertExternalId(t().app, cord.itemId, 'účetnictví', '73-2');
+      await insertExternalId(t().app, cord.itemId, 'Revize ILKO', 'S 129');
+      await insertExternalId(t().app, cord.itemId, 'Revize ilko', 'S 1290');
+      await row('Tiskárna', praha.id);
+
+      const rows = await repo().runItems(inventory.id);
+
+      expect(rows.find((r) => r.name === 'Prodlužovačka')!.externalIds).toEqual([
+        { source: 'Revize ILKO', value: 'S 129' },
+        { source: 'Revize ilko', value: 'S 1290' },
+        { source: 'účetnictví', value: '73-2' },
+      ]);
+      expect(rows.find((r) => r.name === 'Tiskárna')!.externalIds).toEqual([]);
+      expect((await repo().findRunItem(inventory.id, cord.itemId))!.externalIds).toHaveLength(3);
     });
 
     it('can be limited to one location of the run', async () => {

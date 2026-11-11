@@ -13,3 +13,13 @@ export function matchesWords(texts: string[], q: string): boolean {
   const haystack = texts.map(fold);
   return words.every((word) => haystack.some((text) => text.includes(word)));
 }
+
+/**
+ * Whether `q` occurs in one of the IDs with spaces ignored as well as case and diacritics, so "S129"
+ * finds the electrician's "S 129" and "s 129" finds "S129". False for an empty `q`.
+ */
+export function matchesId(ids: string[], q: string): boolean {
+  const compact = (text: string) => fold(text).replace(/\s+/g, '');
+  const needle = compact(q);
+  return needle.length > 0 && ids.some((id) => compact(id).includes(needle));
+}

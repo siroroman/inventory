@@ -127,6 +127,29 @@ describe('home: inventory tab', () => {
     expect(finished).toHaveTextContent('120 nalezeno · 3 jinde · 5 chybí');
   });
 
+  it('names the scope of a run that covers only the items with an ID of a source, on cards and in the table', async () => {
+    const scoped = running({ scopeSource: 'Účetnictví' });
+    const plain = running({ location: praha, path: [praha] });
+    api({
+      open: () => page([scoped, plain], { total: 2 }),
+      closed: () => page([ended({ scopeSource: 'Revize ILKO' })], { total: 1 }),
+    });
+    renderApp('/?tab=inventory');
+
+    const [scopedCard, plainCard, endedCard] = await screen.findAllByRole('listitem');
+    expect(within(scopedCard!).getByText('Jen s ID Účetnictví')).toHaveAttribute('title', 'Inventura zahrnuje jen položky s ID Účetnictví.');
+    expect(plainCard).not.toHaveTextContent('Jen s ID');
+    expect(endedCard).toHaveTextContent('Jen s ID Revize ILKO');
+  });
+
+  it('shows the scope beside the state in the table of ended runs', async () => {
+    stubWideScreen(true);
+    api({ closed: () => page([ended({ scopeSource: 'Účetnictví' })], { total: 1 }) });
+    renderApp('/?tab=inventory');
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByRole('row')[1]!.lastElementChild).toHaveTextContent('DokončenáJen s ID Účetnictví');
+  });
+
   it('shows a table of the ended runs on a wide screen', async () => {
     stubWideScreen(true);
     const done = ended();

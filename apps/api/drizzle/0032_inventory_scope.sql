@@ -1,0 +1,2 @@
+ALTER TABLE "inventories" ADD COLUMN "scope_source" text;--> statement-breakpoint
+ALTER TABLE "inventories" ADD CONSTRAINT "inventories_scope_source_not_blank" CHECK ("inventories"."scope_source" is null or btrim("inventories"."scope_source") <> '');

@@ -21,12 +21,22 @@ type Props = {
   onToggleMissing: (missing: boolean) => void;
 };
 
-/** What a row says besides its name: the item's ID and, for an item found elsewhere (still registered there) or added, where it came from. */
+/**
+ * What a row says besides its name: the item's ID, its external IDs (what the stickers of the
+ * electrician or the accountant on it say) and, for an item found elsewhere (still registered
+ * there) or added, where it came from.
+ */
 function RowDetails({ row, id }: { row: InventoryRowDto; id: string }) {
   const { t } = useTranslation();
   return (
     <span id={id} className="block text-sm text-muted-foreground">
       <span className="block break-words">{row.code}</span>
+      {row.externalIds.length > 0 && (
+        <span className="block break-words text-xs md:text-[13px]">
+          <span className="sr-only">{t('inventory.checklist.externalIdsLabel')}: </span>
+          {row.externalIds.map((e) => t('inventory.checklist.externalId', { source: e.source, value: e.value })).join(' · ')}
+        </span>
+      )}
       {row.registeredElsewhere && (
         <span className="block break-words text-warning">
           {t('inventory.checklist.registeredIn', {

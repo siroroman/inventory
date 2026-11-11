@@ -1,7 +1,7 @@
 import type { InventoryRowDto } from '@inventory/shared';
 import { describe, expect, it } from 'vitest';
 import { groupRows } from '../src/features/inventories/checklist.ts';
-import { fold, matchesWords } from '../src/lib/search.ts';
+import { fold, matchesId, matchesWords } from '../src/lib/search.ts';
 import { inventoryRow, person } from './fixtures.ts';
 
 const row = (name: string, over: Record<string, unknown> = {}) => inventoryRow({ name, ...over }) as InventoryRowDto;
@@ -21,6 +21,14 @@ describe('search folding', () => {
   it('matches everything for a blank search', () => {
     expect(matchesWords(['cokoli'], '')).toBe(true);
     expect(matchesWords(['cokoli'], '   ')).toBe(true);
+  });
+
+  it('finds an ID with spaces ignored, as well as case and diacritics, and never for a blank search', () => {
+    expect(matchesId(['S 129'], 's129')).toBe(true);
+    expect(matchesId(['S129'], 'S 129')).toBe(true);
+    expect(matchesId(['INV-0042', '73-2023016'], '2023')).toBe(true);
+    expect(matchesId(['S 129'], 'S 130')).toBe(false);
+    expect(matchesId(['S 129'], '  ')).toBe(false);
   });
 });
 
@@ -62,6 +70,20 @@ describe('groupRows', () => {
     expect(groupRows(rows, 'regal kovovy').checked.map((r) => r.name)).toEqual(['Regál kovový B']);
     expect(groupRows(rows, 'inv-00051').unchecked).toEqual([]);
     expect(groupRows(rows, 'nic takového')).toEqual({ unchecked: [], missing: [], checked: [], added: [] });
+  });
+
+  it('finds the items with an ID read off a sticker, and only them', () => {
+    const rows = [
+      row('Prodlužovačka', { code: 'INV-00060', externalIds: [{ source: 'Revize ILKO', value: 'S 129' }] }),
+      row('Stůl', { code: 'INV-00129' }),
+      row('Sekačka', { code: 'INV-00061', externalIds: [{ source: 'Účetnictví', value: '73-2023016' }] }),
+    ];
+    // "s" is in "Stůl" and "129" in its ID, but the search is the electrician's ID.
+    expect(groupRows(rows, 'S 129').unchecked.map((r) => r.name)).toEqual(['Prodlužovačka']);
+    expect(groupRows(rows, 's129').unchecked.map((r) => r.name)).toEqual(['Prodlužovačka']);
+    expect(groupRows(rows, '73-2023016').unchecked.map((r) => r.name)).toEqual(['Sekačka']);
+    // Not an ID of any row: the words count, in the name and the IDs alike.
+    expect(groupRows(rows, 'sekacka 73').unchecked.map((r) => r.name)).toEqual(['Sekačka']);
   });
 });
 

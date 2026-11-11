@@ -22,6 +22,7 @@ import { groupRows } from './checklist';
 import { InventoryBreadcrumb } from './inventory-breadcrumb';
 import { InventorySummary, locationFigures, progressOf } from './inventory-summary';
 import { ScanEntry } from './scan-entry';
+import { ScopeBadge } from './scope-badge';
 import { statusBadge } from './status';
 import { useTickItem } from './use-tick-item';
 
@@ -226,6 +227,7 @@ function ChecklistBody({
         <InventoryBreadcrumb inventory={inventory} path={location.path} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h1 className="min-w-0 flex-1 text-2xl font-semibold break-words">{location.name}</h1>
+          <ScopeBadge source={inventory.scopeSource} />
           {!inProgress && <Badge variant={statusBadge[inventory.status]}>{t(`inventory.status.${inventory.status}`)}</Badge>}
           {canEdit && (
             // The item form starts in this location and, once saved, adds the item to the run and returns here.

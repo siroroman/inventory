@@ -340,6 +340,24 @@ describe('inventory scanner', () => {
       expect(screen.getByText('Položka je archivovaná a nezapočítá se.')).toBeInTheDocument();
     });
 
+    it('says an item out of the scope of the run is not part of it', async () => {
+      openScanner({
+        scan: () =>
+          jsonResponse({
+            outcome: 'out_of_scope',
+            item: itemOf({ name: 'Prodlužovačka', code: 'INV-00077' }),
+            scopeSource: 'Účetnictví',
+          }),
+      });
+      await ready();
+      await read('INV-00077');
+      expect(await screen.findByText('Mimo rozsah inventury')).toBeInTheDocument();
+      expect(screen.getByText('Prodlužovačka')).toBeInTheDocument();
+      expect(screen.getByText('Položka nemá ID Účetnictví, tato inventura ji nezahrnuje.')).toBeInTheDocument();
+      // It stays until the next reading or Zavřít.
+      expect(screen.getByRole('button', { name: 'Zavřít' })).toBeInTheDocument();
+    });
+
     it('names an unknown code and carries on with "Skenovat dál"', async () => {
       openScanner({ scan: () => jsonResponse({ outcome: 'unknown_code' }) });
       await ready();

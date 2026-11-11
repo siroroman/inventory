@@ -14,7 +14,7 @@ const locations = [
   location({ ...sklad, path: [praha, sklad], parentId: praha.id }),
 ];
 
-const clear = { itemCount: 128, locationCount: 6, overlap: null };
+const clear = { itemCount: 128, locationCount: 6, sources: [], overlap: null };
 
 function api(over: Record<string, (request: Request) => Response | Promise<Response>> = {}, role = 'write') {
   return stubApi({
@@ -65,14 +65,14 @@ describe('start an inventory', () => {
     [{ itemCount: 3, locationCount: 2 }, 'Zkontrolují se 3 položky v 2 lokalitách.'],
     [{ itemCount: 22, locationCount: 5 }, 'Zkontroluje se 22 položek v 5 lokalitách.'],
   ])('uses the right Czech forms for %o', async (counts, sentence) => {
-    api({ 'GET /api/v1/inventories/preview': () => jsonResponse({ ...counts, overlap: null }) });
+    api({ 'GET /api/v1/inventories/preview': () => jsonResponse({ ...counts, sources: [], overlap: null }) });
     renderApp('/inventories/new');
     await choose(/Sklad/);
     expect(await screen.findByText(sentence)).toBeInTheDocument();
   });
 
   it('allows a location without items and says so', async () => {
-    api({ 'GET /api/v1/inventories/preview': () => jsonResponse({ itemCount: 0, locationCount: 0, overlap: null }) });
+    api({ 'GET /api/v1/inventories/preview': () => jsonResponse({ itemCount: 0, locationCount: 0, sources: [], overlap: null }) });
     renderApp('/inventories/new');
     await choose(/Sklad/);
     expect(await screen.findByText('V lokalitě nejsou žádné položky.')).toBeInTheDocument();
@@ -112,7 +112,87 @@ describe('start an inventory', () => {
     expect(await screen.findByRole('heading', { name: 'Sklad', level: 1 })).toBeInTheDocument();
     expect(await screen.findByText('Inventura zahájena')).toBeInTheDocument();
     const post = calls.find((c) => c.method === 'POST')!;
-    expect(await post.clone().json()).toEqual({ locationId: locations[1]!.id });
+    expect(await post.clone().json()).toEqual({ locationId: locations[1]!.id, scopeSource: null });
+  });
+
+  describe('scope', () => {
+    const sources = [
+      { source: 'Revize ILKO', itemCount: 40 },
+      { source: 'Účetnictví', itemCount: 90 },
+    ];
+    /** The preview counts what the scope asked for takes. */
+    const scopedPreview = (request: Request) => {
+      const scope = new URL(request.url).searchParams.get('scopeSource');
+      const counts = scope === 'Účetnictví' ? { itemCount: 90, locationCount: 5 } : { itemCount: 128, locationCount: 6 };
+      return jsonResponse({ ...counts, sources, overlap: null });
+    };
+
+    it('offers every item or only those with an ID of a source, with their counts, every item first', async () => {
+      api({ 'GET /api/v1/inventories/preview': scopedPreview });
+      renderApp('/inventories/new');
+      await choose(/Sklad/);
+
+      const group = await screen.findByRole('group', { name: 'Co inventarizovat' });
+      const radios = within(group).getAllByRole('radio');
+      expect(radios.map((r) => r.closest('label')!.textContent)).toEqual([
+        'Všechny položky',
+        'Jen s ID Revize ILKO (40)',
+        'Jen s ID Účetnictví (90)',
+      ]);
+      expect(radios[0]).toBeChecked();
+      expect(within(group).getByText('Do inventury se zahrnou všechny aktivní položky lokality.')).toBeInTheDocument();
+    });
+
+    it('counts the chosen scope and starts the run with it', async () => {
+      const run = inventory({ location: sklad, path: [praha, sklad], scopeSource: 'Účetnictví' });
+      const calls = api({
+        'GET /api/v1/inventories/preview': scopedPreview,
+        'POST /api/v1/inventories': () => jsonResponse(run, { status: 201 }),
+        [`GET /api/v1/inventories/${run.id}`]: () => jsonResponse(run),
+      });
+      const { router } = renderApp('/inventories/new');
+      await choose(/Sklad/);
+      await screen.findByText('Zkontroluje se 128 položek v 6 lokalitách.');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Jen s ID Účetnictví (90)' }));
+
+      expect(await screen.findByText('Zkontroluje se 90 položek v 5 lokalitách.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Do inventury se zahrnou jen položky s ID Účetnictví. Ostatní se nezapočítají a skener je jen ohlásí.'),
+      ).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Zahájit inventuru' }));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/inventories/${run.id}`));
+      const post = calls.find((c) => c.method === 'POST')!;
+      expect(await post.clone().json()).toEqual({ locationId: locations[1]!.id, scopeSource: 'Účetnictví' });
+      // The overview says what the run covers.
+      expect(await screen.findByText('Jen s ID Účetnictví')).toBeInTheDocument();
+    });
+
+    it('starts over with every item when another location is chosen', async () => {
+      api({ 'GET /api/v1/inventories/preview': scopedPreview });
+      renderApp('/inventories/new');
+      await choose(/Sklad/);
+      await userEvent.click(await screen.findByRole('radio', { name: 'Jen s ID Účetnictví (90)' }));
+      await screen.findByText('Zkontroluje se 90 položek v 5 lokalitách.');
+
+      // A chosen location is a field that is tapped to search again.
+      await userEvent.click(screen.getByRole('button', { name: 'Lokalita' }));
+      const results = await screen.findByRole('list', { name: /Výsledky/ });
+      // (Sklad's path names Centrála Praha too.)
+      await userEvent.click(within(results).getByRole('button', { name: /^Centrála Praha/ }));
+
+      expect(await screen.findByRole('radio', { name: 'Všechny položky' })).toBeChecked();
+      expect(await screen.findByText('Zkontroluje se 128 položek v 6 lokalitách.')).toBeInTheDocument();
+    });
+
+    it('offers no choice when no item has an external ID', async () => {
+      api();
+      renderApp('/inventories/new');
+      await choose(/Sklad/);
+      await screen.findByText('Zkontroluje se 128 položek v 6 lokalitách.');
+      expect(screen.queryByRole('group', { name: 'Co inventarizovat' })).not.toBeInTheDocument();
+    });
   });
 
   it('shows the Czech text and the warning when somebody started a run in the meantime', async () => {

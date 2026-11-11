@@ -1,3 +1,4 @@
+import type { InventoryPreviewDto } from '@inventory/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { TriangleAlert } from 'lucide-react';
@@ -14,13 +15,73 @@ import { NoWriteAccess } from '@/features/items/item-edit';
 import { formatTimestamp } from '@/lib/format';
 import { problemMessage } from '@/lib/problem';
 import { invalidateAfterWrite } from '@/lib/query';
+import { cn } from '@/lib/utils';
 import { inventoryPreviewQueryOptions, inventoryRootPickerOptions, startInventory } from './api';
 import { shortName } from './people';
 
-/** What a run on the chosen location would check, or why it cannot start. */
-function Preview({ locationId }: { locationId: string }) {
+/**
+ * What to inventory (SPEC §9.3 rule 18): every item, or only those with an external ID of one of the
+ * sources the location's items have, each with how many have one. Left out when no item has any.
+ */
+function ScopeChoice({
+  sources,
+  value,
+  onChange,
+}: {
+  sources: InventoryPreviewDto['sources'];
+  value: string | null;
+  onChange: (source: string | null) => void;
+}) {
   const { t } = useTranslation();
-  const query = useQuery(inventoryPreviewQueryOptions(locationId));
+  if (sources.length === 0) return null;
+  const options = [
+    { source: null, label: t('inventoryStart.scopeAll') },
+    ...sources.map(({ source, itemCount }) => ({ source, label: t('inventoryStart.scopeSource', { source, count: itemCount }) })),
+  ];
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-2 text-sm font-medium">{t('inventoryStart.scopeLegend')}</legend>
+      <div className="flex flex-wrap gap-3">
+        {options.map((option) => (
+          <label key={option.source ?? ''} className="cursor-pointer">
+            <input
+              type="radio"
+              name="inventory-scope"
+              className="peer sr-only"
+              checked={value === option.source}
+              onChange={() => onChange(option.source)}
+            />
+            <span
+              className={cn(
+                'flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium',
+                'peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground',
+                'peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50',
+              )}
+            >
+              {option.label}
+            </span>
+          </label>
+        ))}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {value === null ? t('inventoryStart.scopeHintAll') : t('inventoryStart.scopeHintSource', { source: value })}
+      </p>
+    </fieldset>
+  );
+}
+
+/** What a run on the chosen location would check in the chosen scope, or why it cannot start. */
+function Preview({
+  locationId,
+  scopeSource,
+  onScopeChange,
+}: {
+  locationId: string;
+  scopeSource: string | null;
+  onScopeChange: (source: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const query = useQuery(inventoryPreviewQueryOptions(locationId, scopeSource));
 
   if (query.isError) {
     return (
@@ -34,9 +95,10 @@ function Preview({ locationId }: { locationId: string }) {
   }
   if (!query.data) return <Skeleton role="status" aria-label={t('states.loading')} className="h-5 w-72 max-w-full" />;
 
-  const { itemCount, locationCount, overlap } = query.data;
+  const { itemCount, locationCount, sources, overlap } = query.data;
   return (
     <>
+      <ScopeChoice sources={sources} value={scopeSource} onChange={onScopeChange} />
       {overlap && (
         <div
           role="alert"
@@ -85,10 +147,12 @@ export function NewInventory() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [location, setLocation] = useState<PickerOption | null>(null);
-  const preview = useQuery({ ...inventoryPreviewQueryOptions(location?.id ?? ''), enabled: location !== null });
+  // Null: every item. The sources to choose from are the chosen location's, so a new location starts over.
+  const [scopeSource, setScopeSource] = useState<string | null>(null);
+  const preview = useQuery({ ...inventoryPreviewQueryOptions(location?.id ?? '', scopeSource), enabled: location !== null });
 
   const start = useMutation({
-    mutationFn: (locationId: string) => startInventory(locationId),
+    mutationFn: (locationId: string) => startInventory(locationId, scopeSource),
     // The screen shows the failure itself, above the buttons.
     meta: { silentError: true },
     onSuccess: async (run) => {
@@ -126,13 +190,23 @@ export function NewInventory() {
             onChange={(value) => {
               start.reset();
               setLocation(value);
+              setScopeSource(null);
             }}
             search={inventoryRootPickerOptions}
             placeholder={t('inventoryStart.locationPlaceholder')}
             emptyText={t('inventoryStart.noLocations')}
           />
         </div>
-        {location && <Preview locationId={location.id} />}
+        {location && (
+          <Preview
+            locationId={location.id}
+            scopeSource={scopeSource}
+            onScopeChange={(source) => {
+              start.reset();
+              setScopeSource(source);
+            }}
+          />
+        )}
       </Section>
 
       {start.isError && (

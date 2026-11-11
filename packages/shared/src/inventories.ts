@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { codeRef, humanCode, pageOf, timestamp } from './fields.ts';
+import { codeRef, humanCode, pageOf, requiredText, timestamp } from './fields.ts';
 import { archivedQuery, searchPageQuery } from './http.ts';
 
 // Inventory runs (SPEC §9): a physical check of a location and everything below it.
@@ -13,6 +13,13 @@ export const personRef = z.object({ id: z.uuid(), name: z.string() });
 export type PersonRef = z.infer<typeof personRef>;
 
 const count = z.number().int().min(0);
+
+/**
+ * The scope of a run (SPEC §9.3 rule 18): the source of an external ID that every item of its list
+ * has, case ignored, e.g. "Účetnictví" for the assets in the accounting records. As long as an
+ * external ID's source may be.
+ */
+export const scopeSource = requiredText(60);
 
 /**
  * What a run's rows add up to. `expected` is the list taken at the start, without the items archived
@@ -41,6 +48,8 @@ const runFields = {
   endedBy: personRef.nullable(),
   /** Set when an ended run was archived; a run in progress is never archived. */
   archivedAt: timestamp.nullable(),
+  /** Only items with an external ID of this source are on the list; null = every item. */
+  scopeSource: z.string().nullable(),
   counts: inventoryCountsSchema,
   /** The person who started the run, then everyone who checked something. */
   participants: z.array(personRef),
@@ -108,19 +117,29 @@ export const inventorySchema = z.object({
 });
 export type InventoryDto = z.infer<typeof inventorySchema>;
 
-export const inventoryPreviewQuery = z.object({ locationId: z.uuid() });
+/** `scopeSource` counts only the items with an external ID of that source. */
+export const inventoryPreviewQuery = z.object({ locationId: z.uuid(), scopeSource: scopeSource.optional() });
 
-/** The start screen: what a run on the location would check, and the run in progress it would clash with. */
+/**
+ * The start screen: what a run on the location would check (in the scope asked for), the sources of
+ * the external IDs its items have, to choose a scope from, and the run in progress it would clash with.
+ */
 export const inventoryPreviewSchema = z.object({
   itemCount: count,
   locationCount: count,
+  /**
+   * Every source of an external ID among the items a run without a scope would check, with how many
+   * of them have one, in Czech order. Sources that differ only in case are one.
+   */
+  sources: z.array(z.object({ source: z.string(), itemCount: count })),
   overlap: z
     .object({ id: z.uuid(), location: codeRef, startedBy: personRef.nullable(), startedAt: timestamp })
     .nullable(),
 });
 export type InventoryPreviewDto = z.infer<typeof inventoryPreviewSchema>;
 
-export const startInventoryBody = z.strictObject({ locationId: z.uuid() });
+/** `scopeSource` limits the list to the items with an external ID of that source; missing or null = every item. */
+export const startInventoryBody = z.strictObject({ locationId: z.uuid(), scopeSource: scopeSource.nullable().optional() });
 export type StartInventoryBody = z.infer<typeof startInventoryBody>;
 
 /** How an item came to be in a run: on the list at the start, found elsewhere, or created during the run. */
@@ -162,6 +181,11 @@ export const inventoryRowSchema = z.object({
   registeredElsewhere: z.boolean(),
   /** The item was moved to the run's location during the run. */
   moved: z.boolean(),
+  /**
+   * The item's external IDs (e.g. "Revize ILKO" "S 129" from the electrician's sticker), by source
+   * and value, case ignored: the checklist searches and shows them.
+   */
+  externalIds: z.array(z.object({ source: z.string(), value: z.string() })),
 });
 export type InventoryRowDto = z.infer<typeof inventoryRowSchema>;
 
@@ -196,7 +220,7 @@ export const scannedItemSchema = z.object({
 });
 export type ScannedItemDto = z.infer<typeof scannedItemSchema>;
 
-export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'archived', 'unknown_code'] as const;
+export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'archived', 'out_of_scope', 'unknown_code'] as const;
 
 /**
  * What a scan did, by `outcome`:
@@ -206,6 +230,8 @@ export const scanOutcomes = ['found', 'found_elsewhere', 'already_checked', 'arc
  *   location; `item.path` is where it is registered.
  * - `already_checked`: nothing changed, `row` says who checked it and when.
  * - `archived`: nothing recorded, the item is not counted.
+ * - `out_of_scope`: the item is not on the list and has no external ID of the run's scope
+ *   (`scopeSource`), so the run does not take it: nothing recorded.
  * - `unknown_code`: no item has this ID, nothing recorded.
  *
  * `wasMissing` is for a check that cleared the Nezvěstná status (always false until that exists).
@@ -226,6 +252,7 @@ export const scanResultSchema = z.discriminatedUnion('outcome', [
   }),
   z.object({ outcome: z.literal('already_checked'), item: scannedItemSchema, row: inventoryRowSchema }),
   z.object({ outcome: z.literal('archived'), item: scannedItemSchema }),
+  z.object({ outcome: z.literal('out_of_scope'), item: scannedItemSchema, scopeSource: z.string() }),
   z.object({ outcome: z.literal('unknown_code') }),
 ]);
 export type ScanResultDto = z.infer<typeof scanResultSchema>;

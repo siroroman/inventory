@@ -529,6 +529,44 @@ describe('inventory checklist', () => {
       expect(names(group('Zkontrolované'))).toEqual(['Regál kovový B']);
     });
 
+    it('finds an item by an external ID, the electrician ID too, with or without the space', async () => {
+      openChecklist([
+        row('Prodlužovačka 5 m', {
+          code: 'INV-00060',
+          externalIds: [
+            { source: 'Revize ILKO', value: 'S 129' },
+            { source: 'Účetnictví', value: '73-2023016' },
+          ],
+        }),
+        row('Regál kovový A', { code: 'INV-00050', externalIds: [{ source: 'Revize ILKO', value: 'S 130' }] }),
+        row('Stůl', { code: 'INV-00129' }),
+      ]);
+      await rowsLoaded();
+      const field = screen.getByRole('searchbox', { name: 'Hledat položky v lokalitě' });
+      expect(field).toHaveAttribute('placeholder', 'Hledat podle názvu, ID nebo externího ID…');
+
+      for (const q of ['S 129', 's129', '73-2023016']) {
+        await userEvent.clear(field);
+        await userEvent.type(field, q);
+        await waitFor(() => expect(names(group('Nezkontrolované'))).toEqual(['Prodlužovačka 5 m']));
+      }
+    });
+
+    it('shows the external IDs of a row under its ID', async () => {
+      openChecklist([
+        row('Prodlužovačka 5 m', {
+          code: 'INV-00060',
+          externalIds: [
+            { source: 'Revize ILKO', value: 'S 129' },
+            { source: 'Účetnictví', value: '73-2023016' },
+          ],
+        }),
+      ]);
+      await rowsLoaded();
+      const item = within(group('Nezkontrolované')).getByText('INV-00060').parentElement!;
+      expect(item).toHaveTextContent('Externí ID: Revize ILKO: S 129 · Účetnictví: 73-2023016');
+    });
+
     it('starts from the text in the URL', async () => {
       const { router } = openChecklist(rows(), { url: `${checklistUrl}?q=regal` });
       await rowsLoaded();

@@ -130,6 +130,7 @@ export function inventoryEntry(over: Record<string, unknown> = {}) {
     endedAt: null,
     endedBy: null,
     archivedAt: null as string | null,
+    scopeSource: null as string | null,
     counts: { ...noCounts, expected: 128 },
     participants: [starter],
     ...over,
@@ -172,6 +173,7 @@ export function inventoryRow(over: Record<string, unknown> = {}) {
     // A found item is registered elsewhere until its location is changed (override to say otherwise).
     registeredElsewhere: over.kind === 'elsewhere',
     moved: false,
+    externalIds: [] as { source: string; value: string }[],
     ...over,
   };
 }

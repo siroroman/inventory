@@ -96,10 +96,30 @@ export function createFakeInventoryStore() {
       method: row.method,
       missing: row.outcome === 'missing',
       moved: row.movedAt !== null,
+      // Like the repository: by source, then value, case ignored.
+      externalIds: itemStore.state.externalIds
+        .filter((e) => e.itemId === row.itemId)
+        .map(({ source, value }) => ({ source, value }))
+        .sort(
+          (a, b) =>
+            a.source.toLowerCase().localeCompare(b.source.toLowerCase()) ||
+            a.value.toLowerCase().localeCompare(b.value.toLowerCase()),
+        ),
     };
   };
   const findRow = (inventoryId: string, itemId: string) =>
     state.rows.find((r) => r.inventoryId === inventoryId && r.itemId === itemId);
+
+  /** Like the repository's `hasSource`: an external ID of the source, case ignored. */
+  const hasSource = (itemId: string, source: string) =>
+    itemStore.state.externalIds.some((e) => e.itemId === itemId && e.source.toLowerCase() === source.toLowerCase());
+  /** Like the repository's `inSnapshot`. */
+  const snapshotItems = (rootId: string, scopeSource: string | null = null) => {
+    const inside = new Set(activeSubtree(rootId));
+    return itemStore.state.items.filter(
+      (i) => !i.archivedAt && i.locationId && inside.has(i.locationId) && (!scopeSource || hasSource(i.id, scopeSource)),
+    );
+  };
 
   const visible = (row: Row) =>
     (row.kind === 'expected' && !itemById(row.itemId).archivedAt) || (row.kind !== 'expected' && row.checkedAt !== null);
@@ -151,6 +171,7 @@ export function createFakeInventoryStore() {
         endedAt: null,
         endedBy: null,
         archivedAt: null,
+        scopeSource: values.scopeSource ?? null,
         note: null,
         committee: null,
         createdAt: values.createdAt,
@@ -162,9 +183,8 @@ export function createFakeInventoryStore() {
       state.inventories.push(run);
       return { ...run };
     },
-    async snapshot(inventoryId, rootId) {
-      const inside = new Set(activeSubtree(rootId));
-      const items = itemStore.state.items.filter((i) => !i.archivedAt && i.locationId && inside.has(i.locationId));
+    async snapshot(inventoryId, rootId, scopeSource) {
+      const items = snapshotItems(rootId, scopeSource);
       for (const item of items) {
         state.rows.push({
           id: randomUUID(),
@@ -184,10 +204,28 @@ export function createFakeInventoryStore() {
       }
       return items.length;
     },
-    async previewCounts(rootId) {
-      const inside = new Set(activeSubtree(rootId));
-      const items = itemStore.state.items.filter((i) => !i.archivedAt && i.locationId && inside.has(i.locationId));
+    async previewCounts(rootId, scopeSource) {
+      const items = snapshotItems(rootId, scopeSource);
       return { itemCount: items.length, locationCount: new Set(items.map((i) => i.locationId)).size };
+    },
+    async previewSources(rootId) {
+      const items = new Set(snapshotItems(rootId).map((i) => i.id));
+      const bySource = new Map<string, { source: string; items: Set<string> }>();
+      for (const e of itemStore.state.externalIds) {
+        if (!items.has(e.itemId)) continue;
+        const key = e.source.toLowerCase();
+        const entry = bySource.get(key) ?? { source: e.source, items: new Set() };
+        // One of the spellings names it, like `min(source)`.
+        if (e.source < entry.source) entry.source = e.source;
+        entry.items.add(e.itemId);
+        bySource.set(key, entry);
+      }
+      return [...bySource.values()]
+        .map(({ source, items }) => ({ source, itemCount: items.size }))
+        .sort((a, b) => collator.compare(a.source, b.source));
+    },
+    async hasExternalIdSource(itemId, source) {
+      return hasSource(itemId, source);
     },
     async runItems(inventoryId, locationId) {
       return rowsOf(inventoryId)

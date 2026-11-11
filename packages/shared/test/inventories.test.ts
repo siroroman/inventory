@@ -87,6 +87,7 @@ describe('scanResultSchema', () => {
     registeredPath: [],
     registeredElsewhere: false,
     moved: false,
+    externalIds: [{ source: 'Revize ILKO', value: 'S 129' }],
   };
 
   it('accepts every outcome with its own fields', () => {
@@ -95,6 +96,7 @@ describe('scanResultSchema', () => {
       { outcome: 'found_elsewhere', item, row, wasMissing: false },
       { outcome: 'already_checked', item, row },
       { outcome: 'archived', item },
+      { outcome: 'out_of_scope', item, scopeSource: 'Účetnictví' },
       { outcome: 'unknown_code' },
     ]) {
       expect(scanResultSchema.safeParse(result).success).toBe(true);
@@ -106,6 +108,11 @@ describe('scanResultSchema', () => {
     expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
   });
 
+  it('refuses a row without the external IDs of its item', () => {
+    const { externalIds: _, ...incomplete } = row;
+    expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
+  });
+
   it('refuses a row that does not say whether it was flagged as missing', () => {
     const { missing: _, ...incomplete } = row;
     expect(scanResultSchema.safeParse({ outcome: 'already_checked', item, row: incomplete }).success).toBe(false);
@@ -114,6 +121,7 @@ describe('scanResultSchema', () => {
   it('refuses an outcome without what it needs and an unknown outcome', () => {
     expect(scanResultSchema.safeParse({ outcome: 'found', item, row }).success).toBe(false);
     expect(scanResultSchema.safeParse({ outcome: 'archived' }).success).toBe(false);
+    expect(scanResultSchema.safeParse({ outcome: 'out_of_scope', item }).success).toBe(false);
     expect(scanResultSchema.safeParse({ outcome: 'moved', item }).success).toBe(false);
   });
 });

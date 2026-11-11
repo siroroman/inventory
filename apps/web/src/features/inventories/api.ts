@@ -94,14 +94,25 @@ export const inventoryRootPickerOptions = (q: string) => ({
 });
 
 /** What a run on the location would check, and the run in progress it would clash with. Always fresh. */
-export const inventoryPreviewQueryOptions = (locationId: string) =>
+/**
+ * What a run on the location would check, only the items with an external ID of `scopeSource` when
+ * one is given, and the sources to choose from. A change of the scope keeps showing the last answer
+ * for the same location until the new one is in, so the screen does not flicker.
+ */
+export const inventoryPreviewQueryOptions = (locationId: string, scopeSource: string | null = null) =>
   queryOptions({
-    queryKey: ['inventories', 'preview', locationId],
-    queryFn: () => unwrap(api.api.v1.inventories.preview.$get({ query: { locationId } })),
+    queryKey: ['inventories', 'preview', locationId, scopeSource ?? ''],
+    queryFn: () =>
+      unwrap(
+        api.api.v1.inventories.preview.$get({ query: { locationId, ...(scopeSource !== null && { scopeSource }) } }),
+      ),
     staleTime: 0,
+    placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === locationId ? previous : undefined),
   });
 
-export const startInventory = (locationId: string) => unwrap(api.api.v1.inventories.$post({ json: { locationId } }));
+/** Starts a run on the location; with `scopeSource` only the items with an external ID of that source go on its list. */
+export const startInventory = (locationId: string, scopeSource: string | null = null) =>
+  unwrap(api.api.v1.inventories.$post({ json: { locationId, scopeSource } }));
 
 /**
  * Pages of the runs in progress (`open`, newest start first) or the finished and cancelled ones

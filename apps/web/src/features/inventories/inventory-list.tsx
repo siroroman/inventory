@@ -18,6 +18,7 @@ import { formatTime, formatTimestamp } from '@/lib/format';
 import { inventoryListQueryOptions } from './api';
 import { progressOf, runFigures } from './inventory-summary';
 import { shortName } from './people';
+import { ScopeBadge } from './scope-badge';
 import { statusBadge } from './status';
 
 /** What a finished run found ("120 nalezeno · 3 jinde · 5 chybí · 2 nezkontrolováno"), or how far a cancelled one got. */
@@ -68,6 +69,11 @@ function OpenCard({ run }: { run: InventoryListEntryDto }) {
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold break-words">{run.location.name}</p>
             {above.length > 0 && <p className="text-sm break-words text-muted-foreground">{pathLabel(above)}</p>}
+            {run.scopeSource && (
+              <p className="mt-1">
+                <ScopeBadge source={run.scopeSource} />
+              </p>
+            )}
           </div>
           <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         </div>
@@ -103,6 +109,7 @@ function ClosedCard({ run, result }: { run: InventoryListEntryDto; result: strin
       <div className="flex items-start justify-between gap-3">
         <p className="min-w-0 text-[15px] font-semibold break-words">{run.location.name}</p>
         <span className="mt-0.5 flex shrink-0 flex-wrap justify-end gap-1.5">
+          <ScopeBadge source={run.scopeSource} />
           {run.archivedAt && <ArchivedBadge />}
           <Badge variant={statusBadge[run.status]}>{t(`inventory.status.${run.status}`)}</Badge>
         </span>
@@ -185,7 +192,12 @@ export function InventoryPanel({
     {
       header: t('home.inventory.columns.status'),
       className: 'w-36',
-      cell: (run) => <Badge variant={statusBadge[run.status]}>{t(`inventory.status.${run.status}`)}</Badge>,
+      cell: (run) => (
+        <span className="flex flex-wrap gap-1.5">
+          <Badge variant={statusBadge[run.status]}>{t(`inventory.status.${run.status}`)}</Badge>
+          <ScopeBadge source={run.scopeSource} />
+        </span>
+      ),
     },
   ];
 
