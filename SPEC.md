@@ -331,7 +331,7 @@ REST API under the `/api/v1` prefix, JSON, with an OpenAPI description at `/api/
 | `POST /service-providers/{id}/archive`, `/restore` | archive, restore | Write |
 | `PUT /service-providers/{id}/manufacturers` | send the whole set of brands the provider services with the provider's `version`; a new brand ranks it last, a change bumps the version | Write |
 | `GET /items?missing=true` | only the items marked Nezvěstná; combinable with `q` and `archived`; item responses carry `missingSince` | Read |
-| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by ID (the numbers in it compared by value: INV-9 before INV-10); for the label wizard (§9.4.12) | Read |
+| `GET /items/labels?locationId=&q=&limit=` | `{items: [{id, code, name, path, accountingId}], total}` of the active items of a location's subtree and/or matching the search, at most `limit` (default and maximum 1 000), by ID (the numbers in it compared by value: INV-9 before INV-10); for the label wizard (§9.4.12) | Read |
 | `GET /items/by-code/{code}` | the item with this ID (case ignored, archived too) or 404; for the quick scan | Read |
 | `POST /items/{id}/mark-found` | clear Nezvěstná, with `version` | Write |
 | `POST /items` with `inventoryId` | also adds the new item to that run as Nové (§9.3 rule 9) | Write |
@@ -623,9 +623,11 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 **Step 2 — Položky** ("Vyberte položky")
 
-- It loads every active item of the location and its whole subtree (`GET /items/labels?locationId=`). **All are selected by default.**
-- A summary "Vybráno 118 z 128" and two text buttons, "Vybrat vše" and "Zrušit výběr".
-- Rows: a checkbox (44 px target, the whole row toggles), the name, the ID, and the sub-location path below the chosen location. From 768 px a table with a checkbox column, Název, ID, Umístění. A filter over the loaded rows is not required.
+- It loads every active item of the location and its whole subtree (`GET /items/labels?locationId=`). *Decided* 2026-11-14: **the items with an accounting number (external ID `Účetnictví`) are selected at the start and the others are not**, because the label is for the accountant's assets: the user turns off what is not to be labelled (scales, TVs, tables, chairs, cash registers…) and turns on or adds what is. A location where no item has a number starts with nothing selected, and "Vybrat vše" selects it all.
+- A summary "Vybráno 118 z 128" and three text buttons, "Vybrat vše", "Vybrat z účetnictví" (back to the state at the start) and "Zrušit výběr". They act on every item, not only on the rows of the view that is shown.
+- **View** (*Decided* 2026-11-14): radio buttons "Všechny (128)" / "Z účetnictví (85)" / "Ostatní (43)" above the list (counts include the items added by hand). The view only narrows what is listed; the choices are kept when it changes, and a view without rows says so ("V tomto seznamu nejsou žádné položky z účetnictví." / "…žádné další položky."). Not remembered across a reload.
+- Rows: a checkbox (44 px target, the whole row toggles), the name, the ID, the accounting number ("Účetnictví: 69-1134" under the ID on cards, a column from 768 px, "—" without one) and the sub-location path below the chosen location. From 768 px a table with a checkbox column, Název, ID, Účetnictví, Umístění. A text filter over the loaded rows is not required.
+- Several items may share one accounting number (the pieces of one asset, §12 Q7); each is its own row, so the user picks which of the eight fridges get a label.
 - **Quick add** ("Přidat další položky", placeholder "Hledat podle názvu nebo ID…") puts items from anywhere on the list. It uses the item search (name, ID, serial number, external ID; `GET /items/labels?q=&limit=20`):
   - The field sits above the list with its results directly below it (live search, 300 ms debounce, diacritics ignored). The result list is a listbox: ↑ ↓ and Enter work.
   - Items already in the list show "V seznamu" and cannot be added twice.
@@ -673,7 +675,7 @@ An A4 portrait page made for the browser's print dialog ("Uložit jako PDF" give
 
 **API** (new; no write endpoint, no table, no migration)
 
-- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path }], total }` of **active** items, ordered by `code` with the numbers in it compared by value (INV-9 before INV-10). The wizard sorts the chosen rows the same way, so items added by hand fall in place, and the labels are printed in that order.
+- `GET /items/labels?locationId=&q=&limit=` (min role Read) returns `{ items: [{ id, code, name, path, accountingId }], total }` (`accountingId`: the external ID `Účetnictví`, null without one, the smallest if an item has several) of **active** items, ordered by `code` with the numbers in it compared by value (INV-9 before INV-10). The wizard sorts the chosen rows the same way, so items added by hand fall in place, and the labels are printed in that order.
 - `locationId` takes the whole subtree (the recursive query of `GET /locations/{id}/items`). `q` uses the item search; the quick add calls it without `locationId` and with `limit=20`. `limit` defaults to 1 000 and is at most 1 000; `total` counts everything that matches. The response is not paged.
 - `path` is the item's location path from the top ("" = no location). A malformed `locationId` is 400 (`validation_error`); an unknown one is `not_found`, as for `GET /locations/{id}/items`.
 - The Zod schema is in `@inventory/shared`; the route goes through `defineRoute({ minRole: 'read' })`.
