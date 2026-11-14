@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  boolean,
   check,
   index,
   integer,
@@ -19,6 +20,8 @@ export const locationTypes = pgTable(
     code: text().notNull(),
     name: text().notNull(),
     sortOrder: integer().notNull().default(0),
+    /** Whether locations of this type are divided into sub-locations; the SPA hides them otherwise. */
+    allowsSubLocations: boolean().notNull().default(false),
     ...auditColumns(),
   },
   (t) => [

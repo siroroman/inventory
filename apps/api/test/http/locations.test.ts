@@ -33,6 +33,20 @@ describe('GET /locations', () => {
     expect(body.items[1]).toMatchObject({ type: { code: 'HQ' }, childCount: 1, path: [{ name: 'Praha' }] });
   });
 
+  it('says per row whether sub-locations are allowed, from the type of the top-level location', async () => {
+    const { read } = await setup();
+    const praha = await insertLocation(db().app, { name: 'Praha' });
+    await insertLocation(db().app, { name: 'Přízemí', parentId: praha.id });
+    await insertLocation(db().app, { name: 'Brno', locationTypeId: await locationTypeId(db().app, 'STORE') });
+
+    const top = await expectJson(await read.get('/locations'), 200, locationListSchema);
+    expect(Object.fromEntries(top.items.map((l) => [l.name, l.allowsSubLocations]))).toEqual({ Brno: false, Praha: true });
+
+    // A sub-location answers as its top-level location does.
+    const below = await expectJson(await read.get(`/locations?parentId=${praha.id}`), 200, locationListSchema);
+    expect(below.items.map((l) => [l.name, l.allowsSubLocations])).toEqual([['Přízemí', true]]);
+  });
+
   it('lists the children of one location with ?parentId=', async () => {
     const { read } = await setup();
     const praha = await insertLocation(db().app, { name: 'Praha' });
@@ -410,6 +424,23 @@ describe('location types', () => {
 
     const list = await expectJson(await read.get('/location-types'), 200, locationTypeListSchema);
     expect(list.items.map((t) => t.code)).toEqual(['HQ', 'STORE', 'SITE', 'WAREHOUSE', 'KIOSK']);
+  });
+
+  it('tells which types allow sub-locations, and lets an admin change it', async () => {
+    const { admin, read } = await setup();
+    const list = await expectJson(await read.get('/location-types'), 200, locationTypeListSchema);
+    expect(Object.fromEntries(list.items.map((t) => [t.code, t.allowsSubLocations]))).toEqual({
+      HQ: true,
+      STORE: false,
+      SITE: true,
+      WAREHOUSE: false,
+    });
+
+    const kiosk = await expectJson(await admin.post('/location-types', { code: 'KIOSK', name: 'Kiosek' }), 201, locationTypeSchema);
+    expect(kiosk.allowsSubLocations).toBe(false);
+    const divided = await expectJson(await admin.patch(`/location-types/${kiosk.id}`, { version: 1, allowsSubLocations: true }), 200, locationTypeSchema);
+    expect(divided).toMatchObject({ allowsSubLocations: true, version: 2 });
+    await expectProblem(await admin.post('/location-types', { code: 'STAN', name: 'Stan', allowsSubLocations: 'yes' }), 400, 'validation_error');
   });
 
   it('answers 403 to read and write users', async () => {

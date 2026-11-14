@@ -200,6 +200,27 @@ export function createLocationRepository(db: DbExecutor) {
     },
 
     /**
+     * Whether each given location may have sub-locations: the flag of the type of the top-level
+     * location it sits under (itself included), since only a top-level location has a type.
+     */
+    async findAllowsSubLocations(ids: string[]): Promise<Map<string, boolean>> {
+      const allowed = new Map<string, boolean>();
+      if (ids.length === 0) return allowed;
+      const result = await db.execute<{ id: string; allows: boolean }>(sql`
+        WITH RECURSIVE up (start_id, parent_id, location_type_id) AS (
+          SELECT l.id, l.parent_id, l.location_type_id
+            FROM locations l WHERE l.id = ANY(${sql.param(ids)}::uuid[])
+          UNION ALL
+          SELECT up.start_id, p.parent_id, p.location_type_id
+            FROM locations p JOIN up ON p.id = up.parent_id
+        )
+        SELECT up.start_id AS id, t.allows_sub_locations AS allows
+          FROM up JOIN location_types t ON t.id = up.location_type_id`);
+      for (const { id, allows } of result.rows) allowed.set(id, allows);
+      return allowed;
+    },
+
+    /**
      * Active items anywhere below each location (itself included) and its active direct children.
      * An archived sub-location hides everything below it.
      */
@@ -278,7 +299,7 @@ export function createLocationRepository(db: DbExecutor) {
 
 export type LocationRepository = ReturnType<typeof createLocationRepository>;
 
-type LocationTypeFields = Pick<typeof locationTypes.$inferInsert, 'code' | 'name' | 'sortOrder'>;
+type LocationTypeFields = Pick<typeof locationTypes.$inferInsert, 'code' | 'name' | 'sortOrder' | 'allowsSubLocations'>;
 export type NewLocationType = LocationTypeFields & { createdBy: string };
 export type LocationTypePatch = Partial<LocationTypeFields> & { updatedBy: string };
 

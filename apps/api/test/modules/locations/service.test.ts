@@ -55,6 +55,39 @@ describe('location service', () => {
     });
   });
 
+  describe('sub-locations', () => {
+    it('are allowed by the type of the top-level location, whichever level asks', async () => {
+      const { store, service, top, sub } = setup();
+      const praha = await top('Centrála Praha');
+      const floor = await sub('Přízemí', praha.id);
+      const brno = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: store.typeId('STORE') });
+      const lahovice = await service.create(writer, { name: 'Láhovice', locationTypeId: store.typeId('SITE') });
+      const sklad = await service.create(writer, { name: 'Sklad Kolín', locationTypeId: store.typeId('WAREHOUSE') });
+
+      const allows = async (id: string) => (await service.get(reader, id)).allowsSubLocations;
+      expect(await Promise.all([praha.id, floor.id, lahovice.id].map(allows))).toEqual([true, true, true]);
+      expect(await Promise.all([brno.id, sklad.id].map(allows))).toEqual([false, false]);
+
+      // The same flag comes with a list, one answer per row.
+      const listed = await service.list(reader, {}, { limit: 50 });
+      expect(Object.fromEntries(listed.items.map((l) => [l.name, l.allowsSubLocations]))).toEqual({
+        'Centrála Praha': true,
+        Láhovice: true,
+        'Prodejna Brno': false,
+        'Sklad Kolín': false,
+      });
+    });
+
+    it('follow the type when an admin changes its rule', async () => {
+      const { store, service } = setup();
+      const brno = await service.create(writer, { name: 'Prodejna Brno', locationTypeId: store.typeId('STORE') });
+      expect((await service.get(reader, brno.id)).allowsSubLocations).toBe(false);
+
+      await createLocationTypeService(store).update(admin, store.typeId('STORE'), { version: 1, allowsSubLocations: true });
+      expect((await service.get(reader, brno.id)).allowsSubLocations).toBe(true);
+    });
+  });
+
   describe('what a write returns', () => {
     it('is the location as get shows it: type, path and counts', async () => {
       const { store, service, top, sub } = setup();
@@ -434,9 +467,28 @@ describe('location type service', () => {
     await expectCode(service.update(writer, office.id, { version: 1, name: 'Pobočka' }), 'forbidden');
     expect(await service.update(admin, office.id, { version: 1, name: 'Pobočka' })).toMatchObject({ name: 'Pobočka', version: 2 });
     expect(store.state.audit.map((e) => [e.entityType, e.action, e.changes])).toEqual([
-      ['location_type', 'create', { code: { from: null, to: 'OFFICE' }, name: { from: null, to: 'Kancelář' }, sortOrder: { from: null, to: 5 } }],
+      [
+        'location_type',
+        'create',
+        {
+          code: { from: null, to: 'OFFICE' },
+          name: { from: null, to: 'Kancelář' },
+          sortOrder: { from: null, to: 5 },
+          allowsSubLocations: { from: null, to: false },
+        },
+      ],
       ['location_type', 'update', { name: { from: 'Kancelář', to: 'Pobočka' } }],
     ]);
+  });
+
+  it('does not allow sub-locations unless the type says so, and audits a change of the rule', async () => {
+    const { store, service } = setupTypes();
+    const plain = await service.create(admin, { code: 'OFFICE', name: 'Kancelář' });
+    const divided = await service.create(admin, { code: 'PLANT', name: 'Závod', allowsSubLocations: true });
+    expect([plain.allowsSubLocations, divided.allowsSubLocations]).toEqual([false, true]);
+
+    await service.update(admin, plain.id, { version: 1, allowsSubLocations: true });
+    expect(store.state.audit.at(-1)?.changes).toEqual({ allowsSubLocations: { from: false, to: true } });
   });
 
   it('reports unknown types and stale versions', async () => {

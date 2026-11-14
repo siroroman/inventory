@@ -26,8 +26,9 @@ export function createFakeLocationStore() {
 
   const now = () => new Date();
   const base = { createdAt: now(), updatedAt: now(), createdBy: null, updatedBy: null, archivedAt: null, version: 1 };
+  // Like the seeded types: the headquarters and a site are divided into sub-locations, a store and a warehouse are not.
   for (const [i, code] of ['HQ', 'STORE', 'SITE', 'WAREHOUSE'].entries()) {
-    state.types.push({ ...base, id: randomUUID(), code, name: code, sortOrder: i + 1 });
+    state.types.push({ ...base, id: randomUUID(), code, name: code, sortOrder: i + 1, allowsSubLocations: ['HQ', 'SITE'].includes(code) });
   }
 
   const byId = (id: string) => state.locations.find((l) => l.id === id);
@@ -81,6 +82,15 @@ export function createFakeLocationStore() {
         if (l) paths.set(id, pathOf(l).map(({ id, code, name }) => ({ id, code, name })));
       }
       return paths;
+    },
+    async findAllowsSubLocations(ids) {
+      const allowed = new Map<string, boolean>();
+      for (const id of ids) {
+        const l = byId(id);
+        const type = l && state.types.find((t) => t.id === pathOf(l)[0]!.locationTypeId);
+        if (type) allowed.set(id, type.allowsSubLocations);
+      }
+      return allowed;
     },
     async countSubtree(ids) {
       return new Map(
@@ -159,6 +169,7 @@ export function createFakeLocationStore() {
         code: values.code,
         name: values.name,
         sortOrder: values.sortOrder ?? 0,
+        allowsSubLocations: values.allowsSubLocations ?? false,
         createdBy: values.createdBy,
         updatedBy: values.createdBy,
       };

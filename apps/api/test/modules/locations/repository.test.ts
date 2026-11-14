@@ -133,6 +133,24 @@ describe('location repository', () => {
     expect((await repo().findPaths([])).size).toBe(0);
   });
 
+  it('tells from the type of the top-level location whether sub-locations are allowed', async () => {
+    const { user, praha, prizemi, kuchyne } = await tree();
+    // A store is not divided, but a stray sub-location under it still answers the same as its root.
+    const store = await repo().insert({
+      name: 'Prodejna Cheb',
+      parentId: null,
+      locationTypeId: await locationTypeId(t().app, 'STORE'),
+      createdBy: user.id,
+    });
+    const stray = await repo().insert({ name: 'Zadní sklad', parentId: store.id, locationTypeId: null, createdBy: user.id });
+
+    const allowed = await repo().findAllowsSubLocations([praha.id, prizemi.id, kuchyne.id, store.id, stray.id, randomUUID()]);
+    expect([praha.id, prizemi.id, kuchyne.id].map((id) => allowed.get(id))).toEqual([true, true, true]);
+    expect([store.id, stray.id].map((id) => allowed.get(id))).toEqual([false, false]);
+    expect(allowed.size).toBe(5); // the unknown id is left out
+    expect((await repo().findAllowsSubLocations([])).size).toBe(0);
+  });
+
   it('counts active items in the whole subtree and active direct children', async () => {
     const { user, add, praha, prizemi, kuchyne, brno } = await tree();
     await add('Sklad', praha.id);

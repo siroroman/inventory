@@ -12,18 +12,30 @@ const typeFields = {
   code: typeCode,
   name: requiredText(50),
   sortOrder: z.number().int().min(0).max(1000),
+  /** Whether locations of this type are divided into sub-locations (Centrála, Provozovna); a shop is not. */
+  allowsSubLocations: z.boolean(),
 };
 
 export const locationTypeSchema = z.object({ ...recordFields, ...typeFields });
 export type LocationTypeDto = z.infer<typeof locationTypeSchema>;
 
-export const createLocationTypeBody = z.strictObject({ ...typeFields, sortOrder: typeFields.sortOrder.optional() });
+/** Without `allowsSubLocations` a new type does not allow them. */
+export const createLocationTypeBody = z.strictObject({
+  ...typeFields,
+  sortOrder: typeFields.sortOrder.optional(),
+  allowsSubLocations: typeFields.allowsSubLocations.optional(),
+});
 export type CreateLocationTypeBody = z.infer<typeof createLocationTypeBody>;
 
-/** The code is chosen on creation and stays; only the name and the order change. */
+/** The code is chosen on creation and stays; the name, the order and the sub-location rule change. */
 export const updateLocationTypeBody = z
-  .strictObject({ name: typeFields.name, sortOrder: typeFields.sortOrder, version: versionField })
-  .partial({ name: true, sortOrder: true })
+  .strictObject({
+    name: typeFields.name,
+    sortOrder: typeFields.sortOrder,
+    allowsSubLocations: typeFields.allowsSubLocations,
+    version: versionField,
+  })
+  .partial({ name: true, sortOrder: true, allowsSubLocations: true })
   .refine(hasChange, { message: 'Nothing to change' });
 export type UpdateLocationTypeBody = z.infer<typeof updateLocationTypeBody>;
 

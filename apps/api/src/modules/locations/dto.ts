@@ -14,6 +14,7 @@ export function toLocationDto(row: LocationSummary): LocationDto {
     address: row.address,
     note: row.note,
     path: row.path,
+    allowsSubLocations: row.allowsSubLocations,
     itemCount: row.itemCount,
     childCount: row.childCount,
   };
@@ -40,5 +41,6 @@ export function toLocationTypeDto(row: LocationType): LocationTypeDto {
     code: row.code,
     name: row.name,
     sortOrder: row.sortOrder,
+    allowsSubLocations: row.allowsSubLocations,
   };
 }
