@@ -311,6 +311,19 @@ describe('location form: editing a shop', () => {
   });
 });
 
+describe('location form: editing a sub-location under a shop', () => {
+  it('still offers the parent, so it can be read and moved', async () => {
+    const back = location({ id: floor.id, name: 'Zadní sklad', type: null, parentId: hq.id, path: [hq, floor], allowsSubLocations: false, childCount: 0 });
+    api({
+      [`GET /api/v1/locations/${floor.id}`]: () => jsonResponse(back),
+      [`GET /api/v1/locations/${floor.id}/items`]: () => page([]),
+    });
+    renderApp(`/locations/${floor.id}/edit`);
+
+    expect(await screen.findByText('Nadřazená lokalita')).toBeInTheDocument();
+  });
+});
+
 describe('location form: editing', () => {
   const top = location({ id: hq.id, name: 'Centrála Praha', type: ref('HQ', 'Centrála'), address: 'Vinohradská 12', note: 'Stará poznámka' });
   top.type.id = types[0]!.id;

@@ -157,6 +157,17 @@ describe('location detail: sub-locations and items', () => {
     expect(screen.getByText('Nadřazená lokalita')).toBeInTheDocument();
   });
 
+  it('keeps the parent of a sub-location that sits under a shop, but offers no sub-locations of its own', async () => {
+    const shop = ref('LOC-008', 'Prodejna Cheb');
+    const back = location({ name: 'Zadní sklad', type: null, parentId: shop.id, path: [shop, ref('LOC-020', 'Zadní sklad')], allowsSubLocations: false, childCount: 0, itemCount: 1 });
+    api(back);
+    renderApp(`/locations/${back.id}`);
+
+    expect(await screen.findByText('Nadřazená lokalita')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Prodejna Cheb' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('link', { name: 'Přidat podlokalitu' })).not.toBeInTheDocument();
+  });
+
   it('puts the add buttons in their own sections, not in the header', async () => {
     api(sub);
     renderApp(`/locations/${sub.id}`);
