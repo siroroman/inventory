@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isSharedSource } from '../../src/db/accounting.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type { ExternalId, Item, ItemRepository } from '../../src/modules/items/repository.ts';
 import type { ItemInventories, ItemRepos } from '../../src/modules/items/service.ts';
@@ -137,16 +138,16 @@ export function createFakeItemStore() {
         (id): ExternalId => ({ id: randomUUID(), itemId, source: id.source, value: id.value, createdAt: now(), createdBy: by }),
       );
       for (const row of rows) {
-        // The unique index on lower(source), lower(value) spans all items, archived ones too.
-        const taken = state.externalIds.some(
-          (e) => e.source.toLowerCase() === row.source.toLowerCase() && e.value.toLowerCase() === row.value.toLowerCase(),
-        );
-        if (taken) {
-          throw Object.assign(new Error('duplicate key'), {
-            code: '23505',
-            constraint: 'item_external_ids_source_value_key',
-          });
-        }
+        const same = (e: ExternalId) =>
+          e.source.toLowerCase() === row.source.toLowerCase() && e.value.toLowerCase() === row.value.toLowerCase();
+        // Two unique indexes: never the same pair twice on one item; and across all items (archived
+        // ones too), except a shared source such as the accounting number.
+        const constraint = state.externalIds.some((e) => same(e) && e.itemId === itemId)
+          ? 'item_external_ids_item_source_value_key'
+          : !isSharedSource(row.source) && state.externalIds.some(same)
+            ? 'item_external_ids_source_value_key'
+            : null;
+        if (constraint) throw Object.assign(new Error('duplicate key'), { code: '23505', constraint });
         state.externalIds.push(row);
       }
       return rows.map((row) => ({ ...row }));

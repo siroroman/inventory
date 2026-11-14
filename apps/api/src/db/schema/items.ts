@@ -73,8 +73,14 @@ export const itemExternalIds = pgTable(
     ...createdColumns(),
   },
   (t) => [
-    // One supplier's ID identifies one item, across all items (archived too) and ignoring case.
-    uniqueIndex('item_external_ids_source_value_key').on(sql`lower(${t.source})`, sql`lower(${t.value})`),
+    // An item never has the same pair twice, whatever the source.
+    uniqueIndex('item_external_ids_item_source_value_key').on(t.itemId, sql`lower(${t.source})`, sql`lower(${t.value})`),
+    // One supplier's ID identifies one item, across all items (archived too) and ignoring case,
+    // except the accounting number, which the pieces of one asset share (SHARED_SOURCES in
+    // accounting.ts; a literal here, since drizzle-kit cannot write a parameter into DDL).
+    uniqueIndex('item_external_ids_source_value_key')
+      .on(sql`lower(${t.source})`, sql`lower(${t.value})`)
+      .where(sql`lower(${t.source}) <> lower('Účetnictví')`),
     index('item_external_ids_item_id_idx').on(t.itemId),
     check('item_external_ids_source_not_blank', sql`btrim(${t.source}) <> ''`),
     check('item_external_ids_value_not_blank', sql`btrim(${t.value}) <> ''`),

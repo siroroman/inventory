@@ -542,6 +542,23 @@ describe('POST /items', () => {
     expect(await auditOf(first.id)).toHaveLength(2);
   });
 
+  it('lets several items carry one accounting number, and search finds all of them', async () => {
+    const { write, read } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Arkády' });
+    const accounting = { source: 'Účetnictví', value: '69-1134' };
+    await expectJson(await write.post('/items', { name: 'Lednice A', locationId: loc.id, externalIds: [accounting] }), 201, itemSchema);
+    const second = await expectJson(await write.post('/items', { name: 'Lednice B', locationId: loc.id }), 201, itemSchema);
+    const edited = await expectJson(
+      await write.patch(`/items/${second.id}`, { version: 1, externalIds: [{ source: 'účetnictví', value: '69-1134' }] }),
+      200,
+      itemSchema,
+    );
+    expect(edited.externalIds).toEqual([{ source: 'účetnictví', value: '69-1134' }]);
+
+    const found = await expectJson(await read.get('/items?q=69-1134'), 200, itemListSchema);
+    expect(found.items.map((i) => i.name).sort()).toEqual(['Lednice A', 'Lednice B']);
+  });
+
   it('answers 400 for an invalid body', async () => {
     const { write } = await setup();
     const loc = await insertLocation(db().app, { name: 'Sklad' });
