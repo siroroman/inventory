@@ -9,8 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { problemMessage } from '@/lib/problem';
 import { useMediaQuery } from '@/lib/use-media-query';
+import { cn } from '@/lib/utils';
 import { QuickAdd } from './quick-add';
-import { type AddedRow, type ChosenLocation, type LabelRow, pathBelow, type Selection } from './selection';
+import {
+  type AddedRow,
+  type ChosenLocation,
+  hasAccountingId,
+  inView,
+  isChosen,
+  type ItemView,
+  type LabelRow,
+  pathBelow,
+  type Selection,
+  toggledFor,
+} from './selection';
 
 export type ListedItems = UseQueryResult<{ items: LabelRow[]; total: number }>;
 
@@ -28,6 +40,7 @@ const count = new Intl.NumberFormat('cs-CZ');
 const tableScreen = '(min-width: 768px)';
 /** Rows shown at first, and added by each "Zobrazit další". */
 export const ROWS_PER_PAGE = 10;
+const VIEWS: ItemView[] = ['all', 'accounting', 'other'];
 
 type RowProps = {
   row: LabelRow;
@@ -60,6 +73,11 @@ function CardRow({ row, place, checked, onToggle, onRemove }: RowProps) {
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold break-words">{row.name}</span>
           <span className="block text-sm text-muted-foreground">{row.code}</span>
+          {row.accountingId && (
+            <span className="block text-sm text-muted-foreground">
+              {t('labels.items.accountingLine', { id: row.accountingId })}
+            </span>
+          )}
           <span className="block text-sm break-words">
             <Place place={place} />
           </span>
@@ -102,6 +120,9 @@ function TableRows({ rows }: { rows: RowProps[] }) {
           <th scope="col" className="w-44 px-2 py-2.5 font-medium">
             {t('labels.items.columns.code')}
           </th>
+          <th scope="col" className="w-40 px-2 py-2.5 font-medium">
+            {t('labels.items.columns.accounting')}
+          </th>
           <th scope="col" className="px-2 py-2.5 font-medium">
             {t('labels.items.columns.location')}
           </th>
@@ -136,6 +157,7 @@ function TableRows({ rows }: { rows: RowProps[] }) {
               )}
             </td>
             <td className="px-2 py-3">{row.code}</td>
+            <td className="px-2 py-3">{row.accountingId ?? <span className="text-muted-foreground">{t('common.empty')}</span>}</td>
             <td className="px-2 py-3 break-words">
               <Place place={place} />
             </td>
@@ -149,25 +171,33 @@ function TableRows({ rows }: { rows: RowProps[] }) {
   );
 }
 
-/** Step 2: everything in the location is chosen; uncheck what is not to get a label, add what is from elsewhere. */
+/**
+ * Step 2: the items with an accounting number are chosen at the start; turn any of them off, and
+ * turn on the others or add items from elsewhere.
+ */
 export function ItemsStep({ location, listed, selection, chosen, onChange }: Props) {
   const { t } = useTranslation();
   const table = useMediaQuery(tableScreen);
   // A long list would push the rest of the step far down, so it shows a page of rows and the
   // button below it adds the next page; the summary above it does the work for most.
   const [shown, setShown] = useState(ROWS_PER_PAGE);
+  const [view, setView] = useState<ItemView>('all');
 
   const items = listed.data?.items ?? [];
   const total = (listed.data?.total ?? 0) + selection.added.filter((row) => !items.some((i) => i.id === row.id)).length;
-  const excluded = new Set(selection.excluded);
+  const toggled = new Set(selection.toggled);
   const inList = new Set([...items.map((row) => row.id), ...selection.added.map((row) => row.id)]);
   const tooMany = chosen > MAX_LABELS;
   const truncated = listed.data !== undefined && listed.data.total > items.length;
+  // How many rows each view has (the items of the location and those added by hand together).
+  const viewCounts = Object.fromEntries(
+    VIEWS.map((v) => [v, [...selection.added, ...items].filter((row) => inView(row, v)).length]),
+  ) as Record<ItemView, number>;
 
   const toggleListed = (id: string) =>
     onChange({
       ...selection,
-      excluded: excluded.has(id) ? selection.excluded.filter((other) => other !== id) : [...selection.excluded, id],
+      toggled: toggled.has(id) ? selection.toggled.filter((other) => other !== id) : [...selection.toggled, id],
     });
   const toggleAdded = (id: string) =>
     onChange({
@@ -182,6 +212,14 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
     onChange({ ...selection, added: [entry, ...selection.added] });
   };
 
+  // The three buttons act on everything, not only on the rows of the view that is shown.
+  const chooseWith = (wanted: (row: LabelRow) => boolean) =>
+    onChange({
+      ...selection,
+      toggled: toggledFor(items, wanted),
+      added: selection.added.map((row) => ({ ...row, checked: wanted(row) })),
+    });
+
   const rows: RowProps[] = [
     ...selection.added.map((row) => ({
       row,
@@ -193,10 +231,10 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
     ...items.map((row) => ({
       row,
       place: pathBelow(row.path, location.path),
-      checked: !excluded.has(row.id),
+      checked: isChosen(row, selection),
       onToggle: () => toggleListed(row.id),
     })),
-  ];
+  ].filter(({ row }) => inView(row, view));
 
   const visible = rows.slice(0, shown);
 
@@ -233,33 +271,47 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
                   })
                 : t('labels.items.summary', { selected: count.format(chosen), total: count.format(total) })}
             </p>
-            <div className="flex">
-              <Button
-                variant="link"
-                onClick={() =>
-                  onChange({
-                    ...selection,
-                    excluded: [],
-                    added: selection.added.map((row) => ({ ...row, checked: true })),
-                  })
-                }
-              >
+            <div className="flex flex-wrap">
+              <Button variant="link" onClick={() => chooseWith(() => true)}>
                 {t('labels.items.selectAll')}
               </Button>
-              <Button
-                variant="link"
-                onClick={() =>
-                  onChange({
-                    ...selection,
-                    excluded: items.map((row) => row.id),
-                    added: selection.added.map((row) => ({ ...row, checked: false })),
-                  })
-                }
-              >
+              <Button variant="link" onClick={() => chooseWith(hasAccountingId)}>
+                {t('labels.items.selectAccounting')}
+              </Button>
+              <Button variant="link" onClick={() => chooseWith(() => false)}>
                 {t('labels.items.selectNone')}
               </Button>
             </div>
           </div>
+          <fieldset className="flex flex-wrap items-center gap-2">
+            <legend className="sr-only">{t('labels.items.view')}</legend>
+            <span aria-hidden className="text-sm text-muted-foreground">
+              {t('labels.items.view')}
+            </span>
+            {VIEWS.map((v) => (
+              <label key={v} className="cursor-pointer">
+                <input
+                  type="radio"
+                  name="labels-view"
+                  className="peer sr-only"
+                  checked={view === v}
+                  onChange={() => {
+                    setView(v);
+                    setShown(ROWS_PER_PAGE);
+                  }}
+                />
+                <span
+                  className={cn(
+                    'flex min-h-11 items-center rounded-md border border-input bg-background px-4 text-sm font-medium',
+                    'peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground',
+                    'peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50',
+                  )}
+                >
+                  {t(`labels.items.view_${v}`, { count: count.format(viewCounts[v]) })}
+                </span>
+              </label>
+            ))}
+          </fieldset>
           {truncated && (
             <p className="text-sm text-muted-foreground">
               {t('labels.items.truncated', { shown: count.format(items.length), total: count.format(listed.data.total) })}
@@ -267,7 +319,7 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
           )}
           {rows.length === 0 ? (
             <p className="rounded-xl border border-line bg-card px-6 py-8 text-center text-sm text-muted-foreground">
-              {t('labels.items.empty')}
+              {view === 'all' ? t('labels.items.empty') : t(`labels.items.empty_${view}`)}
             </p>
           ) : (
             <div className="overflow-hidden rounded-xl border border-line bg-card">

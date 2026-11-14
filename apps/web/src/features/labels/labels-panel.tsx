@@ -81,7 +81,7 @@ export function LabelsPanel({ step, locationId, onNavigate }: Props) {
 
   const go = (next: number) => onNavigate({ step: next === 1 ? undefined : next });
   const choose = (next: ChosenLocation) => {
-    setSelection({ location: next, excluded: [], added: [] });
+    setSelection({ location: next, toggled: [], added: [] });
     setReached(1);
   };
   // "Vytvořit nové štítky": nothing chosen, the sheet is used up so it starts at its first place again.

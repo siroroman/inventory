@@ -139,8 +139,19 @@ export const itemLabelsQuery = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_LABELS).default(MAX_LABELS),
 });
 
-/** What a label needs of an item; `path` is the names of its location from the top, joined by " › " ("" = no location). */
-export const itemLabelSchema = z.object({ id: z.uuid(), code: z.string(), name: z.string(), path: z.string() });
+/**
+ * What a label needs of an item; `path` is the names of its location from the top, joined by " › "
+ * ("" = no location). `accountingId` is the item's accounting number (external ID `Účetnictví`),
+ * null without one; the wizard marks and preselects those items. An item with several (it should
+ * not have) answers the smallest.
+ */
+export const itemLabelSchema = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  name: z.string(),
+  path: z.string(),
+  accountingId: z.string().nullable(),
+});
 export type ItemLabelDto = z.infer<typeof itemLabelSchema>;
 
 export const itemLabelsSchema = z.object({ items: z.array(itemLabelSchema), total: z.number().int().min(0) });

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { itemPhotos, locations } from '../../../src/db/schema/index.ts';
+import { itemExternalIds, itemPhotos, locations } from '../../../src/db/schema/index.ts';
 import { createItemRepository, type ItemFilter, type NewItem } from '../../../src/modules/items/repository.ts';
 import { useTestDb } from '../../helpers/db.ts';
 import { insertLocation, insertManufacturer, insertUser } from '../../helpers/factories.ts';
@@ -130,7 +130,21 @@ describe('item repository', () => {
       'INV-00042',
       'INV-73-2023016',
     ]);
-    expect(rows[0]).toEqual({ id: expect.any(String), code: 'INV-00001', name: 'Bez místa', locationId: null });
+    expect(rows[0]).toEqual({ id: expect.any(String), code: 'INV-00001', name: 'Bez místa', locationId: null, accountingId: null });
+  });
+
+  it('gives a label row the smallest accounting number, ignoring other sources and the source case', async () => {
+    const { praha, add } = await setup();
+    const item = await add('Lednice', praha.id);
+    const plain = await add('Konvice', praha.id);
+    await t().app.insert(itemExternalIds).values([
+      { itemId: item.id, source: 'Revize ILKO', value: '1' },
+      { itemId: item.id, source: 'účetnictví', value: '69-1135' },
+      { itemId: item.id, source: 'Účetnictví', value: '69-1134' },
+    ]);
+    const rows = await repo().listForLabels({ locationId: praha.id }, 1000);
+    expect(Object.fromEntries(rows.map((r) => [r.name, r.accountingId]))).toEqual({ Lednice: '69-1134', Konvice: null });
+    expect(plain.id).toBeDefined();
   });
 
   it('limits the label list, narrows it by subtree and search, and leaves archived items out', async () => {

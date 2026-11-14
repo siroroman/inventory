@@ -1,4 +1,5 @@
 import { and, asc, count, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, type SQL, sql } from 'drizzle-orm';
+import { ACCOUNTING_SOURCE } from '../../db/accounting.ts';
 import type { DbExecutor } from '../../db/client.ts';
 import { afterName, type Page, toPage } from '../../db/pagination.ts';
 import { itemExternalIds, itemPhotos, items, locations, manufacturers } from '../../db/schema/index.ts';
@@ -11,7 +12,7 @@ export type ExternalId = typeof itemExternalIds.$inferSelect;
 type ManufacturerRef = { id: string; name: string };
 export type ItemWithManufacturer = Item & { manufacturer: ManufacturerRef | null };
 /** What a label shows of an item, and where it is so the service can name the path. */
-export type ItemLabelRow = Pick<Item, 'id' | 'code' | 'name' | 'locationId'>;
+export type ItemLabelRow = Pick<Item, 'id' | 'code' | 'name' | 'locationId'> & { accountingId: string | null };
 export type ItemListRow = ItemWithManufacturer & {
   /** Missing while the item has no location. */
   location: { id: string; code: string; name: string } | null;
@@ -111,11 +112,23 @@ export function createItemRepository(db: DbExecutor) {
 
     /**
      * At most `limit` active items for the label wizard, ordered by ID with the numbers in it
-     * compared by value (INV-9-100 before INV-73-2023016). `count` gives the total.
+     * compared by value (INV-9-100 before INV-73-2023016). `count` gives the total. Each row has the
+     * item's accounting number, if any (`min` keeps one answer for an item that has several).
      */
     async listForLabels(filter: Pick<ItemFilter, 'q' | 'locationId'>, limit: number): Promise<ItemLabelRow[]> {
       return db
-        .select({ id: items.id, code: items.code, name: items.name, locationId: items.locationId })
+        .select({
+          id: items.id,
+          code: items.code,
+          name: items.name,
+          locationId: items.locationId,
+          // Written with table names and an alias: drizzle leaves the table off the columns of a
+          // single-table select, so `items.id` in here would mean the inner table's own `id`.
+          accountingId: sql<string | null>`(
+            SELECT min(ei.value) FROM item_external_ids ei
+            WHERE ei.item_id = items.id AND lower(ei.source) = lower(${ACCOUNTING_SOURCE})
+          )`,
+        })
         .from(items)
         .where(and(...listWhere(db, filter)))
         .orderBy(sql`${items.code} COLLATE cs_cz_numeric`, asc(items.id))

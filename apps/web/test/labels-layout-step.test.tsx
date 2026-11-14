@@ -24,6 +24,7 @@ const labelItem = (n: number) => ({
   code: `INV-${String(n).padStart(5, '0')}`,
   name: `Položka ${n}`,
   path: 'Centrála Praha › Přízemí › Kuchyně',
+  accountingId: `73-${2023000 + n}`,
 });
 
 function api(count = 3) {
@@ -38,7 +39,7 @@ function api(count = 3) {
 const remember = (selection: Record<string, unknown> = {}, layout?: Record<string, unknown>) => {
   sessionStorage.setItem(
     'labels-wizard',
-    JSON.stringify({ location: LOCATION, excluded: [], added: [], ...selection }),
+    JSON.stringify({ location: LOCATION, toggled: [], added: [], ...selection }),
   );
   if (layout) {
     // The device keeps the format and the grid; the place on the sheet lasts for the tab.
@@ -279,7 +280,7 @@ describe('labels wizard: step 3, the layout', () => {
 
   it('goes back to step 2 for a list that cannot be printed', async () => {
     const items = api();
-    remember({ excluded: items.map((item) => item.id) });
+    remember({ toggled: items.map((item) => item.id) });
     const { router } = open(3);
     await waitFor(() => expect(router.state.location.search.step).toBe(2));
     expect(await screen.findByRole('heading', { name: 'Vyberte položky' })).toBeInTheDocument();
@@ -289,7 +290,7 @@ describe('labels wizard: step 3, the layout', () => {
 describe('labels wizard: step 4, the download', () => {
   it('summarises the sheet and makes the PDF in the browser with what was chosen', async () => {
     const items = api();
-    remember({ excluded: [items[1]!.id] }, { columns: 2, rows: 5, startPosition: 4 });
+    remember({ toggled: [items[1]!.id] }, { columns: 2, rows: 5, startPosition: 4 });
     open(4);
 
     expect(await screen.findByRole('heading', { name: 'Stažení' })).toBeInTheDocument();
@@ -320,7 +321,7 @@ describe('labels wizard: step 4, the download', () => {
 
   it('makes a PDF of one label per page for a label printer, and summarises it without a sheet', async () => {
     const items = api();
-    remember({ excluded: [items[1]!.id] }, { format: 'tape', width: 40, height: 20, columns: 2, rows: 5 });
+    remember({ toggled: [items[1]!.id] }, { format: 'tape', width: 40, height: 20, columns: 2, rows: 5 });
     open(4);
 
     expect(await screen.findByRole('heading', { name: 'Stažení' })).toBeInTheDocument();

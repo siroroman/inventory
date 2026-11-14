@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { isSharedSource } from '../../src/db/accounting.ts';
+import { ACCOUNTING_SOURCE, isSharedSource } from '../../src/db/accounting.ts';
 import type { AuditEntry } from '../../src/modules/audit/repository.ts';
 import type { ExternalId, Item, ItemRepository } from '../../src/modules/items/repository.ts';
 import type { ItemInventories, ItemRepos } from '../../src/modules/items/service.ts';
@@ -83,7 +83,18 @@ export function createFakeItemStore() {
       return rows
         .sort((a, b) => collator.compare(a.code, b.code) || (a.id < b.id ? -1 : 1))
         .slice(0, limit)
-        .map(({ id, code, name, locationId }) => ({ id, code, name, locationId }));
+        .map(({ id, code, name, locationId }) => ({
+          id,
+          code,
+          name,
+          locationId,
+          // The smallest accounting number, like the repository's `min`.
+          accountingId:
+            idsOf(id)
+              .filter((e) => e.source.toLowerCase() === ACCOUNTING_SOURCE.toLowerCase())
+              .map((e) => e.value)
+              .sort()[0] ?? null,
+        }));
     },
     async count(filter) {
       return matching(filter).length;
