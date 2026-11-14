@@ -86,6 +86,27 @@ describe('labels wizard: step 1, the location', () => {
     expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Lokalita');
   });
 
+  it('words the item count without sub-locations for a shop, which has none to include', async () => {
+    const shop = location({
+      id: '5f0b9d3e-5a53-4a57-8d0a-64d2a6a3c008',
+      code: 'LOC-008',
+      name: 'Prodejna Cheb',
+      path: [ref('LOC-008', 'Prodejna Cheb')],
+      itemCount: 7,
+      childCount: 0,
+      allowsSubLocations: false,
+    });
+    api({ locations: [shop] });
+    renderApp('/?tab=labels');
+
+    const row = within(await screen.findByRole('list', { name: 'Lokality' })).getByRole('listitem');
+    expect(row).toHaveTextContent('LOC-008 · 7 položek');
+    expect(row).not.toHaveTextContent('podlokalit');
+
+    await userEvent.click(within(row).getByRole('button'));
+    expect(await screen.findByText('LOC-008 · 7 položek')).toBeInTheDocument();
+  });
+
   it('says so when the list of locations is cut off, since there is no way to page it', async () => {
     stubApi({
       'GET /api/v1/me': () => jsonResponse(me),

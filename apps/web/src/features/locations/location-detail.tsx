@@ -26,6 +26,7 @@ import {
 } from './api';
 import { ContactList } from './location-contacts';
 import { useLocationRows } from './location-list';
+import { hasSubLocations } from './sub-locations';
 
 /** A link in the detail's header or fields: at least 44 px tall to tap. */
 const crumbLink =
@@ -104,14 +105,16 @@ function SubLocations({ location, canAdd }: { location: LocationDto; canAdd: boo
   const query = useInfiniteQuery({ ...locationChildrenQueryOptions(location.id), enabled: location.childCount > 0 });
   const { columns, card } = useLocationRows({ nested: true });
   const desktop = useMediaQuery(desktopScreen);
-  // A location without sub-locations (most of them) has no section, unless the user can add one.
-  if (location.childCount === 0 && !canAdd) return null;
+  // Adding one is offered only where the type allows it; one that exists is listed either way.
+  const canAddHere = canAdd && location.allowsSubLocations;
+  // A location without sub-locations has no section, unless the user can add one.
+  if (location.childCount === 0 && !canAddHere) return null;
   return (
     <Section
       id="sub-locations"
       title={t('locationDetail.subLocations', { count: location.childCount })}
       action={
-        canAdd && (
+        canAddHere && (
           <AddButton>
             <Link to="/locations/new" search={{ parentId: location.id }}>
               <Plus aria-hidden />
@@ -162,7 +165,10 @@ function Items({ location, canAdd }: { location: LocationDto; canAdd: boolean })
       <PagedList
         query={query}
         searching={false}
-        empty={{ title: t('locationDetail.itemsEmptyTitle'), hint: t('locationDetail.itemsEmptyHint') }}
+        empty={{
+          title: t('locationDetail.itemsEmptyTitle'),
+          hint: t(hasSubLocations(location) ? 'locationDetail.itemsEmptyHint' : 'locationDetail.itemsEmptyHintFlat'),
+        }}
         columns={columns}
         card={card}
       />
@@ -237,13 +243,16 @@ export function LocationDetail({ id }: { id: string }) {
       </header>
       <dl className="mx-4 flex flex-col gap-3 rounded-lg border bg-card p-4">
         <Field label={t('locationDetail.fields.code')}>{location.code}</Field>
-        <Field label={t('locationDetail.fields.parent')}>
-          {parent && (
-            <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, '-my-3 underline underline-offset-2')}>
-              {parent.name}
-            </Link>
-          )}
-        </Field>
+        {/* A location outside the tree has no parent to name. */}
+        {hasSubLocations(location) && (
+          <Field label={t('locationDetail.fields.parent')}>
+            {parent && (
+              <Link to="/locations/$id" params={{ id: parent.id }} className={cn(crumbLink, '-my-3 underline underline-offset-2')}>
+                {parent.name}
+              </Link>
+            )}
+          </Field>
+        )}
         {!location.parentId && <Field label={t('locationDetail.fields.type')}>{location.type?.name}</Field>}
         <Field label={t('locationDetail.fields.address')}>{location.address}</Field>
         <Field label={t('locationDetail.fields.note')}>{location.note}</Field>

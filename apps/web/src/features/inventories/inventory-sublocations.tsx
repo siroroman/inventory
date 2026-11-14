@@ -11,13 +11,13 @@ export type LocationCounts = { notStarted: number; inProgress: number; done: num
 /**
  * "Podlokality": how far the run is by location. The bar is the locations that are done out of all
  * of them, the figures say how many nobody has started, how many are under way and how many are
- * done. Nothing is shown for a run with no locations.
+ * done. A run over one location (a shop) has nothing to divide it by, so nothing is shown for it.
  */
 export function SubLocationsBox({ counts }: { counts: LocationCounts }) {
   const { t } = useTranslation();
   const titleId = useId();
   const total = counts.notStarted + counts.inProgress + counts.done;
-  if (total === 0) return null;
+  if (total <= 1) return null;
   return (
     <section aria-labelledby={titleId} className="flex flex-col gap-2">
       <h2 id={titleId} className={cn(sectionTitleClass, 'pt-6 text-xl')}>

@@ -131,6 +131,32 @@ describe('location detail: sub-locations and items', () => {
     expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
   });
 
+  it('says nothing of sub-locations for a shop: no section, no way to add one, no parent field', async () => {
+    const shop = location({ name: 'Prodejna Cheb', type: ref('STORE', 'Prodejna'), allowsSubLocations: false, childCount: 0, itemCount: 0 });
+    const calls = api(shop);
+    renderApp(`/locations/${shop.id}`);
+
+    // The items are there, worded without the sub-locations that do not exist.
+    expect(await screen.findByText('V této lokalitě zatím nejsou žádné položky.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Přidat položku' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: /Podlokality/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Přidat podlokalitu' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Nadřazená lokalita')).not.toBeInTheDocument();
+    expect(callsTo(calls, '/api/v1/locations')).toEqual([]);
+  });
+
+  it('still lists the sub-locations a shop already has, but offers no way to add another', async () => {
+    const shop = location({ name: 'Prodejna Cheb', type: ref('STORE', 'Prodejna'), allowsSubLocations: false, childCount: 1, itemCount: 2 });
+    const back = location({ name: 'Zadní sklad', type: null, parentId: shop.id, path: [ref('LOC-001', 'Prodejna Cheb'), ref('LOC-020', 'Zadní sklad')], childCount: 0, itemCount: 2 });
+    api(shop, { children: () => page([back]) });
+    renderApp(`/locations/${shop.id}`);
+
+    const section = within((await screen.findByRole('heading', { level: 2, name: 'Podlokality (1)' })).closest('section')!);
+    expect(await section.findByText('Zadní sklad')).toBeInTheDocument();
+    expect(section.queryByRole('link', { name: 'Přidat podlokalitu' })).not.toBeInTheDocument();
+    expect(screen.getByText('Nadřazená lokalita')).toBeInTheDocument();
+  });
+
   it('puts the add buttons in their own sections, not in the header', async () => {
     api(sub);
     renderApp(`/locations/${sub.id}`);

@@ -297,6 +297,20 @@ describe('location form: choosing the parent', () => {
   });
 });
 
+describe('location form: editing a shop', () => {
+  it('offers no parent to choose, since a shop is not part of the tree, but still the type', async () => {
+    const shop = location({ id: hq.id, name: 'Prodejna Cheb', type: { ...ref('STORE', 'Prodejna'), id: types[1]!.id }, allowsSubLocations: false, childCount: 0 });
+    api({
+      [`GET /api/v1/locations/${hq.id}`]: () => jsonResponse(shop),
+      [`GET /api/v1/locations/${hq.id}/items`]: () => page([]),
+    });
+    renderApp(`/locations/${hq.id}/edit`);
+
+    expect(await screen.findByLabelText('Typ')).toHaveValue(types[1]!.id);
+    expect(screen.queryByText('Nadřazená lokalita')).not.toBeInTheDocument();
+  });
+});
+
 describe('location form: editing', () => {
   const top = location({ id: hq.id, name: 'Centrála Praha', type: ref('HQ', 'Centrála'), address: 'Vinohradská 12', note: 'Stará poznámka' });
   top.type.id = types[0]!.id;

@@ -13,6 +13,7 @@ import { useCanWrite } from '@/features/auth/use-can-write';
 import { cn } from '@/lib/utils';
 import { locationListQueryOptions } from './api';
 import { pathLabel } from './path';
+import { hasSubLocations } from './sub-locations';
 
 /** A search also finds sub-locations; their name alone would not say where they are. */
 function parentPath(location: LocationDto): string {
@@ -43,9 +44,10 @@ function LocationLink({ location, card, children }: { location: LocationDto; car
 export function useLocationRows({ nested }: { nested: boolean }) {
   const { t } = useTranslation();
 
+  // The sub-location count is empty (no cell text, left out of the card) for a location that has none to speak of.
   const counts = (location: LocationDto) => [
     t('common.itemCount', { count: location.itemCount }),
-    t('common.subLocationCount', { count: location.childCount }),
+    hasSubLocations(location) ? t('common.subLocationCount', { count: location.childCount }) : '',
   ];
   const path = (location: LocationDto) => (nested ? '' : parentPath(location));
 

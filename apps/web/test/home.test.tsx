@@ -26,6 +26,22 @@ describe('home: items tab without a location', () => {
 });
 
 describe('home: locations tab', () => {
+  it('counts sub-locations only for a location that has them to speak of, not for a shop', async () => {
+    api({
+      locations: () =>
+        page([
+          location(),
+          location({ name: 'Prodejna Cheb', type: ref('STORE', 'Prodejna'), address: null, itemCount: 7, childCount: 0, allowsSubLocations: false }),
+        ]),
+    });
+    renderApp('/');
+
+    const rows = within(await screen.findByRole('list')).getAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent('4 podlokality');
+    expect(rows[1]).toHaveTextContent('7 položek');
+    expect(rows[1]).not.toHaveTextContent('podlokalit');
+  });
+
   it('lists top-level locations with type, address and counts, under a heading with the total', async () => {
     api({ locations: () => page([location(), location({ name: 'Sklad Brno', type: ref('WAREHOUSE', 'Sklad'), address: null, itemCount: 1, childCount: 0 })], { total: 2 }) });
     renderApp('/');

@@ -191,6 +191,7 @@
     "items": "Položky ({{count}})",
     "itemsEmptyTitle": "Žádné položky",
     "itemsEmptyHint": "V této lokalitě a jejích podlokalitách zatím nejsou žádné položky.",
+    "itemsEmptyHintFlat": "V této lokalitě zatím nejsou žádné položky.",
     "edit": "Upravit",
     "archiveTitle": "Archivovat lokalitu?",
     "archiveHint": "Lokalita zmizí ze seznamů a vyhledávání. Archivovanou lokalitu můžete kdykoli obnovit.",

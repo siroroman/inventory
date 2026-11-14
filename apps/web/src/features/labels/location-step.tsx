@@ -1,5 +1,7 @@
 import { pathLabel } from '@/features/locations/path';
+import { hasSubLocations } from '@/features/locations/sub-locations';
 import { useQuery } from '@tanstack/react-query';
+import type { TFunction } from 'i18next';
 import { MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +21,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { problemMessage } from '@/lib/problem';
 import { labelLocationsQueryOptions } from './api';
 import type { ChosenLocation } from './selection';
+
+/** "128 položek včetně podlokalit" where there are sub-locations to include, a plain count where there are none. */
+const itemCountText = (t: TFunction, count: number, withSubLocations: boolean) =>
+  withSubLocations ? t('labels.location.itemCount', { count }) : t('common.itemCount', { count });
 
 type Props = {
   location: ChosenLocation | null;
@@ -72,7 +78,7 @@ export function LocationStep({ location, needsConfirm, onChoose }: Props) {
               </p>
             )}
             <p className="mt-1 text-sm">
-              {location.code} · {t('labels.location.itemCount', { count: location.itemCount })}
+              {location.code} · {itemCountText(t, location.itemCount, location.subLocations !== false)}
             </p>
           </div>
           <Button variant="outline" onClick={() => setChanging(true)}>
@@ -119,6 +125,7 @@ export function LocationStep({ location, needsConfirm, onChoose }: Props) {
                           name: row.name,
                           path: pathLabel(row.path),
                           itemCount: row.itemCount,
+                          subLocations: hasSubLocations(row),
                         })
                       }
                       className="flex min-h-11 w-full items-start gap-3 px-4 py-3 text-left hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
@@ -128,7 +135,7 @@ export function LocationStep({ location, needsConfirm, onChoose }: Props) {
                         <span className="block text-[15px] font-semibold break-words">{row.name}</span>
                         {above && <span className="block text-sm break-words text-muted-foreground">{above}</span>}
                         <span className="block text-sm text-muted-foreground">
-                          {row.code} · {t('labels.location.itemCount', { count: row.itemCount })}
+                          {row.code} · {itemCountText(t, row.itemCount, hasSubLocations(row))}
                         </span>
                       </span>
                     </button>

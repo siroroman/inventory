@@ -7,8 +7,19 @@ import { MAX_LABELS } from '@inventory/shared';
 export type LabelRow = { id: string; code: string; name: string; path: string; accountingId: string | null };
 /** An item put on the list by hand; it can be unchecked without being removed. */
 export type AddedRow = LabelRow & { checked: boolean };
-/** The location chosen in step 1; `path` is the whole path, itself last. */
-export type ChosenLocation = { id: string; code: string; name: string; path: string; itemCount: number };
+/**
+ * The location chosen in step 1; `path` is the whole path, itself last. `subLocations: false` says
+ * the location has none to count in (a shop); a choice remembered by an older tab lacks it and keeps
+ * the old wording.
+ */
+export type ChosenLocation = {
+  id: string;
+  code: string;
+  name: string;
+  path: string;
+  itemCount: number;
+  subLocations?: boolean;
+};
 
 /**
  * The choices of steps 1 and 2. An item of the location starts chosen when it has an accounting
