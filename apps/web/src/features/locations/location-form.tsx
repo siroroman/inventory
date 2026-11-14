@@ -30,6 +30,7 @@ import { invalidateAfterWrite } from '@/lib/query';
 import { createLocation, locationQueryOptions, locationTypesQueryOptions, updateLocation } from './api';
 import { LocationPicker, type ParentChoice } from './location-picker';
 import { pathLabel } from './path';
+import { hasSubLocations } from './sub-locations';
 
 type ContactRow = { role: string; name: string; phone: string; email: string };
 
@@ -328,8 +329,9 @@ export function LocationForm({ location, initialParent = null }: Props) {
           </FieldError>
         </div>
 
-        {/* A new top-level location has no parent to choose; the picker is for editing and for "Add sub-location". */}
-        {(location || initialParent) && (
+        {/* A new top-level location has no parent to choose; the picker is for "Add sub-location" and for editing a
+            location that is in the tree (a sub-location, or one whose type allows them), not a shop. */}
+        {(initialParent || (location && hasSubLocations(location))) && (
           <>
             <Controller
               control={control}

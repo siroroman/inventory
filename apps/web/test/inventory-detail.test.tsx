@@ -157,6 +157,19 @@ describe('inventory run overview', () => {
       expect(title.compareDocumentPosition(groupHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('is left out when the run covers one location only, as in a shop, but its checklist stays', async () => {
+      signedIn(() =>
+        jsonResponse(inventory({ id, counts: { expected: 5, checked: 2, elsewhere: 0, new: 0, missing: 0 }, locations: [inventoryLocation({ name: 'Prodejna Cheb', total: 5, checked: 2 })] })),
+      );
+      renderApp(`/inventories/${id}`);
+
+      // The row that opens the checklist is there, the box that counts locations is not.
+      expect(await screen.findByRole('heading', { name: 'Probíhající (1)', level: 2 })).toBeInTheDocument();
+      expect(screen.getByText('Prodejna Cheb')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Podlokality' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar', { name: 'Průběh podlokalit' })).not.toBeInTheDocument();
+    });
+
     it('is left out when the run has no locations', async () => {
       signedIn(() => jsonResponse(inventory({ id, counts: { expected: 0, checked: 0, elsewhere: 0, new: 0, missing: 0 } })));
       renderApp(`/inventories/${id}`);

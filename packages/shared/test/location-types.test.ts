@@ -7,6 +7,12 @@ describe('createLocationTypeBody', () => {
     expect(createLocationTypeBody.parse({ code: 'WARE_HOUSE2', name: 'Sklad', sortOrder: 4 })).toMatchObject({ sortOrder: 4 });
   });
 
+  it('takes the sub-location rule as a boolean and leaves it out when none is given', () => {
+    expect(createLocationTypeBody.parse({ code: 'PLANT', name: 'Závod', allowsSubLocations: true })).toMatchObject({ allowsSubLocations: true });
+    expect(createLocationTypeBody.parse({ code: 'PLANT', name: 'Závod' })).not.toHaveProperty('allowsSubLocations');
+    expect(createLocationTypeBody.safeParse({ code: 'PLANT', name: 'Závod', allowsSubLocations: 'yes' }).success).toBe(false);
+  });
+
   it.each(['kiosk', 'Kiosek', '1KIOSK', 'KIO SK', '', 'A'.repeat(21)])('rejects the code %j', (code) => {
     expect(createLocationTypeBody.safeParse({ code, name: 'X' }).success).toBe(false);
   });
@@ -23,6 +29,10 @@ describe('updateLocationTypeBody', () => {
     expect(updateLocationTypeBody.parse({ version: 1, name: 'Stánek' })).toEqual({ version: 1, name: 'Stánek' });
     expect(updateLocationTypeBody.safeParse({ version: 1 }).success).toBe(false);
     expect(updateLocationTypeBody.safeParse({ name: 'X' }).success).toBe(false);
+  });
+
+  it('can change the sub-location rule alone', () => {
+    expect(updateLocationTypeBody.parse({ version: 2, allowsSubLocations: false })).toEqual({ version: 2, allowsSubLocations: false });
   });
 
   it('does not let the code change', () => {

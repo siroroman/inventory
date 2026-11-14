@@ -239,6 +239,13 @@
       "when": 1794662552748,
       "tag": "0033_shared_accounting_number",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794687889075,
+      "tag": "0034_location_type_allows_sub_locations",
+      "breakpoints": true
     }
   ]
 }

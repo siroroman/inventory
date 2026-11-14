@@ -20,8 +20,22 @@ describe('location_types', () => {
     ]);
   });
 
-  it('can be extended with a new row', async () => {
-    await t().app.insert(locationTypes).values({ code: 'OFFICE', name: 'Kancelář', sortOrder: 5 });
+  it('allow sub-locations for the headquarters and a site, not for a store or a warehouse', async () => {
+    const rows = await t().app.select({ code: locationTypes.code, allows: locationTypes.allowsSubLocations }).from(locationTypes);
+    expect(Object.fromEntries(rows.map((row) => [row.code, row.allows]))).toEqual({
+      HQ: true,
+      STORE: false,
+      SITE: true,
+      WAREHOUSE: false,
+    });
+  });
+
+  it('can be extended with a new row, which does not allow sub-locations unless it says so', async () => {
+    const [office] = await t()
+      .app.insert(locationTypes)
+      .values({ code: 'OFFICE', name: 'Kancelář', sortOrder: 5 })
+      .returning({ allows: locationTypes.allowsSubLocations });
+    expect(office?.allows).toBe(false);
   });
 
   it.each([

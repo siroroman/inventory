@@ -297,6 +297,33 @@ describe('location form: choosing the parent', () => {
   });
 });
 
+describe('location form: editing a shop', () => {
+  it('offers no parent to choose, since a shop is not part of the tree, but still the type', async () => {
+    const shop = location({ id: hq.id, name: 'Prodejna Cheb', type: { ...ref('STORE', 'Prodejna'), id: types[1]!.id }, allowsSubLocations: false, childCount: 0 });
+    api({
+      [`GET /api/v1/locations/${hq.id}`]: () => jsonResponse(shop),
+      [`GET /api/v1/locations/${hq.id}/items`]: () => page([]),
+    });
+    renderApp(`/locations/${hq.id}/edit`);
+
+    expect(await screen.findByLabelText('Typ')).toHaveValue(types[1]!.id);
+    expect(screen.queryByText('Nadřazená lokalita')).not.toBeInTheDocument();
+  });
+});
+
+describe('location form: editing a sub-location under a shop', () => {
+  it('still offers the parent, so it can be read and moved', async () => {
+    const back = location({ id: floor.id, name: 'Zadní sklad', type: null, parentId: hq.id, path: [hq, floor], allowsSubLocations: false, childCount: 0 });
+    api({
+      [`GET /api/v1/locations/${floor.id}`]: () => jsonResponse(back),
+      [`GET /api/v1/locations/${floor.id}/items`]: () => page([]),
+    });
+    renderApp(`/locations/${floor.id}/edit`);
+
+    expect(await screen.findByText('Nadřazená lokalita')).toBeInTheDocument();
+  });
+});
+
 describe('location form: editing', () => {
   const top = location({ id: hq.id, name: 'Centrála Praha', type: ref('HQ', 'Centrála'), address: 'Vinohradská 12', note: 'Stará poznámka' });
   top.type.id = types[0]!.id;

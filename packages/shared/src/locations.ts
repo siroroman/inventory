@@ -53,6 +53,11 @@ export const locationSchema = z.object({
   note: z.string().nullable(),
   /** From the top-level location down to this one, itself included. */
   path: z.array(codeRef),
+  /**
+   * Whether this location may be divided into sub-locations: the flag of the type of the top-level
+   * location it sits under. The SPA shows sub-locations only where it is true (or some exist).
+   */
+  allowsSubLocations: z.boolean(),
   /** Active items in this location and everything below it. */
   itemCount: z.number().int().min(0),
   /** Active direct sub-locations. */

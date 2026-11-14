@@ -34,8 +34,11 @@ export const locationRepos = (db: DbExecutor): LocationRepos => ({
 /** `repos` serves reads; every write runs through `transact` together with its audit entry. */
 export type LocationDeps = { repos: LocationRepos; transact: Transact<LocationRepos> };
 
-/** A location with its path from the top (itself included) and its subtree counts. */
-export type LocationSummary = LocationWithType & SubtreeCounts & { path: PathSegment[] };
+/**
+ * A location with its path from the top (itself included) and its subtree counts. `allowsSubLocations`
+ * is the flag of the type of the top-level location it sits under, so a floor and a room carry it too.
+ */
+export type LocationSummary = LocationWithType & SubtreeCounts & { path: PathSegment[]; allowsSubLocations: boolean };
 
 /** The contacts of one location above the one shown. */
 export type InheritedContacts = { location: PathSegment; contacts: LocationContact[] };
@@ -116,13 +119,18 @@ function toFilter({ parentId, q, withSubLocations, archived }: LocationQuery): L
   return withSubLocations ? { q, withSubLocations } : { q };
 }
 
-/** Adds the path and subtree counts. Takes the repos to read from, so a write can do it in its transaction. */
+/** Adds the path, subtree counts and sub-location rule. Takes the repos to read from, so a write can do it in its transaction. */
 async function summarize(r: LocationRepos, rows: LocationWithType[]): Promise<LocationSummary[]> {
   const ids = rows.map((row) => row.id);
-  const [paths, counts] = await Promise.all([r.locations.findPaths(ids), r.locations.countSubtree(ids)]);
+  const [paths, counts, allowed] = await Promise.all([
+    r.locations.findPaths(ids),
+    r.locations.countSubtree(ids),
+    r.locations.findAllowsSubLocations(ids),
+  ]);
   return rows.map((row) => ({
     ...row,
     path: paths.get(row.id) ?? [],
+    allowsSubLocations: allowed.get(row.id) ?? false,
     ...(counts.get(row.id) ?? { itemCount: 0, childCount: 0 }),
   }));
 }
@@ -271,10 +279,10 @@ export function createLocationService({ repos, transact }: LocationDeps) {
 
 export type LocationService = ReturnType<typeof createLocationService>;
 
-export type CreateLocationTypeInput = { code: string; name: string; sortOrder?: number };
+export type CreateLocationTypeInput = { code: string; name: string; sortOrder?: number; allowsSubLocations?: boolean };
 export type UpdateLocationTypeInput = Partial<CreateLocationTypeInput> & { version: number };
 
-const TYPE_AUDITED = ['code', 'name', 'sortOrder'] as const;
+const TYPE_AUDITED = ['code', 'name', 'sortOrder', 'allowsSubLocations'] as const;
 
 /** Location types are read by everyone and managed by admins only. */
 export function createLocationTypeService({ repos, transact }: LocationDeps) {

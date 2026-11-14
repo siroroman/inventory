@@ -15,6 +15,8 @@ export function location(over: Record<string, unknown> = {}) {
     address: 'Vinohradská 12, Praha',
     note: null,
     path: [ref('LOC-001', 'Centrála Praha')],
+    // Like the headquarters it stands for; a test of a shop passes `false`.
+    allowsSubLocations: true,
     itemCount: 38,
     childCount: 4,
     contacts: [],
