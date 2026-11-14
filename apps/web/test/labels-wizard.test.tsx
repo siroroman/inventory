@@ -24,6 +24,8 @@ const labelItem = (n: number, over: Record<string, unknown> = {}) => ({
   code: `INV-${String(n).padStart(5, '0')}`,
   name: `Položka ${n}`,
   path: 'Centrála Praha › Přízemí › Kuchyně',
+  // With an accounting number an item is chosen at the start; the tests that want the others say null.
+  accountingId: `73-${2023000 + n}`,
   ...over,
 });
 
@@ -58,7 +60,7 @@ const stored = (over: Record<string, unknown> = {}) =>
     'labels-wizard',
     JSON.stringify({
       location: { id: praha.id, code: 'LOC-004', name: 'Přízemí', path: 'Centrála Praha › Přízemí', itemCount: 3 },
-      excluded: [],
+      toggled: [],
       added: [],
       ...over,
     }),
@@ -138,7 +140,7 @@ describe('labels wizard: step 1, the location', () => {
 
   it('asks before another location replaces choices made in step 2', async () => {
     api();
-    stored({ excluded: [inLocation[0]!.id] });
+    stored({ toggled: [inLocation[0]!.id] });
     renderApp(`/?tab=labels&locationId=${praha.id}`);
 
     await userEvent.click(await screen.findByRole('button', { name: 'Změnit' }));
@@ -149,14 +151,14 @@ describe('labels wizard: step 1, the location', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Zrušit' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     // Nothing changed: the choices are still there.
-    expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).excluded).toHaveLength(1);
+    expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).toggled).toHaveLength(1);
 
     await userEvent.click(screen.getByRole('button', { name: /Prodejna Brno/ }));
     await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Změnit lokalitu' }));
     await waitFor(() => {
       const state = JSON.parse(sessionStorage.getItem('labels-wizard')!);
       expect(state.location.id).toBe(brno.id);
-      expect(state.excluded).toEqual([]);
+      expect(state.toggled).toEqual([]);
     });
   });
 
@@ -245,7 +247,7 @@ describe('labels wizard: step 2, the items', () => {
 
     await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Váha' }));
     expect(screen.getByText('Vybráno 2 z 3')).toBeInTheDocument();
-    expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).excluded).toEqual([inLocation[2]!.id]);
+    expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).toggled).toEqual([inLocation[2]!.id]);
 
     await userEvent.click(screen.getByRole('button', { name: 'Zrušit výběr' }));
     expect(screen.getByText('Vybráno 0 z 3')).toBeInTheDocument();
@@ -254,6 +256,131 @@ describe('labels wizard: step 2, the items', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Vybrat vše' }));
     expect(screen.getByText('Vybráno 3 z 3')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeEnabled();
+  });
+
+  describe('the accountant\'s items', () => {
+    // Two fridges of one asset share the number; the kettle and the table have none.
+    const fridgeA = labelItem(1, { name: 'Lednice A', accountingId: '69-1134' });
+    const fridgeB = labelItem(2, { name: 'Lednice B', accountingId: '69-1134' });
+    const kettle = labelItem(3, { name: 'Konvice', accountingId: null });
+    const table = labelItem(4, { name: 'Stůl', accountingId: null });
+    const mixed = [fridgeA, fridgeB, kettle, table];
+    const rowOf = (name: string) =>
+      within(screen.getByRole('list', { name: 'Položky k označení' }))
+        .getAllByRole('listitem')
+        .find((li) => li.textContent?.includes(name))!;
+
+    async function open2() {
+      api({ items: mixed });
+      stored();
+      open();
+      await screen.findByText('Vybráno 2 z 4');
+    }
+
+    it('chooses only the items with an accounting number at the start, and shows the number', async () => {
+      await open2();
+      expect(rowOf('Lednice A')).toHaveTextContent('Účetnictví: 69-1134');
+      expect(rowOf('Lednice B')).toHaveTextContent('Účetnictví: 69-1134');
+      expect(rowOf('Konvice')).not.toHaveTextContent('Účetnictví');
+      expect(screen.getByRole('checkbox', { name: 'Označit Lednice A' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Označit Lednice B' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Označit Konvice' })).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Označit Stůl' })).not.toBeChecked();
+    });
+
+    it('turns one of the others on and one of the accountant\'s off, and remembers only those turns', async () => {
+      await open2();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Konvice' }));
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Lednice B' }));
+      expect(screen.getByText('Vybráno 2 z 4')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Označit Konvice' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Označit Lednice B' })).not.toBeChecked();
+      expect(JSON.parse(sessionStorage.getItem('labels-wizard')!).toggled.sort()).toEqual([fridgeB.id, kettle.id].sort());
+    });
+
+    it('has a button for all, for the accountant\'s items and for none', async () => {
+      await open2();
+      await userEvent.click(screen.getByRole('button', { name: 'Vybrat vše' }));
+      expect(screen.getByText('Vybráno 4 z 4')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Zrušit výběr' }));
+      expect(screen.getByText('Vybráno 0 z 4')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Vybrat z účetnictví' }));
+      expect(screen.getByText('Vybráno 2 z 4')).toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: 'Označit Lednice A' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Označit Konvice' })).not.toBeChecked();
+    });
+
+    it('lists everything, only the accountant\'s items or only the others, with counts, and keeps the choices', async () => {
+      await open2();
+      const view = (name: string) => screen.getByRole('radio', { name });
+      expect(view('Všechny (4)')).toBeChecked();
+      expect(view('Z účetnictví (2)')).toBeInTheDocument();
+      expect(view('Ostatní (2)')).toBeInTheDocument();
+
+      await userEvent.click(view('Ostatní (2)'));
+      expect(screen.getByText('Seznam položek (2)')).toBeInTheDocument();
+      expect(rowOf('Konvice')).toBeDefined();
+      expect(screen.queryByRole('checkbox', { name: 'Označit Lednice A' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Označit Konvice' }));
+
+      await userEvent.click(view('Z účetnictví (2)'));
+      expect(screen.getByText('Seznam položek (2)')).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: 'Označit Konvice' })).not.toBeInTheDocument();
+      // The summary counts every item, whichever view is shown.
+      expect(screen.getByText('Vybráno 3 z 4')).toBeInTheDocument();
+
+      await userEvent.click(view('Všechny (4)'));
+      expect(screen.getByRole('checkbox', { name: 'Označit Konvice' })).toBeChecked();
+    });
+
+    it('says so when a view has no items', async () => {
+      api({ items: [fridgeA, fridgeB] });
+      stored();
+      open();
+      await screen.findByText('Vybráno 2 z 2');
+      await userEvent.click(screen.getByRole('radio', { name: 'Ostatní (0)' }));
+      expect(screen.getByText('V tomto seznamu nejsou žádné další položky.')).toBeInTheDocument();
+    });
+
+    it('starts with nothing chosen in a location where no item has a number, and "Vybrat vše" chooses them', async () => {
+      api({ items: [kettle, table] });
+      stored();
+      open();
+      await screen.findByText('Vybráno 0 z 2');
+      expect(screen.getByRole('button', { name: 'Pokračovat' })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: 'Vybrat vše' }));
+      expect(screen.getByText('Vybráno 2 z 2')).toBeInTheDocument();
+    });
+
+    it('shows the number in a column of the table, and a dash without one', async () => {
+      stubWideScreen(true);
+      api({ items: mixed });
+      stored();
+      open();
+      const grid = await screen.findByRole('table');
+      const cells = (name: string) =>
+        within(within(grid).getAllByRole('row').find((r) => r.textContent?.includes(name))!)
+          .getAllByRole('cell')
+          .map((c) => c.textContent);
+      expect(cells('Lednice A')).toContain('69-1134');
+      expect(cells('Konvice')).toContain('—');
+    });
+
+    it('lists an item added by hand under the view its number belongs to, chosen', async () => {
+      const bare = labelItem(60, { name: 'Notebook', code: 'INV-00060', path: 'Jinde', accountingId: null });
+      api({ items: mixed, search: () => [bare] });
+      stored();
+      open();
+      await screen.findByText('Vybráno 2 z 4');
+      await userEvent.type(screen.getByRole('combobox', { name: 'Přidat další položky' }), 'notebook');
+      await userEvent.click(await screen.findByRole('option', { name: /Notebook/ }));
+      expect(screen.getByText('Vybráno 3 z 5')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Z účetnictví (2)' }));
+      expect(screen.queryByRole('checkbox', { name: 'Označit Notebook' })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole('radio', { name: 'Ostatní (3)' }));
+      expect(screen.getByRole('checkbox', { name: 'Označit Notebook' })).toBeChecked();
+    });
   });
 
   it('goes back to step 1 and on to step 3', async () => {
@@ -323,6 +450,7 @@ describe('labels wizard: step 2, the items', () => {
       'Položky k označení',
       'Název',
       'ID',
+      'Účetnictví',
       'Umístění',
       '',
     ]);

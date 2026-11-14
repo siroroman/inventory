@@ -818,7 +818,15 @@
       "summaryLimit": "Vybráno {{selected}} z {{total}} – nejvýše {{max}} štítků",
       "truncated": "Zobrazeno prvních {{shown}} z {{total}} položek. Vyberte menší lokalitu nebo další položky přidejte vyhledáním.",
       "selectAll": "Vybrat vše",
+      "selectAccounting": "Vybrat z účetnictví",
       "selectNone": "Zrušit výběr",
+      "view": "Zobrazit",
+      "view_all": "Všechny ({{count}})",
+      "view_accounting": "Z účetnictví ({{count}})",
+      "view_other": "Ostatní ({{count}})",
+      "accountingLine": "Účetnictví: {{id}}",
+      "empty_accounting": "V tomto seznamu nejsou žádné položky z účetnictví.",
+      "empty_other": "V tomto seznamu nejsou žádné další položky.",
       "listLabel": "Položky k označení",
       "listHeading": "Seznam položek ({{total}})",
       "shown": "Zobrazeno {{shown}} z {{total}}",
@@ -826,6 +834,7 @@
       "columns": {
         "name": "Název",
         "code": "ID",
+        "accounting": "Účetnictví",
         "location": "Umístění"
       },
       "inLocation": "přímo v lokalitě",
