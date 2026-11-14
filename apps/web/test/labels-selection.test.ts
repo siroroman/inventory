@@ -73,6 +73,16 @@ describe('toggledFor', () => {
   });
 });
 
+describe('a row without the accountingId field', () => {
+  it('counts as having no number, so an older answer chooses nothing by itself', () => {
+    const { accountingId: _drop, ...bare } = row('INV-00001');
+    const listed = [bare as unknown as ReturnType<typeof row>];
+    expect(chosenRows(listed, emptySelection)).toEqual([]);
+    expect(inView(listed[0]!, 'other')).toBe(true);
+    expect(inView(listed[0]!, 'accounting')).toBe(false);
+  });
+});
+
 describe('inView', () => {
   it('lists everything, the items with an accounting number, or those without one', () => {
     const withNumber = row('INV-00001');

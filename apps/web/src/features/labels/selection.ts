@@ -20,8 +20,11 @@ export type Selection = { location: ChosenLocation | null; toggled: string[]; ad
 
 export const emptySelection: Selection = { location: null, toggled: [], added: [] };
 
+/** Whether the item has an accounting number (a typeof check: a row from an older answer has none). */
+export const hasAccountingId = (row: LabelRow) => typeof row.accountingId === 'string';
+
 /** The accountant's items are what gets a label unless the user decides otherwise. */
-export const isChosenByDefault = (row: LabelRow) => row.accountingId !== null;
+export const isChosenByDefault = hasAccountingId;
 
 /** Whether an item of the location will get a label. */
 export const isChosen = (row: LabelRow, selection: Selection) =>
@@ -37,7 +40,7 @@ export const toggledFor = (listed: LabelRow[], wanted: (row: LabelRow) => boolea
 /** Which rows step 2 lists: everything, those with an accounting number, or those without one. */
 export type ItemView = 'all' | 'accounting' | 'other';
 export const inView = (row: LabelRow, view: ItemView) =>
-  view === 'all' || (view === 'accounting') === (row.accountingId !== null);
+  view === 'all' || (view === 'accounting') === hasAccountingId(row);
 
 // Numbers inside an ID compare by value, like the list from the API: INV-9-100 before INV-73-2023016.
 const byCode = new Intl.Collator('cs', { numeric: true });

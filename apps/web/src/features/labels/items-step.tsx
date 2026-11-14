@@ -14,6 +14,7 @@ import { QuickAdd } from './quick-add';
 import {
   type AddedRow,
   type ChosenLocation,
+  hasAccountingId,
   inView,
   isChosen,
   type ItemView,
@@ -156,7 +157,7 @@ function TableRows({ rows }: { rows: RowProps[] }) {
               )}
             </td>
             <td className="px-2 py-3">{row.code}</td>
-            <td className="px-2 py-3">{row.accountingId ?? <span className="text-muted-foreground">—</span>}</td>
+            <td className="px-2 py-3">{row.accountingId ?? <span className="text-muted-foreground">{t('common.empty')}</span>}</td>
             <td className="px-2 py-3 break-words">
               <Place place={place} />
             </td>
@@ -274,7 +275,7 @@ export function ItemsStep({ location, listed, selection, chosen, onChange }: Pro
               <Button variant="link" onClick={() => chooseWith(() => true)}>
                 {t('labels.items.selectAll')}
               </Button>
-              <Button variant="link" onClick={() => chooseWith((row) => row.accountingId !== null)}>
+              <Button variant="link" onClick={() => chooseWith(hasAccountingId)}>
                 {t('labels.items.selectAccounting')}
               </Button>
               <Button variant="link" onClick={() => chooseWith(() => false)}>
