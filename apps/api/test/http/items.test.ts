@@ -8,7 +8,7 @@ import {
 } from '@inventory/shared';
 import { and, eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
-import { auditLog, inventoryItems, locations, manufacturers } from '../../src/db/schema/index.ts';
+import { auditLog, inventoryItems, itemExternalIds, locations, manufacturers } from '../../src/db/schema/index.ts';
 import { createTestApp } from '../helpers/app.ts';
 import { useTestDb } from '../helpers/db.ts';
 import { insertItem, insertLocation, insertManufacturer } from '../helpers/factories.ts';
@@ -198,10 +198,33 @@ describe('GET /items/labels', () => {
     const body = await expectJson(await read.get(`/items/labels?locationId=${praha.id}`), 200, itemLabelsSchema);
     expect(body.total).toBe(3);
     expect(body.items).toEqual([
-      { id: vaha.id, code: vaha.code, name: 'Váha', path: 'Praha › Kuchyně' },
-      { id: expect.any(String), code: expect.any(String), name: 'Čistička', path: 'Praha › Kuchyně' },
-      { id: stul.id, code: stul.code, name: 'Stůl', path: 'Praha' },
+      { id: vaha.id, code: vaha.code, name: 'Váha', path: 'Praha › Kuchyně', accountingId: null },
+      { id: expect.any(String), code: expect.any(String), name: 'Čistička', path: 'Praha › Kuchyně', accountingId: null },
+      { id: stul.id, code: stul.code, name: 'Stůl', path: 'Praha', accountingId: null },
     ]);
+  });
+
+  it('gives each item its accounting number, whatever the case of the source, and null without one', async () => {
+    const { read } = await setup();
+    const loc = await insertLocation(db().app, { name: 'Arkády' });
+    const withNumber = await insertItem(db().app, { name: 'Lednice A', locationId: loc.id });
+    const sameNumber = await insertItem(db().app, { name: 'Lednice B', locationId: loc.id });
+    const other = await insertItem(db().app, { name: 'Konvice', locationId: loc.id });
+    const bare = await insertItem(db().app, { name: 'Stůl', locationId: loc.id });
+    await db().app.insert(itemExternalIds).values([
+      { itemId: withNumber.id, source: 'Účetnictví', value: '69-1134' },
+      { itemId: withNumber.id, source: 'Revize ILKO', value: 'S 1070' },
+      { itemId: sameNumber.id, source: 'ÚČETNICTVÍ', value: '69-1134' },
+      { itemId: other.id, source: 'Revize ILKO', value: 'S 1071' },
+    ]);
+
+    const body = await expectJson(await read.get(`/items/labels?locationId=${loc.id}`), 200, itemLabelsSchema);
+    const numbers = Object.fromEntries(body.items.map((i) => [i.name, i.accountingId]));
+    expect(numbers).toEqual({ 'Lednice A': '69-1134', 'Lednice B': '69-1134', Konvice: null, Stůl: null });
+    expect(bare.id).toBeDefined();
+    // The quick add (?q=) answers the same field.
+    const found = await expectJson(await read.get('/items/labels?q=69-1134'), 200, itemLabelsSchema);
+    expect(found.items.map((i) => i.accountingId)).toEqual(['69-1134', '69-1134']);
   });
 
   it('searches the whole inventory with ?q=, ignoring case and diacritics, and shows no path without a location', async () => {

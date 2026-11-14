@@ -44,6 +44,6 @@ export function toItemDto(row: ItemDetail): ItemDto {
 }
 
 /** The path is the location names from the top, joined as breadcrumbs are shown. */
-export function toItemLabelDto({ id, code, name, path }: ItemLabel): ItemLabelDto {
-  return { id, code, name, path: path.map((segment) => segment.name).join(' › ') };
+export function toItemLabelDto({ id, code, name, path, accountingId }: ItemLabel): ItemLabelDto {
+  return { id, code, name, path: path.map((segment) => segment.name).join(' › '), accountingId };
 }
