@@ -1,0 +1,3 @@
+DROP INDEX "item_external_ids_source_value_key";--> statement-breakpoint
+CREATE UNIQUE INDEX "item_external_ids_item_source_value_key" ON "item_external_ids" USING btree ("item_id",lower("source"),lower("value"));--> statement-breakpoint
+CREATE UNIQUE INDEX "item_external_ids_source_value_key" ON "item_external_ids" USING btree (lower("source"),lower("value")) WHERE lower("item_external_ids"."source") <> lower('Účetnictví');

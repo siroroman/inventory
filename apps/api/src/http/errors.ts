@@ -86,6 +86,7 @@ export const statusByCode: Record<ErrorCode, ProblemStatus> = {
  */
 export const constraintErrors: Record<string, ErrorCode> = {
   item_external_ids_source_value_key: 'duplicate_external_id',
+  item_external_ids_item_source_value_key: 'duplicate_external_id',
   location_types_code_key: 'duplicate_location_type',
   locations_code_key: 'duplicate_location_code',
   items_code_key: 'duplicate_item_code',

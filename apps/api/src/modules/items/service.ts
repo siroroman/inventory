@@ -1,4 +1,5 @@
 import { type Actor, assertRole } from '../../auth/roles.ts';
+import { isSharedSource } from '../../db/accounting.ts';
 import type { DbExecutor } from '../../db/client.ts';
 import type { Page } from '../../db/pagination.ts';
 import type { Transact } from '../../db/transaction.ts';
@@ -119,9 +120,15 @@ function assertDistinct(ids: ExternalIdInput[]): void {
   }
 }
 
-/** Names the clashing pairs and the items that own them; the unique index only catches a race. */
+/**
+ * Names the clashing pairs and the items that own them; the unique index only catches a race.
+ * A shared source (the accounting number of several pieces) never clashes with another item.
+ */
 async function assertExternalIdsFree(r: ItemRepos, ids: ExternalIdInput[], exceptItemId?: string): Promise<void> {
-  const conflicts = await r.items.findExternalIdClashes(ids, exceptItemId);
+  const conflicts = await r.items.findExternalIdClashes(
+    ids.filter((id) => !isSharedSource(id.source)),
+    exceptItemId,
+  );
   if (conflicts.length > 0) throw new DomainError('duplicate_external_id', { conflicts });
 }
 

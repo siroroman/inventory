@@ -159,6 +159,7 @@ describe('domain errors', () => {
 describe('database errors', () => {
   it.each([
     ['item_external_ids_source_value_key', 409, 'duplicate_external_id'],
+    ['item_external_ids_item_source_value_key', 409, 'duplicate_external_id'],
     ['location_types_code_key', 409, 'duplicate_location_type'],
     ['location_types_name_key', 409, 'duplicate_location_type'],
     ['locations_code_key', 409, 'duplicate_location_code'],

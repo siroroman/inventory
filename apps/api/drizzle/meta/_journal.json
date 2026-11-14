@@ -232,6 +232,13 @@
       "when": 1794423449574,
       "tag": "0032_inventory_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794662552748,
+      "tag": "0033_shared_accounting_number",
+      "breakpoints": true
     }
   ]
 }

@@ -125,6 +125,31 @@ describe('item service', () => {
       expect(store.state.items).toEqual([]);
     });
 
+    it('lets the pieces of one asset share its accounting number, case ignored', async () => {
+      const { store, create } = await setup();
+      await create('Lednice 1', { externalIds: [{ source: 'Účetnictví', value: '69-1134' }] });
+      await create('Lednice 2', {
+        externalIds: [
+          { source: 'účetnictví', value: '69-1134' },
+          { source: 'Revize ILKO', value: 'S 1070' },
+        ],
+      });
+      expect(store.state.externalIds.filter((e) => e.value === '69-1134')).toHaveLength(2);
+    });
+
+    it('still rejects one accounting number twice in one item', async () => {
+      const { store, create } = await setup();
+      await expect(
+        create('Lednice', {
+          externalIds: [
+            { source: 'Účetnictví', value: '69-1134' },
+            { source: 'Účetnictví', value: '69-1134' },
+          ],
+        }),
+      ).rejects.toMatchObject({ code: 'duplicate_external_id', details: { conflicts: [{ itemCode: null }] } });
+      expect(store.state.items).toEqual([]);
+    });
+
     it('names the external ID another item has, and that item, before writing anything', async () => {
       const { store, create } = await setup();
       const first = await create('Konvektomat', { externalIds: [{ source: 'Elektrikář', value: 'EL-4821' }] });
@@ -521,6 +546,48 @@ describe('item service', () => {
       expect(store.state.items.find((i) => i.id === item.id)).toMatchObject({ name: 'Konvektomat', version: 1 });
       expect(store.state.externalIds).toHaveLength(1);
       expect(store.state.audit).toHaveLength(auditBefore);
+    });
+
+    it('adds an accounting number another item already has (one more piece of the asset)', async () => {
+      const { store, service, create } = await setup();
+      await create('Lednice 1', { externalIds: [{ source: 'Účetnictví', value: '69-1134' }] });
+      const second = await create('Lednice', { externalIds: [{ source: 'Revize ILKO', value: 'S 1070' }] });
+
+      await service.update(writer, second.id, {
+        version: 1,
+        externalIds: [
+          { source: 'Revize ILKO', value: 'S 1070' },
+          { source: 'Účetnictví', value: '69-1134' },
+        ],
+      });
+
+      expect(store.state.externalIds.filter((e) => e.value === '69-1134').map((e) => e.itemId)).toContain(second.id);
+    });
+
+    it('lets a shared accounting number through but still names an ordinary ID another item has', async () => {
+      const { store, service, create } = await setup();
+      await create('Lednice 1', {
+        externalIds: [
+          { source: 'Účetnictví', value: '69-1134' },
+          { source: 'Revize ILKO', value: 'S 1070' },
+        ],
+      });
+      const second = await create('Lednice 2');
+      const before = store.state.externalIds.length;
+
+      await expect(
+        service.update(writer, second.id, {
+          version: 1,
+          externalIds: [
+            { source: 'Účetnictví', value: '69-1134' },
+            { source: 'revize ilko', value: 's 1070' },
+          ],
+        }),
+      ).rejects.toMatchObject({
+        code: 'duplicate_external_id',
+        details: { conflicts: [{ source: 'Revize ILKO', value: 'S 1070' }] },
+      });
+      expect(store.state.externalIds).toHaveLength(before);
     });
 
     it('reports a stale version as a conflict and writes nothing', async () => {
